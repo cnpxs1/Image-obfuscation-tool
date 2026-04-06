@@ -3035,6 +3035,15 @@
         </div>
     `;
     
+        // 缓存 DOM 引用
+        const infoDiv = item.querySelector('.image-info');
+        imageData.domCache = {
+            fileName: infoDiv.querySelector('.text-multiline'),
+            sizeRow: infoDiv.querySelector('.image-info-row'),
+            fileSize: infoDiv.querySelector('.file-size'),
+            statusBadge: infoDiv.querySelector('.status-badge')
+        };
+    
         // 添加事件监听器
         const checkbox = item.querySelector('.select-checkbox');
         checkbox.addEventListener('click', (event) => {
@@ -3092,69 +3101,34 @@
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) return;
     
-        const infoDiv = document.getElementById(`info-${imageId}`);
-        if (infoDiv) {
-            // 获取或创建文件名元素（仅在需要时创建）
-            let fileNameDiv = infoDiv.querySelector('.text-multiline');
-            if (!fileNameDiv) {
-                fileNameDiv = document.createElement('div');
-                fileNameDiv.className = 'text-multiline';
-                fileNameDiv.style.fontWeight = 'bold';
-                infoDiv.insertBefore(fileNameDiv, infoDiv.firstChild);
-            }
-                
-            // 更新尺寸信息
-            const sizeRow = infoDiv.querySelector('.image-info-row');
-            let targetElementForFileSize; // 用于确定文件大小元素的插入位置
+        const cache = imageData.domCache;
+        if (!cache) return;
+    
+        // 更新尺寸信息
+        const hasValidSize = imageData.hasOwnProperty('width') && 
+                            imageData.hasOwnProperty('height') && 
+                            typeof imageData.width === 'number' && 
+                            typeof imageData.height === 'number' &&
+                            imageData.width > 0 && 
+                            imageData.height > 0;
+        
+        if (cache.sizeRow) {
+            cache.sizeRow.innerHTML = `<span>${hasValidSize ? 
+                `${imageData.width}×${imageData.height}` : 
+                '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
+        }
             
-            // 检查尺寸数据是否有效
-            const hasValidSize = imageData.hasOwnProperty('width') && 
-                                imageData.hasOwnProperty('height') && 
-                                typeof imageData.width === 'number' && 
-                                typeof imageData.height === 'number' &&
-                                imageData.width > 0 && 
-                                imageData.height > 0;
+        // 更新格式和大小信息
+        if (cache.fileSize) {
+            cache.fileSize.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
+        }
             
-            if (sizeRow) {
-                sizeRow.innerHTML = `<span>${hasValidSize ? 
-                    `${imageData.width}×${imageData.height}` : 
-                    '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
-                targetElementForFileSize = sizeRow;
-            } else {
-                const newRow = document.createElement('div');
-                newRow.className = 'image-info-row';
-                newRow.innerHTML = `<span>${hasValidSize ? 
-                    `${imageData.width}×${imageData.height}` : 
-                    '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
-                infoDiv.insertBefore(newRow, fileNameDiv.nextSibling);
-                targetElementForFileSize = newRow;
-            }
-                
-            // 更新格式和大小信息
-            const fileSizeDiv = infoDiv.querySelector('.file-size');
-            if (fileSizeDiv) {
-                fileSizeDiv.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
-            } else {
-                const newFileSizeDiv = document.createElement('div');
-                newFileSizeDiv.className = 'file-size';
-                newFileSizeDiv.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
-                infoDiv.insertBefore(newFileSizeDiv, targetElementForFileSize.nextSibling);
-            }
-                
-            // 更新状态徽章（基于 scrambleLevel）
-            let statusBadge = infoDiv.querySelector('.status-badge');
+        // 更新状态徽章（基于 scrambleLevel）
+        if (cache.statusBadge) {
             const newStatusText = getStatusText(imageData.scrambleLevel);
             const newStatusClass = getStatusClass(imageData.scrambleLevel);
-            
-            if (statusBadge) {
-                statusBadge.className = `status-badge ${newStatusClass}`;
-                statusBadge.textContent = newStatusText;
-            } else {
-                const newStatusBadge = document.createElement('div');
-                newStatusBadge.className = `status-badge ${newStatusClass}`;
-                newStatusBadge.textContent = newStatusText;
-                infoDiv.appendChild(newStatusBadge);
-            }
+            cache.statusBadge.className = `status-badge ${newStatusClass}`;
+            cache.statusBadge.textContent = newStatusText;
         }
     }
 
