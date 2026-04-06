@@ -3271,7 +3271,7 @@
      *
      * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
      */
-    async function clearAll() {
+    async function deleteSelectedImages() {
         if (isProcessing) {
             alert('正在处理中，请稍后...');
             return;
@@ -3633,7 +3633,7 @@
     // 按钮事件绑定
     document.getElementById('select-all').addEventListener('click', selectAll);
     document.getElementById('clear-selection').addEventListener('click', clearSelection);
-    document.getElementById('clear-all').addEventListener('click', clearAll);
+    document.getElementById('clear-all').addEventListener('click', deleteSelectedImages);
 
     // 处理按钮事件绑定
     document.getElementById('encrypt-btn').addEventListener('click', () => processBatch('encrypt'));
@@ -3828,52 +3828,6 @@
         
         document.body.appendChild(container);
         return container;
-    }
-
-    /**
-     * 在 Viewer.js 准备就绪后初始化查看器
-     * @param {Object} imageData - 图片数据
-     * @param {HTMLElement} container - 容器元素
-     * @param {string} targetImageId - 目标图片 ID
-     */
-    async function initializeViewerWhenReady(imageData, container, targetImageId) {
-        // 检查是否已被取消
-        if (previewCanceled) {
-            console.log('⏭️ 预览操作已被取消，跳过初始化');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
-            return;
-        }
-            
-        try {
-            await getViewerLoadPromise();
-                
-            // 再次检查取消状态
-            if (previewCanceled) {
-                console.log('⏭️ 预览操作已被取消，跳过 Viewer 初始化');
-                // 清理容器
-                if (container && container.parentNode) {
-                    container.parentNode.removeChild(container);
-                }
-                return;
-            }
-                
-            if (!isViewerAvailable()) {
-                throw new Error('Viewer.js 构造函数不可用');
-            }
-            await initializeViewerWithBestPractices(imageData, container, targetImageId);
-        } catch (error) {
-            // 检查是否因取消而产生的错误
-            if (previewCanceled) {
-                console.log('⏭️ 预览操作已被取消，忽略错误:', error.message);
-                return;
-            }
-                
-            console.error('❌ Viewer.js 初始化失败:', error);
-            await handleViewerInitializationFailure(container, imageData);
-        }
     }
 
     /**
