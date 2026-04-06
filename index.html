@@ -101,6 +101,34 @@
             white-space: nowrap;/* 禁止换行 */
         }
 
+        /* 气泡提示样式（统一样式） */
+        #cacheIndicator::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            white-space: normal;
+            max-width: 250px;
+            min-width: 150px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            line-height: 1.3;
+            display: none; /* 默认隐藏 */
+        }
+
+        /* PC端：鼠标悬停显示气泡 */
+        @media screen and (min-width: 769px) {
+            #cacheIndicator:hover::after {
+                display: block;
+            }
+        }
+
         /* 移动端适配 */
         @media screen and (max-width: 768px) {
             .main-content {
@@ -116,6 +144,12 @@
                 padding: 5px 8px;
                 max-width: 75px;
                 white-space: nowrap;/* 禁止换行 */
+                cursor: pointer; /* 允许点击 */
+            }
+            
+            /* 移动端：点击激活时显示气泡 */
+            #cacheIndicator.tooltip-active::after {
+                display: block;
             }
         }
 
@@ -1097,7 +1131,7 @@
 </head>
 <body>
 <!-- 缓存方案指示器 -->
-<div id="cacheIndicator" title="">加载中...</div>
+<div id="cacheIndicator">加载中...</div>
 
 <div class="main-content" style="text-align: center;">
     <h1>图片混淆工具</h1>
@@ -1668,6 +1702,9 @@
     // 全局存储实例
     const storage = new StorageAdapter();
     
+    /** @type {Object|null} 当前移动端气泡关闭监听器 */
+    let mobileTooltipListener = null;
+
     /**
      * 更新缓存方案指示器显示
      * @param {string} cacheType - 缓存类型
@@ -1677,11 +1714,48 @@
         if (indicator) {
             indicator.textContent = cacheType;
             indicator.style.display = 'block';
-            // 设置鼠标悬停时的描述
+            // 设置气泡提示数据
+            let tooltipText = '';
             if (cacheType === 'Cache API') {
-                indicator.title = '当前使用 Cache API 存储（性能更优）';
+                tooltipText = '当前使用 Cache API 存储（性能更优）';
             } else {
-                indicator.title = '当前使用 IndexedDB 存储';
+                tooltipText = '当前使用 IndexedDB 存储';
+            }
+            indicator.setAttribute('data-tooltip', tooltipText);
+            // 移除 PC 端原生 title 描述，统一使用气泡
+            indicator.removeAttribute('title');
+            
+            // 清理旧的监听器
+            if (mobileTooltipListener) {
+                document.removeEventListener('click', mobileTooltipListener);
+                mobileTooltipListener = null;
+            }
+            // 清理旧的 onclick
+            indicator.onclick = null;
+
+            // 移动端点击事件
+            if (window.innerWidth <= 768) {
+                indicator.onclick = function(e) {
+                    e.stopPropagation();
+                    // 切换气泡显示
+                    this.classList.toggle('tooltip-active');
+                    
+                    // 重新绑定全局点击监听，确保每次打开都能正确关闭
+                    if (mobileTooltipListener) {
+                        document.removeEventListener('click', mobileTooltipListener);
+                    }
+                    mobileTooltipListener = function closeTooltip(ev) {
+                        if (!indicator.contains(ev.target)) {
+                            indicator.classList.remove('tooltip-active');
+                            document.removeEventListener('click', mobileTooltipListener);
+                            mobileTooltipListener = null;
+                        }
+                    };
+                    // 使用 setTimeout 避免立即触发本次点击的全局监听
+                    setTimeout(() => {
+                        document.addEventListener('click', mobileTooltipListener);
+                    }, 0);
+                };
             }
         }
     }
