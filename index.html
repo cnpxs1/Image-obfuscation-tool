@@ -2556,65 +2556,67 @@
         // 通过 ImageBitmap 加载到 canvas
         const bitmap = await createImageBitmap(sourceBlob);
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        // 清除旧内容，避免透明图层残留
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
+        try {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            // 清除旧内容，避免透明图层残留
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
 
-        // 获取像素数据
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const totalPixels = canvas.width * canvas.height;
-        const curve = getCachedCurve(canvas.width, canvas.height);
-        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
-        const dstBuffer = getPixelBuffer(imgData.data.length);
-        const srcU32 = new Uint32Array(imgData.data.buffer);
-        const dstU32 = new Uint32Array(dstBuffer.buffer);
+            // 获取像素数据
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const totalPixels = canvas.width * canvas.height;
+            const curve = getCachedCurve(canvas.width, canvas.height);
+            const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+            const dstBuffer = getPixelBuffer(imgData.data.length);
+            const srcU32 = new Uint32Array(imgData.data.buffer);
+            const dstU32 = new Uint32Array(dstBuffer.buffer);
 
-        if (operation === 'encrypt') {
-            for (let i = 0; i < totalPixels; i++) {
-                const oldIdx = curve[i];
-                const newIdx = curve[(i + offset) % totalPixels];
-                dstU32[newIdx] = srcU32[oldIdx];
+            if (operation === 'encrypt') {
+                for (let i = 0; i < totalPixels; i++) {
+                    const oldIdx = curve[i];
+                    const newIdx = curve[(i + offset) % totalPixels];
+                    dstU32[newIdx] = srcU32[oldIdx];
+                }
+                // 混淆级别 +1
+                imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
+            } else if (operation === 'decrypt') {
+                for (let i = 0; i < totalPixels; i++) {
+                    const oldIdx = curve[i];
+                    const newIdx = curve[(i + offset) % totalPixels];
+                    dstU32[oldIdx] = srcU32[newIdx];
+                }
+                // 解混淆级别 -1
+                imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
+            } else if (operation === 'restore') {
+                dstBuffer.set(imgData.data);
+                // 还原操作：重置混淆级别为 0
+                imageData.scrambleLevel = 0;
             }
-            // 混淆级别 +1
-            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
-        } else if (operation === 'decrypt') {
-            for (let i = 0; i < totalPixels; i++) {
-                const oldIdx = curve[i];
-                const newIdx = curve[(i + offset) % totalPixels];
-                dstU32[oldIdx] = srcU32[newIdx];
-            }
-            // 解混淆级别 -1
-            imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
-        } else if (operation === 'restore') {
-            dstBuffer.set(imgData.data);
-            // 还原操作：重置混淆级别为 0
-            imageData.scrambleLevel = 0;
+
+            // 写回 canvas
+            const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
+            ctx.putImageData(newImageData, 0, 0);
+            releasePixelBuffer(dstBuffer);
+
+            // 生成新 Blob (PNG 格式存储)
+            const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            // 存储当前图片
+            await storage.set(`current_${imageData.id}`, newBlob);
+            
+            // 更新图片元数据（不修改尺寸，只更新格式和状态）
+            imageData.format = 'PNG';
+            imageData.processed = true;
+            imageData.size = newBlob.size; // 更新文件大小
+            
+            // 更新预览
+            await updateThumbnail(imageData.id, newBlob);
+            // 更新界面显示
+            updateImageInfo(imageData.id);
+        } finally {
+            // 释放 canvas
+            releaseCanvasToPool(canvas);
         }
-
-        // 写回 canvas
-        const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
-        ctx.putImageData(newImageData, 0, 0);
-        releasePixelBuffer(dstBuffer);
-
-        // 生成新 Blob (PNG 格式存储)
-        const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        // 存储当前图片
-        await storage.set(`current_${imageData.id}`, newBlob);
-        
-        // 更新图片元数据（不修改尺寸，只更新格式和状态）
-        imageData.format = 'PNG';
-        imageData.processed = true;
-        imageData.size = newBlob.size; // 更新文件大小
-        
-        // 更新预览
-        await updateThumbnail(imageData.id, newBlob);
-        // 更新界面显示
-        updateImageInfo(imageData.id);
-
-        // 释放 canvas
-        releaseCanvasToPool(canvas);
     }
 
     /**
@@ -3783,8 +3785,10 @@
                     console.log(`✅ [索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
-                        console.warn(`⏰ 图片 ${imgData.name} 加载超时`);
-                        reject(new Error(`图片加载超时：${imgData.name}`));
+                        console.warn(`⏰ 图片 ${imgData.name} 加载超时，使用占位图`);
+                        // 创建占位图并 resolve，确保数组完整
+                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
+                        resolve(img);
                     }, 5000);
 
                     img.onload = () => {
@@ -4054,17 +4058,12 @@
         // 检查是否因取消而失败
         if (previewCanceled) {
             console.log('⏭️ 预览操作已被取消，跳过失败处理');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
+            cleanupViewerResources(container);
             return;
         }
             
-        // 清理容器
-        if (container && container.parentNode) {
-            container.parentNode.removeChild(container);
-        }
+        // 清理容器并释放 Blob URL
+        cleanupViewerResources(container);
             
         // 启用基础图片查看器作为兜底方案
         console.log('ℹ️ 启用基础图片查看器作为替代方案');
