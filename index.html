@@ -2106,6 +2106,7 @@
     }
     
     function releasePixelBuffer(buffer) {
+        if (!buffer || !(buffer instanceof Uint8ClampedArray)) return;
         const MAX_POOL_SIZE = 5;          // 限制池大小，避免无限增长
         if (pixelBufferPool.length >= MAX_POOL_SIZE) {
             return; // 丢弃，等待GC
