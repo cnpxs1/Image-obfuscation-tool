@@ -1803,6 +1803,19 @@
                         document.addEventListener('click', mobileTooltipListener);
                     }, 0);
                 };
+
+                // 移动端滑动页面时关闭气泡
+                let startY = 0;
+                const closeOnScroll = (e) => {
+                    if (!indicator.classList.contains('tooltip-active')) return;
+                    if (e.type === 'touchstart') {
+                        startY = e.touches[0].clientY;
+                    } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                        indicator.classList.remove('tooltip-active');
+                    }
+                };
+                document.addEventListener('touchstart', closeOnScroll, { passive: true });
+                document.addEventListener('touchmove', closeOnScroll, { passive: true });
             }
         }
     }
