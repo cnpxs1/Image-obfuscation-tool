@@ -2565,7 +2565,6 @@
             // 清除旧内容，避免透明图层残留
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(bitmap, 0, 0);
-            bitmap.close();
 
             // 获取像素数据
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -2622,6 +2621,8 @@
                 releasePixelBuffer(dstBuffer);
             }
         } finally {
+            // 释放 ImageBitmap
+            if (bitmap) bitmap.close();
             // 释放 canvas
             releaseCanvasToPool(canvas);
         }
@@ -3788,7 +3789,14 @@
                     };
                 }).catch(error => {
                     console.error(`图片 ${imgData.name} 加载异常:`, error);
-                    reject(error);
+                    // 创建占位图并 resolve，确保数组完整
+                    const placeholderImg = document.createElement('img');
+                    placeholderImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRXJyb3I8L3RleHQ+PC9zdmc+';
+                    placeholderImg.alt = imgData.name || `图片 ${index + 1}`;
+                    placeholderImg.dataset.imageId = imgData.id;
+                    placeholderImg.dataset.index = index.toString();
+                    imgElements[index] = placeholderImg;
+                    resolve(placeholderImg);
                 });
             });
         });
