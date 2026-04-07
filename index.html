@@ -234,14 +234,6 @@
             cursor: pointer;
         }
 
-        /* 图片预览样式 */
-        .image-preview {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
-        }
-
         /* 文本截断样式 - 使用更兼容的方式 */
         .text-multiline {
             line-height: 1.4em;
@@ -559,16 +551,6 @@
             display: inline-block;
         }
 
-        /* 预览占位符 */
-        .preview-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ccc;
-            font-size: 0.9rem;
-        }
 
         /* 错误日志面板 */
         .error-log-panel {
@@ -1779,8 +1761,6 @@
     let viewerInstance = null;
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
-    /** @type {AbortController|null} 当前预览操作的控制器 */
-    let currentPreviewController = null;
     
     /**
      * 显示错误日志
@@ -3043,7 +3023,6 @@
         // 缓存 DOM 引用
         const infoDiv = item.querySelector('.image-info');
         imageData.domCache = {
-            fileName: infoDiv.querySelector('.text-multiline'),
             sizeRow: infoDiv.querySelector('.image-info-row'),
             fileSize: infoDiv.querySelector('.file-size'),
             statusBadge: infoDiv.querySelector('.status-badge')
@@ -3136,22 +3115,6 @@
             cache.statusBadge.textContent = newStatusText;
         }
     }
-
-    /**
-     * 更新图片状态显示
-     * @param {string} imageId - 图片ID
-     *
-     * 调用updateImageInfo函数更新状态显示
-     */
-    function updateImageStatus(imageId) {
-        const imageData = images.find(img => img.id === imageId);
-        if (!imageData) return;
-
-        updateImageInfo(imageId);
-    }
-
-
-
 
 
     /**
@@ -3272,9 +3235,6 @@
             
         // 复制选中的 ID 集合，避免在迭代时修改集合
         const idsToDelete = Array.from(selectedImages);
-            
-        // 先获取所有要删除的图片数据（在从数组移除之前）
-        const imagesToDelete = idsToDelete.map(id => images.find(img => img.id === id)).filter(Boolean);
             
         // 清理存储中的数据
         for (const id of idsToDelete) {
@@ -3662,9 +3622,8 @@
         });
         cleanupExistingViewer();
         
-        // 2. 重置取消标志和控制器
+        // 2. 重置取消标志
         previewCanceled = false;
-        currentPreviewController = new AbortController();
         
         // 3. 创建新容器
         const galleryContainer = await createImageGalleryContainer();
@@ -3695,12 +3654,6 @@
     function cancelPreviousPreview() {
         // 设置取消标志
         previewCanceled = true;
-        
-        // 取消之前的Promise链
-        if (currentPreviewController) {
-            currentPreviewController.abort();
-            currentPreviewController = null;
-        }
         
         // 清理已存在的viewer实例
         cleanupExistingViewer();
@@ -3824,15 +3777,7 @@
         return container;
     }
 
-    /**
-     * 检查Viewer.js是否可用
-     * @returns {boolean} 是否可用
-     */
-    function isViewerAvailable() {
-        return window.hasOwnProperty('Viewer') && 
-               typeof window.Viewer === 'function';
-    }
-        
+
     /**
      * 按照最佳实践初始化 Viewer.js
      * @param {Object} imageData - 图片数据
@@ -4022,22 +3967,6 @@
         };
     }
 
-    /**
-     * 获取图片标题函数
-     * @returns {Function} 标题生成函数
-     */
-    function getImageTitleFunction() {
-        return (image, imageData) => {
-            const baseName = image.alt || '未知图片';
-            const dimensions = imageData.naturalWidth && imageData.naturalHeight 
-                ? ` (${imageData.naturalWidth} × ${imageData.naturalHeight})`
-                : '';
-            const currentIndex = Array.from(image.parentNode.children).indexOf(image) + 1;
-            const totalImages = image.parentNode.children.length;
-            
-            return `${baseName}${dimensions} - ${currentIndex}/${totalImages}`;
-        };
-    }
 
     /**
      * 处理 Viewer.js 初始化失败的情况
