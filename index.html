@@ -101,6 +101,34 @@
             white-space: nowrap;/* 禁止换行 */
         }
 
+        /* 气泡提示样式（统一样式） */
+        #cacheIndicator::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            white-space: normal;
+            max-width: 250px;
+            min-width: 150px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            line-height: 1.3;
+            display: none; /* 默认隐藏 */
+        }
+
+        /* PC端：鼠标悬停显示气泡 */
+        @media screen and (min-width: 769px) {
+            #cacheIndicator:hover::after {
+                display: block;
+            }
+        }
+
         /* 移动端适配 */
         @media screen and (max-width: 768px) {
             .main-content {
@@ -116,6 +144,12 @@
                 padding: 5px 8px;
                 max-width: 75px;
                 white-space: nowrap;/* 禁止换行 */
+                cursor: pointer; /* 允许点击 */
+            }
+            
+            /* 移动端：点击激活时显示气泡 */
+            #cacheIndicator.tooltip-active::after {
+                display: block;
             }
         }
 
@@ -198,14 +232,6 @@
             border-radius: 4px;
             background: #f5f5f5;
             cursor: pointer;
-        }
-
-        /* 图片预览样式 */
-        .image-preview {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            border-radius: 4px;
         }
 
         /* 文本截断样式 - 使用更兼容的方式 */
@@ -525,16 +551,6 @@
             display: inline-block;
         }
 
-        /* 预览占位符 */
-        .preview-placeholder {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ccc;
-            font-size: 0.9rem;
-        }
 
         /* 错误日志面板 */
         .error-log-panel {
@@ -1097,7 +1113,7 @@
 </head>
 <body>
 <!-- 缓存方案指示器 -->
-<div id="cacheIndicator" title="">加载中...</div>
+<div id="cacheIndicator">加载中...</div>
 
 <div class="main-content" style="text-align: center;">
     <h1>图片混淆工具</h1>
@@ -1408,14 +1424,17 @@
      * @returns {Promise<{added: number, errors: Array}>}
      */
     async function extractZipAndAddImages(zipFile) {
-        // 防御性检测：检查 fflate 是否可用
+        // 等待 fflate 加载完成（最多 5 秒）
         if (typeof fflate === 'undefined') {
-            console.error('fflate 未加载，ZIP 解压功能不可用');
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '❌ ZIP 解压功能不可用（fflate 库未加载）';
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
-            logError(zipFile.name, 'ZIP 解压失败: fflate 库未加载');
-            return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
+            for (let i = 0; i < 50; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                if (typeof fflate !== 'undefined') break;
+            }
+            if (typeof fflate === 'undefined') {
+                console.error('fflate 库未加载，无法解压 ZIP');
+                logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
+                return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
+            }
         }
         
         const statusDiv = document.getElementById('batchStatus');
@@ -1668,6 +1687,9 @@
     // 全局存储实例
     const storage = new StorageAdapter();
     
+    /** @type {Object|null} 当前移动端气泡关闭监听器 */
+    let mobileTooltipListener = null;
+
     /**
      * 更新缓存方案指示器显示
      * @param {string} cacheType - 缓存类型
@@ -1677,11 +1699,48 @@
         if (indicator) {
             indicator.textContent = cacheType;
             indicator.style.display = 'block';
-            // 设置鼠标悬停时的描述
+            // 设置气泡提示数据
+            let tooltipText = '';
             if (cacheType === 'Cache API') {
-                indicator.title = '当前使用 Cache API 存储（性能更优）';
+                tooltipText = '当前使用 Cache API 存储（性能更优）';
             } else {
-                indicator.title = '当前使用 IndexedDB 存储';
+                tooltipText = '当前使用 IndexedDB 存储';
+            }
+            indicator.setAttribute('data-tooltip', tooltipText);
+            // 移除 PC 端原生 title 描述，统一使用气泡
+            indicator.removeAttribute('title');
+            
+            // 清理旧的监听器
+            if (mobileTooltipListener) {
+                document.removeEventListener('click', mobileTooltipListener);
+                mobileTooltipListener = null;
+            }
+            // 清理旧的 onclick
+            indicator.onclick = null;
+
+            // 移动端点击事件
+            if (window.innerWidth <= 768) {
+                indicator.onclick = function(e) {
+                    e.stopPropagation();
+                    // 切换气泡显示
+                    this.classList.toggle('tooltip-active');
+                    
+                    // 重新绑定全局点击监听，确保每次打开都能正确关闭
+                    if (mobileTooltipListener) {
+                        document.removeEventListener('click', mobileTooltipListener);
+                    }
+                    mobileTooltipListener = function closeTooltip(ev) {
+                        if (!indicator.contains(ev.target)) {
+                            indicator.classList.remove('tooltip-active');
+                            document.removeEventListener('click', mobileTooltipListener);
+                            mobileTooltipListener = null;
+                        }
+                    };
+                    // 使用 setTimeout 避免立即触发本次点击的全局监听
+                    setTimeout(() => {
+                        document.addEventListener('click', mobileTooltipListener);
+                    }, 0);
+                };
             }
         }
     }
@@ -1702,8 +1761,6 @@
     let viewerInstance = null;
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
-    /** @type {AbortController|null} 当前预览操作的控制器 */
-    let currentPreviewController = null;
     
     /**
      * 显示错误日志
@@ -2032,6 +2089,7 @@
     }
     
     function releasePixelBuffer(buffer) {
+        if (!buffer || !(buffer instanceof Uint8ClampedArray)) return;
         const MAX_POOL_SIZE = 5;          // 限制池大小，避免无限增长
         if (pixelBufferPool.length >= MAX_POOL_SIZE) {
             return; // 丢弃，等待GC
@@ -2482,65 +2540,72 @@
         // 通过 ImageBitmap 加载到 canvas
         const bitmap = await createImageBitmap(sourceBlob);
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        // 清除旧内容，避免透明图层残留
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
+        try {
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            // 清除旧内容，避免透明图层残留
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
 
-        // 获取像素数据
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const totalPixels = canvas.width * canvas.height;
-        const curve = getCachedCurve(canvas.width, canvas.height);
-        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
-        const dstBuffer = getPixelBuffer(imgData.data.length);
-        const srcU32 = new Uint32Array(imgData.data.buffer);
-        const dstU32 = new Uint32Array(dstBuffer.buffer);
+            // 获取像素数据
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const totalPixels = canvas.width * canvas.height;
+            const curve = getCachedCurve(canvas.width, canvas.height);
+            const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+            let dstBuffer;
+            try {
+                dstBuffer = getPixelBuffer(imgData.data.length);
+                const srcU32 = new Uint32Array(imgData.data.buffer);
+                const dstU32 = new Uint32Array(dstBuffer.buffer);
 
-        if (operation === 'encrypt') {
-            for (let i = 0; i < totalPixels; i++) {
-                const oldIdx = curve[i];
-                const newIdx = curve[(i + offset) % totalPixels];
-                dstU32[newIdx] = srcU32[oldIdx];
+                if (operation === 'encrypt') {
+                    for (let i = 0; i < totalPixels; i++) {
+                        const oldIdx = curve[i];
+                        const newIdx = curve[(i + offset) % totalPixels];
+                        dstU32[newIdx] = srcU32[oldIdx];
+                    }
+                    // 混淆级别 +1
+                    imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
+                } else if (operation === 'decrypt') {
+                    for (let i = 0; i < totalPixels; i++) {
+                        const oldIdx = curve[i];
+                        const newIdx = curve[(i + offset) % totalPixels];
+                        dstU32[oldIdx] = srcU32[newIdx];
+                    }
+                    // 解混淆级别 -1
+                    imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
+                } else if (operation === 'restore') {
+                    dstBuffer.set(imgData.data);
+                    // 还原操作：重置混淆级别为 0
+                    imageData.scrambleLevel = 0;
+                }
+
+                // 写回 canvas
+                const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
+                ctx.putImageData(newImageData, 0, 0);
+
+                // 生成新 Blob (PNG 格式存储)
+                const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                // 存储当前图片
+                await storage.set(`current_${imageData.id}`, newBlob);
+                
+                // 更新图片元数据（不修改尺寸，只更新格式和状态）
+                imageData.format = 'PNG';
+                imageData.processed = true;
+                imageData.size = newBlob.size; // 更新文件大小
+                
+                // 更新预览
+                await updateThumbnail(imageData.id, newBlob);
+                // 更新界面显示
+                updateImageInfo(imageData.id);
+            } finally {
+                releasePixelBuffer(dstBuffer);
             }
-            // 混淆级别 +1
-            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
-        } else if (operation === 'decrypt') {
-            for (let i = 0; i < totalPixels; i++) {
-                const oldIdx = curve[i];
-                const newIdx = curve[(i + offset) % totalPixels];
-                dstU32[oldIdx] = srcU32[newIdx];
-            }
-            // 解混淆级别 -1
-            imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
-        } else if (operation === 'restore') {
-            dstBuffer.set(imgData.data);
-            // 还原操作：重置混淆级别为 0
-            imageData.scrambleLevel = 0;
+        } finally {
+            // 释放 ImageBitmap
+            if (bitmap) bitmap.close();
+            // 释放 canvas
+            releaseCanvasToPool(canvas);
         }
-
-        // 写回 canvas
-        const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
-        ctx.putImageData(newImageData, 0, 0);
-        releasePixelBuffer(dstBuffer);
-
-        // 生成新 Blob (PNG 格式存储)
-        const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        // 存储当前图片
-        await storage.set(`current_${imageData.id}`, newBlob);
-        
-        // 更新图片元数据（不修改尺寸，只更新格式和状态）
-        imageData.format = 'PNG';
-        imageData.processed = true;
-        imageData.size = newBlob.size; // 更新文件大小
-        
-        // 更新预览
-        await updateThumbnail(imageData.id, newBlob);
-        // 更新界面显示
-        updateImageInfo(imageData.id);
-
-        // 释放 canvas
-        releaseCanvasToPool(canvas);
     }
 
     /**
@@ -2955,6 +3020,14 @@
         </div>
     `;
     
+        // 缓存 DOM 引用
+        const infoDiv = item.querySelector('.image-info');
+        imageData.domCache = {
+            sizeRow: infoDiv.querySelector('.image-info-row'),
+            fileSize: infoDiv.querySelector('.file-size'),
+            statusBadge: infoDiv.querySelector('.status-badge')
+        };
+    
         // 添加事件监听器
         const checkbox = item.querySelector('.select-checkbox');
         checkbox.addEventListener('click', (event) => {
@@ -3012,87 +3085,36 @@
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) return;
     
-        const infoDiv = document.getElementById(`info-${imageId}`);
-        if (infoDiv) {
-            // 获取或创建文件名元素（仅在需要时创建）
-            let fileNameDiv = infoDiv.querySelector('.text-multiline');
-            if (!fileNameDiv) {
-                fileNameDiv = document.createElement('div');
-                fileNameDiv.className = 'text-multiline';
-                fileNameDiv.style.fontWeight = 'bold';
-                infoDiv.insertBefore(fileNameDiv, infoDiv.firstChild);
-            }
-                
-            // 更新尺寸信息
-            const sizeRow = infoDiv.querySelector('.image-info-row');
-            let targetElementForFileSize; // 用于确定文件大小元素的插入位置
+        const cache = imageData.domCache;
+        if (!cache) return;
+    
+        // 更新尺寸信息
+        const hasValidSize = imageData.hasOwnProperty('width') && 
+                            imageData.hasOwnProperty('height') && 
+                            typeof imageData.width === 'number' && 
+                            typeof imageData.height === 'number' &&
+                            imageData.width > 0 && 
+                            imageData.height > 0;
+        
+        if (cache.sizeRow) {
+            cache.sizeRow.innerHTML = `<span>${hasValidSize ? 
+                `${imageData.width}×${imageData.height}` : 
+                '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
+        }
             
-            // 检查尺寸数据是否有效
-            const hasValidSize = imageData.hasOwnProperty('width') && 
-                                imageData.hasOwnProperty('height') && 
-                                typeof imageData.width === 'number' && 
-                                typeof imageData.height === 'number' &&
-                                imageData.width > 0 && 
-                                imageData.height > 0;
+        // 更新格式和大小信息
+        if (cache.fileSize) {
+            cache.fileSize.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
+        }
             
-            if (sizeRow) {
-                sizeRow.innerHTML = `<span>${hasValidSize ? 
-                    `${imageData.width}×${imageData.height}` : 
-                    '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
-                targetElementForFileSize = sizeRow;
-            } else {
-                const newRow = document.createElement('div');
-                newRow.className = 'image-info-row';
-                newRow.innerHTML = `<span>${hasValidSize ? 
-                    `${imageData.width}×${imageData.height}` : 
-                    '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
-                infoDiv.insertBefore(newRow, fileNameDiv.nextSibling);
-                targetElementForFileSize = newRow;
-            }
-                
-            // 更新格式和大小信息
-            const fileSizeDiv = infoDiv.querySelector('.file-size');
-            if (fileSizeDiv) {
-                fileSizeDiv.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
-            } else {
-                const newFileSizeDiv = document.createElement('div');
-                newFileSizeDiv.className = 'file-size';
-                newFileSizeDiv.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
-                infoDiv.insertBefore(newFileSizeDiv, targetElementForFileSize.nextSibling);
-            }
-                
-            // 更新状态徽章（基于 scrambleLevel）
-            let statusBadge = infoDiv.querySelector('.status-badge');
+        // 更新状态徽章（基于 scrambleLevel）
+        if (cache.statusBadge) {
             const newStatusText = getStatusText(imageData.scrambleLevel);
             const newStatusClass = getStatusClass(imageData.scrambleLevel);
-            
-            if (statusBadge) {
-                statusBadge.className = `status-badge ${newStatusClass}`;
-                statusBadge.textContent = newStatusText;
-            } else {
-                const newStatusBadge = document.createElement('div');
-                newStatusBadge.className = `status-badge ${newStatusClass}`;
-                newStatusBadge.textContent = newStatusText;
-                infoDiv.appendChild(newStatusBadge);
-            }
+            cache.statusBadge.className = `status-badge ${newStatusClass}`;
+            cache.statusBadge.textContent = newStatusText;
         }
     }
-
-    /**
-     * 更新图片状态显示
-     * @param {string} imageId - 图片ID
-     *
-     * 调用updateImageInfo函数更新状态显示
-     */
-    function updateImageStatus(imageId) {
-        const imageData = images.find(img => img.id === imageId);
-        if (!imageData) return;
-
-        updateImageInfo(imageId);
-    }
-
-
-
 
 
     /**
@@ -3197,7 +3219,7 @@
      *
      * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
      */
-    async function clearAll() {
+    async function deleteSelectedImages() {
         if (isProcessing) {
             alert('正在处理中，请稍后...');
             return;
@@ -3213,9 +3235,6 @@
             
         // 复制选中的 ID 集合，避免在迭代时修改集合
         const idsToDelete = Array.from(selectedImages);
-            
-        // 先获取所有要删除的图片数据（在从数组移除之前）
-        const imagesToDelete = idsToDelete.map(id => images.find(img => img.id === id)).filter(Boolean);
             
         // 清理存储中的数据
         for (const id of idsToDelete) {
@@ -3559,7 +3578,7 @@
     // 按钮事件绑定
     document.getElementById('select-all').addEventListener('click', selectAll);
     document.getElementById('clear-selection').addEventListener('click', clearSelection);
-    document.getElementById('clear-all').addEventListener('click', clearAll);
+    document.getElementById('clear-all').addEventListener('click', deleteSelectedImages);
 
     // 处理按钮事件绑定
     document.getElementById('encrypt-btn').addEventListener('click', () => processBatch('encrypt'));
@@ -3603,9 +3622,8 @@
         });
         cleanupExistingViewer();
         
-        // 2. 重置取消标志和控制器
+        // 2. 重置取消标志
         previewCanceled = false;
-        currentPreviewController = new AbortController();
         
         // 3. 创建新容器
         const galleryContainer = await createImageGalleryContainer();
@@ -3636,12 +3654,6 @@
     function cancelPreviousPreview() {
         // 设置取消标志
         previewCanceled = true;
-        
-        // 取消之前的Promise链
-        if (currentPreviewController) {
-            currentPreviewController.abort();
-            currentPreviewController = null;
-        }
         
         // 清理已存在的viewer实例
         cleanupExistingViewer();
@@ -3709,8 +3721,10 @@
                     console.log(`✅ [索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
-                        console.warn(`⏰ 图片 ${imgData.name} 加载超时`);
-                        reject(new Error(`图片加载超时：${imgData.name}`));
+                        console.warn(`⏰ 图片 ${imgData.name} 加载超时，使用占位图`);
+                        // 创建占位图并 resolve，确保数组完整
+                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
+                        resolve(img);
                     }, 5000);
 
                     img.onload = () => {
@@ -3728,7 +3742,14 @@
                     };
                 }).catch(error => {
                     console.error(`图片 ${imgData.name} 加载异常:`, error);
-                    reject(error);
+                    // 创建占位图并 resolve，确保数组完整
+                    const placeholderImg = document.createElement('img');
+                    placeholderImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRXJyb3I8L3RleHQ+PC9zdmc+';
+                    placeholderImg.alt = imgData.name || `图片 ${index + 1}`;
+                    placeholderImg.dataset.imageId = imgData.id;
+                    placeholderImg.dataset.index = index.toString();
+                    imgElements[index] = placeholderImg;
+                    resolve(placeholderImg);
                 });
             });
         });
@@ -3756,61 +3777,7 @@
         return container;
     }
 
-    /**
-     * 在 Viewer.js 准备就绪后初始化查看器
-     * @param {Object} imageData - 图片数据
-     * @param {HTMLElement} container - 容器元素
-     * @param {string} targetImageId - 目标图片 ID
-     */
-    async function initializeViewerWhenReady(imageData, container, targetImageId) {
-        // 检查是否已被取消
-        if (previewCanceled) {
-            console.log('⏭️ 预览操作已被取消，跳过初始化');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
-            return;
-        }
-            
-        try {
-            await getViewerLoadPromise();
-                
-            // 再次检查取消状态
-            if (previewCanceled) {
-                console.log('⏭️ 预览操作已被取消，跳过 Viewer 初始化');
-                // 清理容器
-                if (container && container.parentNode) {
-                    container.parentNode.removeChild(container);
-                }
-                return;
-            }
-                
-            if (!isViewerAvailable()) {
-                throw new Error('Viewer.js 构造函数不可用');
-            }
-            await initializeViewerWithBestPractices(imageData, container, targetImageId);
-        } catch (error) {
-            // 检查是否因取消而产生的错误
-            if (previewCanceled) {
-                console.log('⏭️ 预览操作已被取消，忽略错误:', error.message);
-                return;
-            }
-                
-            console.error('❌ Viewer.js 初始化失败:', error);
-            await handleViewerInitializationFailure(container, imageData);
-        }
-    }
 
-    /**
-     * 检查Viewer.js是否可用
-     * @returns {boolean} 是否可用
-     */
-    function isViewerAvailable() {
-        return window.hasOwnProperty('Viewer') && 
-               typeof window.Viewer === 'function';
-    }
-        
     /**
      * 按照最佳实践初始化 Viewer.js
      * @param {Object} imageData - 图片数据
@@ -4000,22 +3967,6 @@
         };
     }
 
-    /**
-     * 获取图片标题函数
-     * @returns {Function} 标题生成函数
-     */
-    function getImageTitleFunction() {
-        return (image, imageData) => {
-            const baseName = image.alt || '未知图片';
-            const dimensions = imageData.naturalWidth && imageData.naturalHeight 
-                ? ` (${imageData.naturalWidth} × ${imageData.naturalHeight})`
-                : '';
-            const currentIndex = Array.from(image.parentNode.children).indexOf(image) + 1;
-            const totalImages = image.parentNode.children.length;
-            
-            return `${baseName}${dimensions} - ${currentIndex}/${totalImages}`;
-        };
-    }
 
     /**
      * 处理 Viewer.js 初始化失败的情况
@@ -4026,17 +3977,12 @@
         // 检查是否因取消而失败
         if (previewCanceled) {
             console.log('⏭️ 预览操作已被取消，跳过失败处理');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
+            cleanupViewerResources(container);
             return;
         }
             
-        // 清理容器
-        if (container && container.parentNode) {
-            container.parentNode.removeChild(container);
-        }
+        // 清理容器并释放 Blob URL
+        cleanupViewerResources(container);
             
         // 启用基础图片查看器作为兜底方案
         console.log('ℹ️ 启用基础图片查看器作为替代方案');
