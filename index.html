@@ -1442,14 +1442,17 @@
      * @returns {Promise<{added: number, errors: Array}>}
      */
     async function extractZipAndAddImages(zipFile) {
-        // 防御性检测：检查 fflate 是否可用
+        // 等待 fflate 加载完成（最多 5 秒）
         if (typeof fflate === 'undefined') {
-            console.error('fflate 未加载，ZIP 解压功能不可用');
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '❌ ZIP 解压功能不可用（fflate 库未加载）';
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
-            logError(zipFile.name, 'ZIP 解压失败: fflate 库未加载');
-            return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
+            for (let i = 0; i < 50; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                if (typeof fflate !== 'undefined') break;
+            }
+            if (typeof fflate === 'undefined') {
+                console.error('fflate 库未加载，无法解压 ZIP');
+                logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
+                return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
+            }
         }
         
         const statusDiv = document.getElementById('batchStatus');
