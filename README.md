@@ -113,9 +113,10 @@ Image-obfuscation-tool/
 │   └── fflate/         # fflate静态资源
 └── img/                # 图标素材
     └── icons/          # 图标资源目录
-        └── favicon/    # 网站图标（Favicon）相关资源
-            ├── RGB/
-            └── RGBA/
+        ├── favicon/    # 网站图标（Favicon）相关资源
+        │   ├── RGB/
+        │   └── RGBA/
+        └── ...
 
 ```
 
