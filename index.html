@@ -661,6 +661,88 @@
                 min-width: 100%;  /* 占满整行 */
             }
         }
+
+        /* 列表视图样式 - 优化信息展示区域 */
+        .image-item.list-view .thumbnail-container {
+            min-width: 60px;
+            width: 60px;
+            height: 60px;
+            background: #f0f0f0;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .image-item.list-view {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            width: 100%;
+            grid-column: 1 / -1;
+        }
+        
+        .image-item.list-view .image-info {
+            flex: 1;
+            text-align: left;
+            margin-top: 0;
+            min-height: auto;
+        }
+        
+        .image-item.list-view .image-info .text-multiline {
+            text-align: left;
+            margin-bottom: 4px;
+        }
+        
+        .image-item.list-view .image-info-row,
+        .image-item.list-view .file-size,
+        .image-item.list-view .status-badge {
+            text-align: left;
+            display: inline-block;
+            margin-right: 12px;
+        }
+        
+        .image-item.list-view .image-actions {
+            margin-top: 0;
+            flex-shrink: 0;
+        }
+        
+        .image-item.list-view .select-checkbox {
+            position: relative;
+            top: auto;
+            right: auto;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        
+        /* 列表视图下缩略图占位符样式 */
+        .thumbnail-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #999;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .image-item.list-view {
+                flex-wrap: wrap;
+            }
+            .image-item.list-view .image-actions {
+                width: 100%;
+                margin-top: 8px;
+            }
+            .image-item.list-view .action-group {
+                width: auto;
+            }
+        }
     </style>
     <!-- Viewer.js JavaScript 智能加载 -->
     <script>
@@ -1212,7 +1294,7 @@
             <!-- 网格视图图标 ./img/icons/grid.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer;" id="grid-view-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                    <path fill="#333" d="M164.375,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.875c9.375,0,16.875-7.5,16.875-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM165,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875Z"/>
+                    <path class="view-icon-path" fill="#333" d="M164.375,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.875c9.375,0,16.875-7.5,16.875-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM165,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875Z"/>
                 </svg>
             </span>
             <!-- 分隔线 -->
@@ -1220,7 +1302,7 @@
             <!-- 列表视图图标 ./img/icons/list.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer; opacity: 0.4;" id="list-view-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                    <path fill="#333" d="M175.0042,49.9916h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249.0336,3.4604-2.7549,6.249-6.2154,6.249ZM175.0042,81.2364h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,131.2616h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,162.5063h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM74.9874,93.7343h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.4937c0-10.3477,8.3991-18.7468,18.7468-18.7468h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7468v37.4937c0,10.3477-8.3991,18.7469-18.7469,18.7469ZM37.4937,31.2448c-3.4268,0-6.249,2.8221-6.249,6.249v37.4937c0,3.4268,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.8221,6.249-6.249v-37.4937c0-3.4268-2.8221-6.249-6.249-6.249h-37.4937ZM74.9874,181.2531h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.5273c0-10.3477,8.3991-18.7469,18.7468-18.7469h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7469v37.4937c0,10.3477-8.3991,18.7804-18.7469,18.7804ZM37.4937,118.7301c-3.4268,0-6.249,2.7885-6.249,6.249v37.4937c0,3.4604,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.7885,6.249-6.249v-37.4937c0-3.4604-2.8221-6.249-6.249-6.249h-37.4937Z"/>
+                    <path class="view-icon-path" fill="#333" d="M175.0042,49.9916h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249.0336,3.4604-2.7549,6.249-6.2154,6.249ZM175.0042,81.2364h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,131.2616h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,162.5063h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM74.9874,93.7343h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.4937c0-10.3477,8.3991-18.7468,18.7468-18.7468h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7468v37.4937c0,10.3477-8.3991,18.7469-18.7469,18.7469ZM37.4937,31.2448c-3.4268,0-6.249,2.8221-6.249,6.249v37.4937c0,3.4268,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.8221,6.249-6.249v-37.4937c0-3.4268-2.8221-6.249-6.249-6.249h-37.4937ZM74.9874,181.2531h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.5273c0-10.3477,8.3991-18.7469,18.7468-18.7469h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7469v37.4937c0,10.3477-8.3991,18.7804-18.7469,18.7804ZM37.4937,118.7301c-3.4268,0-6.249,2.7885-6.249,6.249v37.4937c0,3.4604,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.7885,6.249-6.249v-37.4937c0-3.4604-2.8221-6.249-6.249-6.249h-37.4937Z"/>
                 </svg>
             </span>
         </button>
@@ -1837,6 +1919,9 @@
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
     
+    // ==================== 视图模式管理 ====================
+    let currentViewMode = 'grid'; // 'grid' 或 'list'
+    
     /**
      * 显示错误日志
      * @param {string} fileName - 文件名
@@ -2011,6 +2096,135 @@
             console.log('✅ 错误日志数据已清空并释放相关资源');
         }
     };
+    
+    /**
+     * 加载保存的视图模式偏好
+     */
+    function loadViewModePreference() {
+        try {
+            const saved = localStorage.getItem('imageViewMode');
+            if (saved === 'grid' || saved === 'list') {
+                currentViewMode = saved;
+            } else {
+                currentViewMode = 'grid';
+            }
+        } catch (e) {
+            currentViewMode = 'grid';
+        }
+        updateViewModeButtonUI();
+    }
+    
+    /**
+     * 保存视图模式偏好
+     */
+    function saveViewModePreference() {
+        try {
+            localStorage.setItem('imageViewMode', currentViewMode);
+        } catch (e) {}
+    }
+    
+    /**
+     * 更新切换按钮的图标高亮状态
+     */
+    function updateViewModeButtonUI() {
+        const gridIcon = document.getElementById('grid-view-icon');
+        const listIcon = document.getElementById('list-view-icon');
+        if (!gridIcon || !listIcon) return;
+        
+        const gridPath = gridIcon.querySelector('.view-icon-path');
+        const listPath = listIcon.querySelector('.view-icon-path');
+        
+        if (currentViewMode === 'grid') {
+            gridIcon.style.opacity = '1';
+            listIcon.style.opacity = '0.4';
+            if (gridPath) gridPath.setAttribute('fill', '#333');
+            if (listPath) listPath.setAttribute('fill', '#999');
+        } else {
+            gridIcon.style.opacity = '0.4';
+            listIcon.style.opacity = '1';
+            if (gridPath) gridPath.setAttribute('fill', '#999');
+            if (listPath) listPath.setAttribute('fill', '#333');
+        }
+    }
+    
+    /**
+     * 切换视图模式（无锁，动态切换现有图片项的显示样式）
+     */
+    async function switchViewMode() {
+        // 切换模式
+        currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
+        saveViewModePreference();
+        updateViewModeButtonUI();
+
+        // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
+        const items = document.querySelectorAll('.image-item');
+        for (const item of items) {
+            const imageId = item.dataset.id;
+            const imageData = images.find(img => img.id === imageId);
+            if (!imageData) continue;
+
+            // 更新 item 的类名
+            if (currentViewMode === 'list') {
+                item.classList.add('list-view');
+            } else {
+                item.classList.remove('list-view');
+            }
+
+            // 获取缩略图容器
+            const thumbnailContainer = item.querySelector('.thumbnail-container');
+            if (!thumbnailContainer) continue;
+
+            // 根据当前模式重新构建缩略图内容
+            if (currentViewMode === 'grid') {
+                // 网格模式：需要 canvas 缩略图
+                // 检查是否已经有 canvas
+                let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
+                if (!canvas) {
+                    // 创建 canvas 元素
+                    canvas = document.createElement('canvas');
+                    canvas.className = 'thumbnail-canvas';
+                    canvas.style.width = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.maxHeight = '150px';
+                    canvas.style.objectFit = 'contain';
+                    // 清空容器并添加 canvas
+                    thumbnailContainer.innerHTML = '';
+                    thumbnailContainer.appendChild(canvas);
+                    // 加载图片数据并绘制
+                    const blob = await storage.get(`current_${imageData.id}`);
+                    if (blob) {
+                        try {
+                            const bitmap = await createImageBitmap(blob);
+                            canvas.width = bitmap.width;
+                            canvas.height = bitmap.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(bitmap, 0, 0);
+                            bitmap.close();
+                        } catch (e) {
+                            console.warn('绘制缩略图失败', e);
+                        }
+                    }
+                }
+            } else {
+                // 列表模式：显示占位符
+                // 检查是否已经有占位符
+                let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+                if (!placeholder) {
+                    placeholder = document.createElement('div');
+                    placeholder.className = 'thumbnail-placeholder';
+                    placeholder.innerHTML = '🖼️';
+                    placeholder.title = '点击预览图片';
+                    thumbnailContainer.innerHTML = '';
+                    thumbnailContainer.appendChild(placeholder);
+                }
+            }
+        }
+
+        // 显示提示信息
+        const statusDiv = document.getElementById('batchStatus');
+        statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
+        setTimeout(() => statusDiv.innerHTML = '', 2000);
+    }
     
     // =============================================
     // 希尔伯特曲线算法
@@ -2691,6 +2905,9 @@
      * 使用 ImageBitmap 将 Blob 绘制到 canvas 缩略图
      */
     async function updateThumbnail(imageId, blob) {
+        // 列表模式下不更新缩略图
+        if (currentViewMode === 'list') return;
+        
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (!item) return;
         const canvas = item.querySelector('.thumbnail-canvas');
@@ -3052,39 +3269,81 @@
     async function renderImageItem(imageData) {
         const imageList = document.getElementById('imageList');
         const item = document.createElement('div');
-        item.className = 'image-item';
+        item.className = `image-item ${currentViewMode === 'list' ? 'list-view' : ''}`;
         item.dataset.id = imageData.id;
-
+        
+        // 创建复选框
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'select-checkbox';
+        checkbox.addEventListener('click', (event) => {
+            event.stopPropagation();
+            toggleSelect(imageData.id, event);
+        });
+        item.appendChild(checkbox);
+        
         // 创建缩略图容器
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'thumbnail-container';
-        thumbnailContainer.onclick = () => showPreview(imageData.id);  // 点击预览
-    
-        // 创建缩略图 canvas
-        const canvas = document.createElement('canvas');
-        canvas.className = 'thumbnail-canvas';
-        canvas.style.width = '100%';
-        canvas.style.height = 'auto';
-        canvas.style.maxHeight = '150px';
-        canvas.style.objectFit = 'contain';
-        thumbnailContainer.appendChild(canvas);
-    
-        // 获取当前状态文本和CSS类
+        thumbnailContainer.onclick = () => showPreview(imageData.id);
+        
+        if (currentViewMode === 'grid') {
+            // 网格模式：创建 canvas 用于显示缩略图
+            const canvas = document.createElement('canvas');
+            canvas.className = 'thumbnail-canvas';
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
+            canvas.style.maxHeight = '150px';
+            canvas.style.objectFit = 'contain';
+            thumbnailContainer.appendChild(canvas);
+            
+            // 异步加载并绘制缩略图
+            const blob = await storage.get(`current_${imageData.id}`);
+            if (blob) {
+                try {
+                    const bitmap = await createImageBitmap(blob);
+                    canvas.width = bitmap.width;
+                    canvas.height = bitmap.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(bitmap, 0, 0);
+                    bitmap.close();
+                } catch (e) {
+                    console.warn('缩略图绘制失败', e);
+                }
+            }
+        } else {
+            // 列表模式：显示占位符图标，不加载实际图片
+            const placeholder = document.createElement('div');
+            placeholder.className = 'thumbnail-placeholder';
+            placeholder.innerHTML = '🖼️';
+            placeholder.title = '点击预览图片';
+            thumbnailContainer.appendChild(placeholder);
+        }
+        
+        item.appendChild(thumbnailContainer);
+        
+        // 获取状态文本和样式
         const statusText = getStatusText(imageData.scrambleLevel);
         const statusClass = getStatusClass(imageData.scrambleLevel);
-    
-        // 设置图片项内容（使用 HTML 转义防止 XSS）
-        item.innerHTML = `
-        <input type="checkbox" class="select-checkbox">
-        <div class="image-info" id="info-${imageData.id}">
+        
+        // 创建信息区域
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'image-info';
+        infoDiv.id = `info-${imageData.id}`;
+        infoDiv.innerHTML = `
             <div class="text-multiline" style="font-weight: bold;">${escapeHtml(imageData.name)}</div>
             <div class="image-info-row">
                 <span>${imageData.width > 0 ? `${imageData.width}×${imageData.height}` : '<span style="color:#999;">尺寸未知</span>'}</span>
             </div>
             <div class="file-size">格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}</div>
             <div class="status-badge ${statusClass}">${statusText}</div>
-        </div>
-        <div class="image-actions">
+        `;
+        item.appendChild(infoDiv);
+        
+        // 创建操作按钮区域
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'image-actions';
+        actionsDiv.innerHTML = `
             <button class="action-btn" data-operation="encrypt">混淆</button>
             <button class="action-btn" data-operation="decrypt">解混淆</button>
             <button class="action-btn" data-operation="restore">还原</button>
@@ -3092,42 +3351,23 @@
                 <button class="action-btn delete-btn" data-operation="delete">删除</button>
                 <button class="action-btn" data-operation="save">保存</button>
             </div>
-        </div>
-    `;
-    
-        // 缓存 DOM 引用
-        const infoDiv = item.querySelector('.image-info');
+        `;
+        item.appendChild(actionsDiv);
+        
+        imageList.appendChild(item);
+        
+        // 设置选中状态（如果之前已选中）
+        if (selectedImages.has(imageData.id)) {
+            checkbox.checked = true;
+            item.classList.add('selected');
+        }
+        
+        // 缓存 DOM 引用以便后续更新
         imageData.domCache = {
             sizeRow: infoDiv.querySelector('.image-info-row'),
             fileSize: infoDiv.querySelector('.file-size'),
             statusBadge: infoDiv.querySelector('.status-badge')
         };
-    
-        // 添加事件监听器
-        const checkbox = item.querySelector('.select-checkbox');
-        checkbox.addEventListener('click', (event) => {
-            event.stopPropagation();
-            toggleSelect(imageData.id, event);
-        });
-    
-        // 插入缩略图容器到正确位置
-        item.insertBefore(thumbnailContainer, item.firstChild);
-        imageList.appendChild(item);
-    
-        // 加载并绘制缩略图
-        const blob = await storage.get(`current_${imageData.id}`);
-        if (blob) {
-            try {
-                const bitmap = await createImageBitmap(blob);
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close();
-            } catch (e) {
-                console.warn('缩略图绘制失败', e);
-            }
-        }
     }
 
     // =============================================
@@ -4183,6 +4423,14 @@
      * 从存储中重新获取每张图片的 current blob 并重绘缩略图
      */
     async function refreshAllThumbnails() {
+        // 列表模式下不执行缩略图刷新
+        if (currentViewMode === 'list') {
+            const statusDiv = document.getElementById('batchStatus');
+            statusDiv.innerHTML = 'ℹ️ 当前为列表模式，不显示缩略图，无需刷新';
+            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            return;
+        }
+        
         const refreshBtn = document.getElementById('refresh-list-btn');
         
         // 防止重复刷新
@@ -4384,6 +4632,18 @@ SOFTWARE.</div>
     document.addEventListener('DOMContentLoaded', function() {
         // 全局 resize 监听：窗口大小改变时更新 Viewer 布局（带防抖）
         window.addEventListener('resize', handleWindowResize);
+            
+        // 加载视图模式偏好
+        loadViewModePreference();
+        
+        // 绑定视图切换按钮事件
+        const viewToggleBtn = document.getElementById('view-toggle-btn');
+        if (viewToggleBtn) {
+            viewToggleBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchViewMode();
+            });
+        }
             
         // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件
         const imageList = document.getElementById('imageList');
