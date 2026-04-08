@@ -4172,6 +4172,106 @@
         }
     });
     
+    // =============================================
+    // 刷新缩略图功能
+    // =============================================
+
+    let isRefreshingThumbnails = false;  // 刷新锁，防止并发刷新
+
+    /**
+     * 刷新所有图片的缩略图
+     * 从存储中重新获取每张图片的 current blob 并重绘缩略图
+     */
+    async function refreshAllThumbnails() {
+        const refreshBtn = document.getElementById('refresh-list-btn');
+        
+        // 防止重复刷新
+        if (isRefreshingThumbnails) {
+            console.log('刷新缩略图正在进行中，请稍后再试');
+            return;
+        }
+        
+        // 检查是否有图片
+        if (images.length === 0) {
+            const statusDiv = document.getElementById('batchStatus');
+            statusDiv.innerHTML = '⚠️ 没有图片需要刷新';
+            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            return;
+        }
+        
+        isRefreshingThumbnails = true;
+        // 禁用按钮防止误操作
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.style.opacity = '0.5';
+            refreshBtn.style.cursor = 'not-allowed';
+        }
+        
+        // 创建快照避免数组变化导致索引错乱
+        const snapshot = [...images];
+        const statusDiv = document.getElementById('batchStatus');
+        const totalCount = snapshot.length;
+        let successCount = 0;
+        let failureCount = 0;
+        
+        statusDiv.innerHTML = `<div class="loading"></div> 正在刷新缩略图 (0/${totalCount})...`;
+        
+        try {
+            // 串行刷新，避免大量并发导致内存压力
+            for (let i = 0; i < totalCount; i++) {
+                const imageData = snapshot[i];
+                if (!imageData) continue;
+                
+                try {
+                    // 获取当前图片的 Blob
+                    const blob = await storage.get(`current_${imageData.id}`);
+                    if (blob) {
+                        await updateThumbnail(imageData.id, blob);
+                        successCount++;
+                    } else {
+                        console.warn(`图片 ${imageData.name} 的 Blob 数据不存在`);
+                        failureCount++;
+                    }
+                } catch (error) {
+                    console.error(`刷新缩略图失败: ${imageData.name}`, error);
+                    failureCount++;
+                    logError(imageData.name, `刷新缩略图失败: ${error.message || '未知错误'}`);
+                }
+                
+                // 更新进度显示
+                const progress = Math.round((i + 1) / totalCount * 100);
+                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+                
+                // 让出控制权，避免阻塞UI
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+            
+            // 显示最终结果
+            if (failureCount === 0) {
+                statusDiv.innerHTML = ` 缩略图刷新完成 (${successCount} 张)`;
+            } else if (successCount === 0) {
+                statusDiv.innerHTML = ` 缩略图刷新全部失败 (${failureCount} 张)`;
+            } else {
+                statusDiv.innerHTML = ` 成功刷新 ${successCount} 张， 失败 ${failureCount} 张`;
+            }
+            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            
+            console.log(`缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
+        } catch (error) {
+            console.error('刷新缩略图过程出错:', error);
+            statusDiv.innerHTML = ' 刷新缩略图失败';
+            setTimeout(() => statusDiv.innerHTML = '', 3000);
+        } finally {
+            isRefreshingThumbnails = false;
+            // 恢复按钮状态
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.style.opacity = '';
+                refreshBtn.style.cursor = '';
+            }
+        }
+    }
+    
     // 显示开源许可证信息（新标签页打开）
     function showLicenseInfo() {
         const licenseContent = `
@@ -4306,6 +4406,15 @@ SOFTWARE.</div>
                         }
                     }
                 }
+            });
+        }
+        
+        // 刷新缩略图按钮事件绑定
+        const refreshBtn = document.getElementById('refresh-list-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                refreshAllThumbnails();
             });
         }
     });
