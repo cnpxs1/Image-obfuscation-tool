@@ -4619,13 +4619,16 @@ SOFTWARE.</div>
 </html>`;
         
         // 在新标签页中打开
-        const newWindow = window.open('', '_blank');
-        if (newWindow) {
-            newWindow.document.write(licenseContent);
-            newWindow.document.close();
-        } else {
-            alert('请允许弹出窗口以查看许可证信息');
-        }
+        const blob = new Blob([licenseContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
     }
     
     // 页面加载完成后绑定事件
