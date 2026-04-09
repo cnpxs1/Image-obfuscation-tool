@@ -42,11 +42,18 @@
                 } else {
                     window.fflateResources.failed = true;
                     console.error('fflate 所有源均加载失败，ZIP 功能将不可用');
-                    // 禁用 ZIP 下载开关
-                    const zipToggle = document.getElementById('zip-download-toggle');
-                    if (zipToggle) {
-                        zipToggle.disabled = true;
-                        zipToggle.title = 'fflate 库加载失败，ZIP 功能不可用';
+                    // 禁用 ZIP 下载开关（延迟到 DOM 就绪）
+                    const disableZipToggle = () => {
+                        const zipToggle = document.getElementById('zip-download-toggle');
+                        if (zipToggle) {
+                            zipToggle.disabled = true;
+                            zipToggle.title = 'fflate 库加载失败，ZIP 功能不可用';
+                        }
+                    };
+                    if (document.readyState === 'loading') {
+                        document.addEventListener('DOMContentLoaded', disableZipToggle);
+                    } else {
+                        disableZipToggle();
                     }
                 }
             };
@@ -1944,7 +1951,7 @@
         const errorItem = document.createElement('div');
         errorItem.className = 'error-log-item';
         errorItem.dataset.logId = logEntry.id; // 关联日志ID便于管理
-        errorItem.innerHTML = `<span class="error-timestamp">[${logEntry.formattedTime}]</span> <span class="error-file-name">${logEntry.fileName}</span><span class="error-reason"> - ${logEntry.reason}</span>`;
+        errorItem.innerHTML = `<span class="error-timestamp">[${logEntry.formattedTime}]</span> <span class="error-file-name">${escapeHtml(logEntry.fileName)}</span><span class="error-reason"> - ${escapeHtml(logEntry.reason)}</span>`;
         
         // 添加鼠标悬停效果（可选）
         errorItem.style.cursor = 'default';
@@ -2003,8 +2010,8 @@
             const timestamp = new Date();
             const logEntry = {
                 id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-                fileName: escapeHtml(fileName),
-                reason: escapeHtml(reason),
+                fileName,
+                reason,
                 timestamp,
                 formattedTime: timestamp.toLocaleString('zh-CN', {
                     year: 'numeric',
