@@ -1851,14 +1851,10 @@
             indicator.textContent = cacheType;
             indicator.style.display = 'block';
             // 设置气泡提示数据
-            let tooltipText = '';
-            if (cacheType === 'Cache API') {
-                tooltipText = '当前使用 Cache API 存储（性能更优）';
-            } else {
-                tooltipText = '当前使用 IndexedDB 存储';
-            }
+            const tooltipText = cacheType === 'Cache API' 
+                ? '当前使用 Cache API 存储(性能更优)' 
+                : '当前使用 IndexedDB 存储';
             indicator.setAttribute('data-tooltip', tooltipText);
-            // 移除 PC 端原生 title 描述，统一使用气泡
             indicator.removeAttribute('title');
             
             // 清理旧的监听器
