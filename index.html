@@ -1751,7 +1751,11 @@
             try {
                 // 获取当前图片 Blob
                 const blob = await storage.get(`current_${imageData.id}`);
-                if (!blob) throw new Error('图片数据不存在');
+                if (!blob) {
+                    failureCount++;
+                    logError(imageData.name, '图片数据不存在');
+                    continue;
+                }
 
                 let outputBlob;
                 const targetFormat = format.toLowerCase();
@@ -1761,7 +1765,7 @@
                     (targetFormat === 'jpeg' && currentType === 'image/jpg'));
 
                 if (needConvert) {
-                    // 需要转换格式
+                    // 格式转换：使用 Canvas 将图片转换为目标格式
                     const bitmap = await createImageBitmap(blob);
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
                     const ctx = canvas.getContext('2d');
@@ -1777,7 +1781,11 @@
                     } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
                         outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
                     } else if (targetFormat === 'webp') {
-                        if (!webpSupported) throw new Error('浏览器不支持 WebP');
+                        if (!webpSupported) {
+                            failureCount++;
+                            logError(imageData.name, '浏览器不支持 WebP');
+                            continue;
+                        }
                         outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
                     } else {
                         outputBlob = blob;
