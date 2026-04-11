@@ -1306,7 +1306,7 @@
             <button id="select-all" class="normal_button" style="background-color: #0091ff;color:#fff;min-width: 65px;">全 选</button>
             <button id="clear-selection" class="normal_button" style="background-color: #666;color:#fff;">清空选择</button>
             <button id="clear-all" class="normal_button" style="background-color: #ff1100;color:#fff;">删除所选</button>
-            <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所选</button>
+            <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所有</button>
         </div>
     </div>
 
@@ -3513,6 +3513,17 @@
     // =============================================
 
     /**
+     * 更新保存按钮文字
+     * 根据是否有选中项动态显示“保存所选”或“保存所有”
+     */
+    function updateSaveButtonText() {
+        const saveBtn = document.getElementById('save-format-btn');
+        if (saveBtn) {
+            saveBtn.textContent = selectedImages.size > 0 ? '保存所选' : '保存所有';
+        }
+    }
+
+    /**
      * 切换图片选择状态
      * @param {string} imageId - 图片ID
      * @param {Event} event - 事件对象
@@ -3534,6 +3545,9 @@
             if (item) item.classList.add('selected');
             if (checkbox) checkbox.checked = true;   // 显式设置复选框状态
         }
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3552,6 +3566,9 @@
                 if (checkbox) checkbox.checked = true;
             }
         });
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3570,6 +3587,9 @@
             }
         });
         selectedImages.clear();
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3613,7 +3633,10 @@
             
         // 重置选择状态
         selectedImages.clear();
-            
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
+        
         // 更新计数器
         updateImageCounter();
             
@@ -3662,6 +3685,9 @@
             
             // 从选中集合中移除
             selectedImages.delete(imageId);
+            
+            // 更新保存按钮文字
+            updateSaveButtonText();
             
             // 更新计数器
             updateImageCounter();
@@ -4686,6 +4712,9 @@ SOFTWARE.</div>
             
         // 加载视图模式偏好
         loadViewModePreference();
+        
+        // 初始化保存按钮文字
+        updateSaveButtonText();
         
         // 绑定视图切换按钮事件
         const viewToggleBtn = document.getElementById('view-toggle-btn');
