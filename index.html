@@ -1265,8 +1265,22 @@
         基于希尔伯特曲线的图片混淆。混淆算法保持像素的空间相关性，混淆图被压缩仍能保持色彩。
     </div>
 
+    <!-- 设置容器 -->
+    <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
+        <!-- 关闭按钮./img/icons/close.svg -->
+        <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 200 200"><path fill="#333" d="M121.4286,100L195.7143,25.7143c5.7143-5.7143,5.7143-15.7143,0-21.4286-5.7143-5.7143-15.7143-5.7143-21.4286,0l-74.2857,74.2857L25.7143,4.2857C20-1.4286,10-1.4286,4.2857,4.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286l74.2857,74.2857L4.2857,174.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286,5.7143,5.7143,15.7143,5.7143,21.4286,0l74.2857-74.2857,74.2857,74.2857c5.7143,5.7143,15.7143,5.7143,21.4286,0,5.7143-5.7143,5.7143-15.7143,0-21.4286l-74.2857-74.2857Z"/></svg>
+        </button>
+        <div style="padding: 10px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
+            <div id="settings-content">
+                <!-- 设置内容将在这里添加 -->
+            </div>
+        </div>
+    </div>
+
     <div class="controls-section" style="gap: 0;">
-        <!-- 设置按钮 -->
+        <!-- 设置按钮 ./img/icons/settings.svg -->
         <button id="settings-btn" class="settings-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,75c13.75,0,25,11.25,25,25s-11.25,25-25,25-25-11.25-25-25,11.25-25,25-25M100,62.5c-20.625,0-37.5,16.875-37.5,37.5s16.875,37.5,37.5,37.5,37.5-16.875,37.5-37.5-16.875-37.5-37.5-37.5Z"/></svg>
         </button>
@@ -2185,6 +2199,7 @@
     
     /**
      * 获取占位符 SVG
+     * ./img/icons/placeholder.svg
      * @returns {string} SVG 字符串
      */
     function getPlaceholderSVG() {
@@ -4756,6 +4771,29 @@ SOFTWARE.</div>
                 e.preventDefault();
                 refreshAllThumbnails();
             });
+        }
+        
+        // 设置按钮事件绑定
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsContainer = document.getElementById('settings-container');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        
+        if (settingsBtn && settingsContainer) {
+            // 点击设置按钮切换容器显示/隐藏
+            settingsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isHidden = settingsContainer.style.display === 'none' || settingsContainer.style.display === '';
+                settingsContainer.style.display = isHidden ? 'block' : 'none';
+            });
+            
+            // 点击关闭按钮隐藏容器
+            if (closeSettingsBtn) {
+                closeSettingsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    settingsContainer.style.display = 'none';
+                });
+            }
         }
     });
 </script>
