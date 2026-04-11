@@ -3962,7 +3962,7 @@
      * 3. 实现完善的资源管理和错误处理
      * 4. 支持优雅降级到基础查看器
      * 
-     * 新增取消机制防止竞态条件：
+     * 取消机制防止竞态条件：
      * - 使用取消令牌避免多个预览实例同时存在
      * - 快速连续点击时自动取消前一个操作
      */
@@ -3995,7 +3995,11 @@
                 return;
             }
                 
-            if (!window.Viewer) throw new Error('Viewer.js 不可用');
+            if (!window.Viewer) {
+                console.error('Viewer.js 不可用');
+                await handleViewerInitializationFailure(galleryContainer, imageData);
+                return;
+            }
                 
             await initializeViewerWithBestPractices(imageData, galleryContainer, imageId);
         } catch (error) {
@@ -4025,6 +4029,7 @@
     function cleanupExistingViewer() {
         if (viewerInstance) {
             try {
+                // @ts-ignore - Viewer.js 是动态加载的，destroy 方法在运行时存在
                 viewerInstance.destroy();
                 console.log('✅ 已销毁之前的 viewer 实例');
             } catch (error) {
