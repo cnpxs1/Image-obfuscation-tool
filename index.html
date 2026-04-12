@@ -2322,7 +2322,7 @@
         }
         
         // 未命中：生成新的曲线数据
-        const curve = gilbert2d(width, height);
+        const curve = hilbert2d(width, height);
         
         // 检查是否需要淘汰
         if (curveCache.size >= MAX_CACHE_SIZE) {
@@ -2361,123 +2361,130 @@
         }
     }
 
-    //希尔伯特曲线算法
-    function gilbert2d(width, height) {
-        const totalPixels = width * height;
-        const indices = new Uint32Array(totalPixels);
-        let currentIndex = 0;
+    /**
+     * 生成二维希尔伯特曲线遍历顺序的像素索引数组
+     * @param {number} width  - 图像宽度
+     * @param {number} height - 图像高度
+     * @returns {Uint32Array} 按曲线顺序排列的像素线性索引
+     */
+    function hilbert2d(width, height) {
+        const w = width;
+        const total = width * height;
+        const order = new Uint32Array(total);
+        let idx = 0;
 
-        const stack = [];
+        const maxDepth = Math.ceil(Math.log2(Math.max(width, height))) * 2 + 4;
+        const stack = new Int32Array(maxDepth * 6);
+        let sp = 0;
 
         if (width >= height) {
-            stack.push({ startX: 0, startY: 0, vecAX: width, vecAY: 0, vecBX: 0, vecBY: height });
+            stack[0] = 0; stack[1] = 0;
+            stack[2] = width; stack[3] = 0;
+            stack[4] = 0; stack[5] = height;
         } else {
-            stack.push({ startX: 0, startY: 0, vecAX: 0, vecAY: height, vecBX: width, vecBY: 0 });
+            stack[0] = 0; stack[1] = 0;
+            stack[2] = 0; stack[3] = height;
+            stack[4] = width; stack[5] = 0;
         }
+        sp = 6;
 
-        while (stack.length > 0) {
-            const { startX, startY, vecAX, vecAY, vecBX, vecBY } = stack.pop();
+        while (sp > 0) {
+            sp -= 6;
+            const x0  = stack[sp];
+            const y0  = stack[sp + 1];
+            const dx1 = stack[sp + 2];
+            const dy1 = stack[sp + 3];
+            const dx2 = stack[sp + 4];
+            const dy2 = stack[sp + 5];
 
-            const regionWidth = Math.abs(vecAX + vecAY);
-            const regionHeight = Math.abs(vecBX + vecBY);
-            const stepAX = Math.sign(vecAX), stepAY = Math.sign(vecAY);
-            const stepBX = Math.sign(vecBX), stepBY = Math.sign(vecBY);
+            const cellW = (dx1 | 0) !== 0 ? (dx1 > 0 ? dx1 : -dx1) : (dy1 > 0 ? dy1 : -dy1);
+            const cellH = (dx2 | 0) !== 0 ? (dx2 > 0 ? dx2 : -dx2) : (dy2 > 0 ? dy2 : -dy2);
+            const signX1 = dx1 > 0 ? 1 : dx1 < 0 ? -1 : 0;
+            const signY1 = dy1 > 0 ? 1 : dy1 < 0 ? -1 : 0;
+            const signX2 = dx2 > 0 ? 1 : dx2 < 0 ? -1 : 0;
+            const signY2 = dy2 > 0 ? 1 : dy2 < 0 ? -1 : 0;
 
-            if (regionHeight === 1) {
-                if (stepAX !== 0) {
-                    const base = startY * width + startX;
-                    const step = stepAX;
-                    for (let i = 0; i < regionWidth; ++i) {
-                        indices[currentIndex++] = base + i * step;
-                    }
-                } else {
-                    const stepRow = stepAY * width;
-                    let base = startY * width + startX;
-                    for (let i = 0; i < regionWidth; ++i) {
-                        indices[currentIndex++] = base;
-                        base += stepRow;
-                    }
+            if (cellH === 1) {
+                const step = signX1 + signY1 * w;
+                let ptr = y0 * w + x0;
+                for (let i = 0; i < cellW; i++) {
+                    order[idx++] = ptr;
+                    ptr += step;
                 }
                 continue;
             }
 
-            if (regionWidth === 1) {
-                if (stepBX !== 0) {
-                    const base = startY * width + startX;
-                    const step = stepBX;
-                    for (let i = 0; i < regionHeight; ++i) {
-                        indices[currentIndex++] = base + i * step;
-                    }
-                } else {
-                    const stepRow = stepBY * width;
-                    let base = startY * width + startX;
-                    for (let i = 0; i < regionHeight; ++i) {
-                        indices[currentIndex++] = base;
-                        base += stepRow;
-                    }
+            if (cellW === 1) {
+                const step = signX2 + signY2 * w;
+                let ptr = y0 * w + x0;
+                for (let i = 0; i < cellH; i++) {
+                    order[idx++] = ptr;
+                    ptr += step;
                 }
                 continue;
             }
 
-            let halfAX = Math.floor(vecAX / 2), halfAY = Math.floor(vecAY / 2);
-            let halfBX = Math.floor(vecBX / 2), halfBY = Math.floor(vecBY / 2);
-            const halfWidth = Math.abs(halfAX + halfAY);
-            const halfHeight = Math.abs(halfBX + halfBY);
+            let halfX1 = dx1 >> 1;
+            let halfY1 = dy1 >> 1;
+            let halfX2 = dx2 >> 1;
+            let halfY2 = dy2 >> 1;
+            const halfW = (halfX1 | 0) !== 0 ? (halfX1 > 0 ? halfX1 : -halfX1) : (halfY1 > 0 ? halfY1 : -halfY1);
+            const halfH = (halfX2 | 0) !== 0 ? (halfX2 > 0 ? halfX2 : -halfX2) : (halfY2 > 0 ? halfY2 : -halfY2);
 
-            if (2 * regionWidth > 3 * regionHeight) {
-                if ((halfWidth % 2) && (regionWidth > 2)) {
-                    halfAX += stepAX;
-                    halfAY += stepAY;
+            if (2 * cellW > 3 * cellH) {
+                if ((halfW & 1) && cellW > 2) {
+                    halfX1 += signX1;
+                    halfY1 += signY1;
                 }
-                stack.push({
-                    startX: startX + halfAX,
-                    startY: startY + halfAY,
-                    vecAX: vecAX - halfAX,
-                    vecAY: vecAY - halfAY,
-                    vecBX: vecBX,
-                    vecBY: vecBY
-                });
-                stack.push({
-                    startX: startX,
-                    startY: startY,
-                    vecAX: halfAX,
-                    vecAY: halfAY,
-                    vecBX: vecBX,
-                    vecBY: vecBY
-                });
+
+                stack[sp]     = x0 + halfX1;
+                stack[sp + 1] = y0 + halfY1;
+                stack[sp + 2] = dx1 - halfX1;
+                stack[sp + 3] = dy1 - halfY1;
+                stack[sp + 4] = dx2;
+                stack[sp + 5] = dy2;
+                sp += 6;
+
+                stack[sp]     = x0;
+                stack[sp + 1] = y0;
+                stack[sp + 2] = halfX1;
+                stack[sp + 3] = halfY1;
+                stack[sp + 4] = dx2;
+                stack[sp + 5] = dy2;
+                sp += 6;
             } else {
-                if ((halfHeight % 2) && (regionHeight > 2)) {
-                    halfBX += stepBX;
-                    halfBY += stepBY;
+                if ((halfH & 1) && cellH > 2) {
+                    halfX2 += signX2;
+                    halfY2 += signY2;
                 }
-                stack.push({
-                    startX: startX + (vecAX - stepAX) + (halfBX - stepBX),
-                    startY: startY + (vecAY - stepAY) + (halfBY - stepBY),
-                    vecAX: -halfBX,
-                    vecAY: -halfBY,
-                    vecBX: -(vecAX - halfAX),
-                    vecBY: -(vecAY - halfAY)
-                });
-                stack.push({
-                    startX: startX + halfBX,
-                    startY: startY + halfBY,
-                    vecAX: vecAX,
-                    vecAY: vecAY,
-                    vecBX: vecBX - halfBX,
-                    vecBY: vecBY - halfBY
-                });
-                stack.push({
-                    startX: startX,
-                    startY: startY,
-                    vecAX: halfBX,
-                    vecAY: halfBY,
-                    vecBX: halfAX,
-                    vecBY: halfAY
-                });
+
+                stack[sp]     = x0 + (dx1 - signX1) + (halfX2 - signX2);
+                stack[sp + 1] = y0 + (dy1 - signY1) + (halfY2 - signY2);
+                stack[sp + 2] = -halfX2;
+                stack[sp + 3] = -halfY2;
+                stack[sp + 4] = -(dx1 - halfX1);
+                stack[sp + 5] = -(dy1 - halfY1);
+                sp += 6;
+
+                stack[sp]     = x0 + halfX2;
+                stack[sp + 1] = y0 + halfY2;
+                stack[sp + 2] = dx1;
+                stack[sp + 3] = dy1;
+                stack[sp + 4] = dx2 - halfX2;
+                stack[sp + 5] = dy2 - halfY2;
+                sp += 6;
+
+                stack[sp]     = x0;
+                stack[sp + 1] = y0;
+                stack[sp + 2] = halfX2;
+                stack[sp + 3] = halfY2;
+                stack[sp + 4] = halfX1;
+                stack[sp + 5] = halfY1;
+                sp += 6;
             }
         }
 
-        return indices;
+        return order;
     }
 
     // =============================================
