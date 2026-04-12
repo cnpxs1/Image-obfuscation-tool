@@ -2360,64 +2360,123 @@
             console.log(`LFU缓存淘汰: ${evictionKey} (频率: ${minFreq}, 最后访问: ${oldestAccess})`);
         }
     }
-    
+
+    //希尔伯特曲线算法
     function gilbert2d(width, height) {
         const totalPixels = width * height;
         const indices = new Uint32Array(totalPixels);
-        let idx = 0;
+        let currentIndex = 0;
 
-        function generate2d(x, y, ax, ay, bx, by) {
-            const w = Math.abs(ax + ay);
-            const h = Math.abs(bx + by);
-            const dax = Math.sign(ax), day = Math.sign(ay);
-            const dbx = Math.sign(bx), dby = Math.sign(by);
-
-            if (h === 1) {
-                for (let i = 0; i < w; i++) {
-                    indices[idx++] = y * width + x;  // 直接存储线性索引
-                    x += dax;
-                    y += day;
-                }
-                return;
-            }
-            if (w === 1) {
-                for (let i = 0; i < h; i++) {
-                    indices[idx++] = y * width + x;  // 直接存储线性索引
-                    x += dbx;
-                    y += dby;
-                }
-                return;
-            }
-
-            let ax2 = Math.floor(ax / 2), ay2 = Math.floor(ay / 2);
-            let bx2 = Math.floor(bx / 2), by2 = Math.floor(by / 2);
-            const w2 = Math.abs(ax2 + ay2);
-            const h2 = Math.abs(bx2 + by2);
-
-            if (2 * w > 3 * h) {
-                if ((w2 % 2) && (w > 2)) {
-                    ax2 += dax;
-                    ay2 += day;
-                }
-                generate2d(x, y, ax2, ay2, bx, by);
-                generate2d(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
-            } else {
-                if ((h2 % 2) && (h > 2)) {
-                    bx2 += dbx;
-                    by2 += dby;
-                }
-                generate2d(x, y, bx2, by2, ax2, ay2);
-                generate2d(x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
-                generate2d(x + (ax - dax) + (bx2 - dbx), y + (ay - day) + (by2 - dby),
-                           -bx2, -by2, -(ax - ax2), -(ay - ay2));
-            }
-        }
+        const stack = [];
 
         if (width >= height) {
-            generate2d(0, 0, width, 0, 0, height);
+            stack.push({ startX: 0, startY: 0, vecAX: width, vecAY: 0, vecBX: 0, vecBY: height });
         } else {
-            generate2d(0, 0, 0, height, width, 0);
+            stack.push({ startX: 0, startY: 0, vecAX: 0, vecAY: height, vecBX: width, vecBY: 0 });
         }
+
+        while (stack.length > 0) {
+            const { startX, startY, vecAX, vecAY, vecBX, vecBY } = stack.pop();
+
+            const regionWidth = Math.abs(vecAX + vecAY);
+            const regionHeight = Math.abs(vecBX + vecBY);
+            const stepAX = Math.sign(vecAX), stepAY = Math.sign(vecAY);
+            const stepBX = Math.sign(vecBX), stepBY = Math.sign(vecBY);
+
+            if (regionHeight === 1) {
+                if (stepAX !== 0) {
+                    const base = startY * width + startX;
+                    const step = stepAX;
+                    for (let i = 0; i < regionWidth; ++i) {
+                        indices[currentIndex++] = base + i * step;
+                    }
+                } else {
+                    const stepRow = stepAY * width;
+                    let base = startY * width + startX;
+                    for (let i = 0; i < regionWidth; ++i) {
+                        indices[currentIndex++] = base;
+                        base += stepRow;
+                    }
+                }
+                continue;
+            }
+
+            if (regionWidth === 1) {
+                if (stepBX !== 0) {
+                    const base = startY * width + startX;
+                    const step = stepBX;
+                    for (let i = 0; i < regionHeight; ++i) {
+                        indices[currentIndex++] = base + i * step;
+                    }
+                } else {
+                    const stepRow = stepBY * width;
+                    let base = startY * width + startX;
+                    for (let i = 0; i < regionHeight; ++i) {
+                        indices[currentIndex++] = base;
+                        base += stepRow;
+                    }
+                }
+                continue;
+            }
+
+            let halfAX = Math.floor(vecAX / 2), halfAY = Math.floor(vecAY / 2);
+            let halfBX = Math.floor(vecBX / 2), halfBY = Math.floor(vecBY / 2);
+            const halfWidth = Math.abs(halfAX + halfAY);
+            const halfHeight = Math.abs(halfBX + halfBY);
+
+            if (2 * regionWidth > 3 * regionHeight) {
+                if ((halfWidth % 2) && (regionWidth > 2)) {
+                    halfAX += stepAX;
+                    halfAY += stepAY;
+                }
+                stack.push({
+                    startX: startX + halfAX,
+                    startY: startY + halfAY,
+                    vecAX: vecAX - halfAX,
+                    vecAY: vecAY - halfAY,
+                    vecBX: vecBX,
+                    vecBY: vecBY
+                });
+                stack.push({
+                    startX: startX,
+                    startY: startY,
+                    vecAX: halfAX,
+                    vecAY: halfAY,
+                    vecBX: vecBX,
+                    vecBY: vecBY
+                });
+            } else {
+                if ((halfHeight % 2) && (regionHeight > 2)) {
+                    halfBX += stepBX;
+                    halfBY += stepBY;
+                }
+                stack.push({
+                    startX: startX + (vecAX - stepAX) + (halfBX - stepBX),
+                    startY: startY + (vecAY - stepAY) + (halfBY - stepBY),
+                    vecAX: -halfBX,
+                    vecAY: -halfBY,
+                    vecBX: -(vecAX - halfAX),
+                    vecBY: -(vecAY - halfAY)
+                });
+                stack.push({
+                    startX: startX + halfBX,
+                    startY: startY + halfBY,
+                    vecAX: vecAX,
+                    vecAY: vecAY,
+                    vecBX: vecBX - halfBX,
+                    vecBY: vecBY - halfBY
+                });
+                stack.push({
+                    startX: startX,
+                    startY: startY,
+                    vecAX: halfBX,
+                    vecAY: halfBY,
+                    vecBX: halfAX,
+                    vecBY: halfAY
+                });
+            }
+        }
+
         return indices;
     }
 
