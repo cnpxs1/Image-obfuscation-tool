@@ -4231,6 +4231,13 @@
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
         
+        // 如果光标在输入框内，不同步更新
+        const activeElement = document.activeElement;
+        if (activeElement === hexInput || activeElement === rgbRInput || 
+            activeElement === rgbGInput || activeElement === rgbBInput) {
+            return;
+        }
+        
         if (hexInput) {
             hexInput.value = color.hexString;
         }
@@ -5144,10 +5151,76 @@ SOFTWARE.</div>
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
         
-        if (hexInput) {
-            hexInput.addEventListener('input', (e) => {
-                updateColorFromHex(e.target.value.trim());
+        // 统一同步所有输入框的值
+        function syncAllInputs() {
+            requestAnimationFrame(() => {
+                if (colorPickerInstance && colorPickerInstance.color) {
+                    const hex = colorPickerInstance.color.hexString;
+                    const { r, g, b } = colorPickerInstance.color.rgb;
+                    
+                    if (hexInput) hexInput.value = hex;
+                    if (rgbRInput) rgbRInput.value = r;
+                    if (rgbGInput) rgbGInput.value = g;
+                    if (rgbBInput) rgbBInput.value = b;
+                } else {
+                    // 降级处理：从全局背景色解析
+                    const hex = opaqueBackgroundColor || '#FFFFFF';
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    if (result) {
+                        const r = parseInt(result[1], 16);
+                        const g = parseInt(result[2], 16);
+                        const b = parseInt(result[3], 16);
+                        if (hexInput) hexInput.value = hex;
+                        if (rgbRInput) rgbRInput.value = r;
+                        if (rgbGInput) rgbGInput.value = g;
+                        if (rgbBInput) rgbBInput.value = b;
+                    }
+                }
             });
+        }
+        
+        if (hexInput) {
+            let isProcessing = false;
+            hexInput.addEventListener('input', (e) => {
+                if (isProcessing) return;
+                isProcessing = true;
+                
+                let value = e.target.value.trim();
+                // 确保以 # 开头
+                if (!value.startsWith('#')) {
+                    value = '#' + value;
+                }
+                // 只保留 # 和十六进制字符
+                value = '#' + value.substring(1).replace(/[^0-9A-Fa-f]/g, '');
+                // 限制长度为7
+                if (value.length > 7) {
+                    value = value.substring(0, 7);
+                }
+                
+                requestAnimationFrame(() => {
+                    if (e.target.value !== value) {
+                        const cursorPos = e.target.selectionStart;
+                        e.target.value = value;
+                        // 保持光标位置
+                        e.target.setSelectionRange(cursorPos, cursorPos);
+                    }
+                    updateColorFromHex(value);
+                    isProcessing = false;
+                });
+            });
+            
+            // 防止删除 # 号
+            hexInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                    const cursorPos = hexInput.selectionStart;
+                    if (cursorPos <= 1) {
+                        e.preventDefault();
+                    }
+                }
+            });
+            
+            // 失焦时同步所有输入框
+            hexInput.addEventListener('blur', syncAllInputs);
         }
         
         if (rgbRInput) {
@@ -5159,6 +5232,8 @@ SOFTWARE.</div>
                 }
                 updateColorFromRgb();
             });
+            
+            rgbRInput.addEventListener('blur', syncAllInputs);
         }
         
         if (rgbGInput) {
@@ -5170,6 +5245,8 @@ SOFTWARE.</div>
                 }
                 updateColorFromRgb();
             });
+            
+            rgbGInput.addEventListener('blur', syncAllInputs);
         }
         
         if (rgbBInput) {
@@ -5181,6 +5258,8 @@ SOFTWARE.</div>
                 }
                 updateColorFromRgb();
             });
+            
+            rgbBInput.addEventListener('blur', syncAllInputs);
         }
     });
 </script>
