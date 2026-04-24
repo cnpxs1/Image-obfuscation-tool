@@ -8,6 +8,54 @@
     <!-- Viewer.js CSS 智能加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
     <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
+    <!-- iro.js 颜色选择器库智能加载 | 许可证：MIT License -->
+    <script>
+        // iro.js 资源加载状态
+        window.iroResources = {
+            loaded: false,
+            loading: false,
+            failed: false
+        };
+        
+        function loadIro(cdnUrl, fallbackUrls, index = 0) {
+            if (window.iroResources.loaded || window.iroResources.loading) return;
+            window.iroResources.loading = true;
+            
+            const script = document.createElement('script');
+            script.src = cdnUrl;
+            script.onload = () => {
+                if (typeof iro !== 'undefined') {
+                    window.iroResources.loaded = true;
+                    window.iroResources.loading = false;
+                    console.log('iro.js 加载成功:', cdnUrl);
+                } else {
+                    console.warn('iro.js 脚本加载但未定义，视为失败');
+                    window.iroResources.loading = false;
+                    script.onerror(new Error('iro is not defined'));
+                }
+            };
+            script.onerror = () => {
+                console.warn('iro.js 加载失败:', cdnUrl);
+                window.iroResources.loading = false;
+                if (index < fallbackUrls.length) {
+                    loadIro(fallbackUrls[index], fallbackUrls, index + 1);
+                } else {
+                    window.iroResources.failed = true;
+                    console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用');
+                }
+            };
+            document.head.appendChild(script);
+        }
+
+        // 优先级：jsDelivr -> unpkg -> 本地
+        loadIro(
+            'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
+            [
+                'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
+                './assets/irojs/iro.js'
+            ]
+        );
+    </script>
     <!-- fflate 库智能加载 - ZIP 压缩/解压 | 许可证：MIT License -->
     <script>
         // fflate 资源加载状态
@@ -759,6 +807,11 @@
             border-radius: 4px;
         }
         
+        /* 颜色选择器容器直角样式 */
+        #color-picker-box * {
+            border-radius: 0 !important;
+        }
+        
         @media (max-width: 768px) {
             .image-item.list-view {
                 flex-wrap: wrap;
@@ -1275,7 +1328,38 @@
         <div style="padding: 10px;">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
             <div id="settings-content">
-                <!-- 设置内容将在这里添加 -->
+                <!-- 背景颜色设置 -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">不透明格式背景色</h4>
+                    <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">用于 JPG、BMP 等不支持透明背景的格式</p>
+                    
+                    <!-- 颜色选择器容器 -->
+                    <div id="color-picker-container" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                        <!-- Box & Hue Slider -->
+                        <div id="color-picker-box"></div>
+                        
+                        <!-- 颜色值输入框 -->
+                        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
+                                <input type="text" id="hex-input" placeholder="#FFFFFF" 
+                                    style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 0.9rem;"
+                                    maxlength="7" />
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="min-width: 70px; font-size: 0.9rem; color: #555;">RGB:</label>
+                                <input type="text" id="rgb-input" placeholder="rgb(255, 255, 255)" 
+                                    style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 0.9rem;" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 当前颜色预览 -->
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 0.9rem; color: #555;">当前颜色:</span>
+                        <div id="color-preview" style="width: 40px; height: 40px; border: 2px solid #ddd; border-radius: 4px; background-color: #ffffff;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1786,7 +1870,15 @@
                     const bitmap = await createImageBitmap(blob);
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
                     const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 对于不支持透明的格式（JPG、BMP），先填充背景色
+                    if (targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') {
+                        ctx.fillStyle = opaqueBackgroundColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    } else {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }
+                    
                     ctx.drawImage(bitmap, 0, 0);
                     bitmap.close();
 
@@ -2856,19 +2948,29 @@
                 const blobUrl = URL.createObjectURL(blob);
                 const worker = new Worker(blobUrl);
                 
+                let settled = false;
+                function finalize(err) {
+                    if (settled) return;
+                    settled = true;
+                    URL.revokeObjectURL(blobUrl);
+                    worker.terminate();
+                    reject(err);
+                }
+                
                 worker.onmessage = function(e) {
-                    URL.revokeObjectURL(blobUrl); // 释放Web Worker的blob URL
+                    if (settled) return;
+                    settled = true;
+                    URL.revokeObjectURL(blobUrl);
                     resolve(e.data);
                 };
                 
                 worker.onerror = function(error) {
-                    URL.revokeObjectURL(blobUrl); // 释放Web Worker的blob URL
-                    reject(new Error(`Web Worker处理失败: ${error.message}`));
+                    finalize(new Error(`Web Worker处理失败: ${error.message}`));
                 };
                 
                 // 确保Worker终止时也能释放资源
                 worker.addEventListener('messageerror', function() {
-                    URL.revokeObjectURL(blobUrl);
+                    finalize(new Error('Web Worker消息传输失败'));
                 });
                 
                 const ctx = canvas.getContext('2d');
@@ -3264,8 +3366,16 @@
         const bitmap = await createImageBitmap(blob);
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
         const ctx = canvas.getContext('2d');
-        // 清除旧内容，避免导出多余内容
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 对于不支持透明的格式（JPG、BMP），先填充背景色
+        if (format === 'jpg' || format === 'jpeg' || format === 'bmp') {
+            ctx.fillStyle = opaqueBackgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        } else {
+            // 清除旧内容，避免导出多余内容
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        
         ctx.drawImage(bitmap, 0, 0);
         bitmap.close();
 
@@ -4025,6 +4135,151 @@
         errorLogPanel.style.display = 'none';
         
         console.log('✅ 错误日志已清空并释放相关资源');
+    }
+
+    // =============================================
+    // 背景颜色管理
+    // =============================================
+    
+    /**
+     * 不透明格式的背景颜色（默认白色）
+     * @type {string} 十六进制颜色值
+     */
+    let opaqueBackgroundColor = '#ffffff';
+    
+    /**
+     * iro.js 颜色选择器实例
+     * @type {Object|null}
+     */
+    let colorPickerInstance = null;
+    
+    /**
+     * 初始化 iro.js 颜色选择器
+     */
+    function initColorPicker() {
+        // 检查 iro.js 是否加载成功
+        if (!window.iro || typeof iro.ColorPicker !== 'function') {
+            console.warn('iro.js 未加载，颜色选择器不可用');
+            return;
+        }
+        
+        try {
+            // 创建颜色选择器实例 - Box & Hue Slider 布局（色条在右侧）
+            colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
+                width: 200,
+                layoutDirection: 'horizontal',
+                layout: [
+                    {
+                        component: iro.ui.Box,
+                        options: {}
+                    },
+                    {
+                        component: iro.ui.Slider,
+                        options: {
+                            sliderType: 'hue'
+                        }
+                    }
+                ],
+                color: opaqueBackgroundColor,
+                borderWidth: 1,
+                borderColor: '#ddd',
+                containerStyle: 'border-radius: 0;'
+            });
+            
+            // 监听颜色变化事件
+            colorPickerInstance.on('color:change', (color) => {
+                updateColorInputs(color);
+                updateColorPreview(color.hexString);
+                opaqueBackgroundColor = color.hexString;
+            });
+            
+            // 强制移除所有圆角
+            setTimeout(() => {
+                const pickerElements = document.querySelectorAll('#color-picker-box *');
+                pickerElements.forEach(el => {
+                    el.style.borderRadius = '0';
+                });
+            }, 100);
+            
+            // 初始化输入框
+            const initialColor = colorPickerInstance.color;
+            updateColorInputs(initialColor);
+            updateColorPreview(initialColor.hexString);
+            
+            console.log('✅ 颜色选择器初始化成功');
+        } catch (error) {
+            console.error('颜色选择器初始化失败:', error);
+        }
+    }
+    
+    /**
+     * 更新颜色输入框的值
+     * @param {Object} color - iro.js 颜色对象
+     */
+    function updateColorInputs(color) {
+        const hexInput = document.getElementById('hex-input');
+        const rgbInput = document.getElementById('rgb-input');
+        
+        if (hexInput) {
+            hexInput.value = color.hexString;
+        }
+        
+        if (rgbInput) {
+            const { r, g, b } = color.rgb;
+            rgbInput.value = `rgb(${r}, ${g}, ${b})`;
+        }
+    }
+    
+    /**
+     * 更新颜色预览框
+     * @param {string} hexColor - 十六进制颜色值
+     */
+    function updateColorPreview(hexColor) {
+        const preview = document.getElementById('color-preview');
+        if (preview) {
+            preview.style.backgroundColor = hexColor;
+        }
+    }
+    
+    /**
+     * 从十六进制输入框更新颜色
+     * @param {string} hexValue - 十六进制颜色值
+     */
+    function updateColorFromHex(hexValue) {
+        if (!colorPickerInstance) return;
+        
+        // 验证十六进制格式
+        const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+        if (hexRegex.test(hexValue)) {
+            colorPickerInstance.color.set(hexValue);
+            opaqueBackgroundColor = hexValue;
+            updateColorPreview(hexValue);
+        }
+    }
+    
+    /**
+     * 从 RGB 输入框更新颜色
+     * @param {string} rgbValue - RGB 颜色值字符串
+     */
+    function updateColorFromRgb(rgbValue) {
+        if (!colorPickerInstance) return;
+        
+        // 解析 RGB 值
+        const rgbRegex = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/;
+        const match = rgbValue.match(rgbRegex);
+        
+        if (match) {
+            const r = parseInt(match[1]);
+            const g = parseInt(match[2]);
+            const b = parseInt(match[3]);
+            
+            // 验证范围
+            if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+                colorPickerInstance.color.set({ r, g, b });
+                opaqueBackgroundColor = colorPickerInstance.color.hexString;
+                updateColorPreview(opaqueBackgroundColor);
+            }
+        }
     }
 
     // =============================================
@@ -4853,6 +5108,12 @@ SOFTWARE.</div>
                 e.preventDefault();
                 const isHidden = settingsContainer.style.display === 'none' || settingsContainer.style.display === '';
                 settingsContainer.style.display = isHidden ? 'block' : 'none';
+                
+                // 首次打开时初始化颜色选择器
+                if (isHidden && !colorPickerInstance) {
+                    // 延迟初始化以确保 DOM 完全渲染
+                    setTimeout(() => initColorPicker(), 100);
+                }
             });
             
             // 点击关闭按钮隐藏容器
@@ -4863,6 +5124,22 @@ SOFTWARE.</div>
                     settingsContainer.style.display = 'none';
                 });
             }
+        }
+        
+        // 颜色输入框事件绑定
+        const hexInput = document.getElementById('hex-input');
+        const rgbInput = document.getElementById('rgb-input');
+        
+        if (hexInput) {
+            hexInput.addEventListener('input', (e) => {
+                updateColorFromHex(e.target.value.trim());
+            });
+        }
+        
+        if (rgbInput) {
+            rgbInput.addEventListener('input', (e) => {
+                updateColorFromRgb(e.target.value.trim());
+            });
         }
     });
 </script>
