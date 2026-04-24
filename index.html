@@ -1330,11 +1330,15 @@
             <div id="settings-content">
                 <!-- 背景颜色设置 -->
                 <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">不透明格式背景色</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">透明格式背景色</h4>
                     <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">用于 JPG、BMP 等不支持透明背景的格式</p>
                     
                     <!-- 颜色选择器容器 -->
                     <div id="color-picker-container" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                        <!-- 当前颜色预览 -->
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+                            <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff;"></div>
+                        </div>
                         <!-- Box & Hue Slider -->
                         <div id="color-picker-box"></div>
                         
@@ -1343,21 +1347,26 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
                                 <input type="text" id="hex-input" placeholder="#FFFFFF" 
-                                    style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 0.9rem;"
+                                    style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;"
                                     maxlength="7" />
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
-                                <label style="min-width: 70px; font-size: 0.9rem; color: #555;">RGB:</label>
-                                <input type="text" id="rgb-input" placeholder="rgb(255, 255, 255)" 
-                                    style="flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 0.9rem;" />
+                                <div style="display: flex; gap: 4px; align-items: center;">
+                                    <span style="font-size: 0.9rem; color: #555;">R:</span>
+                                    <input type="text" id="rgb-r-input" placeholder="255" 
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <span style="font-size: 0.9rem; color: #555;">G:</span>
+                                    <input type="text" id="rgb-g-input" placeholder="255" 
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <span style="font-size: 0.9rem; color: #555;">B:</span>
+                                    <input type="text" id="rgb-b-input" placeholder="255" 
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- 当前颜色预览 -->
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 0.9rem; color: #555;">当前颜色:</span>
-                        <div id="color-preview" style="width: 40px; height: 40px; border: 2px solid #ddd; border-radius: 4px; background-color: #ffffff;"></div>
                     </div>
                 </div>
             </div>
@@ -4218,15 +4227,19 @@
      */
     function updateColorInputs(color) {
         const hexInput = document.getElementById('hex-input');
-        const rgbInput = document.getElementById('rgb-input');
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
         
         if (hexInput) {
             hexInput.value = color.hexString;
         }
         
-        if (rgbInput) {
+        if (rgbRInput && rgbGInput && rgbBInput) {
             const { r, g, b } = color.rgb;
-            rgbInput.value = `rgb(${r}, ${g}, ${b})`;
+            rgbRInput.value = r;
+            rgbGInput.value = g;
+            rgbBInput.value = b;
         }
     }
     
@@ -4259,26 +4272,25 @@
     
     /**
      * 从 RGB 输入框更新颜色
-     * @param {string} rgbValue - RGB 颜色值字符串
      */
-    function updateColorFromRgb(rgbValue) {
+    function updateColorFromRgb() {
         if (!colorPickerInstance) return;
         
-        // 解析 RGB 值
-        const rgbRegex = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/;
-        const match = rgbValue.match(rgbRegex);
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
         
-        if (match) {
-            const r = parseInt(match[1]);
-            const g = parseInt(match[2]);
-            const b = parseInt(match[3]);
-            
-            // 验证范围
-            if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-                colorPickerInstance.color.set({ r, g, b });
-                opaqueBackgroundColor = colorPickerInstance.color.hexString;
-                updateColorPreview(opaqueBackgroundColor);
-            }
+        if (!rgbRInput || !rgbGInput || !rgbBInput) return;
+        
+        const r = parseInt(rgbRInput.value) || 0;
+        const g = parseInt(rgbGInput.value) || 0;
+        const b = parseInt(rgbBInput.value) || 0;
+        
+        // 验证范围
+        if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+            colorPickerInstance.color.set({ r, g, b });
+            opaqueBackgroundColor = colorPickerInstance.color.hexString;
+            updateColorPreview(opaqueBackgroundColor);
         }
     }
 
@@ -5128,7 +5140,9 @@ SOFTWARE.</div>
         
         // 颜色输入框事件绑定
         const hexInput = document.getElementById('hex-input');
-        const rgbInput = document.getElementById('rgb-input');
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
         
         if (hexInput) {
             hexInput.addEventListener('input', (e) => {
@@ -5136,9 +5150,36 @@ SOFTWARE.</div>
             });
         }
         
-        if (rgbInput) {
-            rgbInput.addEventListener('input', (e) => {
-                updateColorFromRgb(e.target.value.trim());
+        if (rgbRInput) {
+            rgbRInput.addEventListener('input', () => {
+                let value = parseInt(rgbRInput.value) || 0;
+                if (value > 255) {
+                    value = 255;
+                    rgbRInput.value = '255';
+                }
+                updateColorFromRgb();
+            });
+        }
+        
+        if (rgbGInput) {
+            rgbGInput.addEventListener('input', () => {
+                let value = parseInt(rgbGInput.value) || 0;
+                if (value > 255) {
+                    value = 255;
+                    rgbGInput.value = '255';
+                }
+                updateColorFromRgb();
+            });
+        }
+        
+        if (rgbBInput) {
+            rgbBInput.addEventListener('input', () => {
+                let value = parseInt(rgbBInput.value) || 0;
+                if (value > 255) {
+                    value = 255;
+                    rgbBInput.value = '255';
+                }
+                updateColorFromRgb();
             });
         }
     });
