@@ -4230,22 +4230,21 @@
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
         
-        // 如果光标在输入框内，不同步更新
         const activeElement = document.activeElement;
-        if (activeElement === hexInput || activeElement === rgbRInput || 
-            activeElement === rgbGInput || activeElement === rgbBInput) {
-            return;
-        }
         
-        if (hexInput) {
+        // 只更新非焦点的输入框
+        if (hexInput && activeElement !== hexInput) {
             hexInput.value = color.hexString;
         }
         
-        if (rgbRInput && rgbGInput && rgbBInput) {
-            const { r, g, b } = color.rgb;
-            rgbRInput.value = r;
-            rgbGInput.value = g;
-            rgbBInput.value = b;
+        if (activeElement !== rgbRInput && rgbRInput) {
+            rgbRInput.value = color.rgb.r;
+        }
+        if (activeElement !== rgbGInput && rgbGInput) {
+            rgbGInput.value = color.rgb.g;
+        }
+        if (activeElement !== rgbBInput && rgbBInput) {
+            rgbBInput.value = color.rgb.b;
         }
     }
     
@@ -5157,10 +5156,19 @@ SOFTWARE.</div>
                     const hex = colorPickerInstance.color.hexString;
                     const { r, g, b } = colorPickerInstance.color.rgb;
                     
-                    if (hexInput) hexInput.value = hex;
-                    if (rgbRInput) rgbRInput.value = r;
-                    if (rgbGInput) rgbGInput.value = g;
-                    if (rgbBInput) rgbBInput.value = b;
+                    // 只同步非焦点的输入框
+                    if (hexInput && document.activeElement !== hexInput) {
+                        hexInput.value = hex;
+                    }
+                    if (rgbRInput && document.activeElement !== rgbRInput) {
+                        rgbRInput.value = r;
+                    }
+                    if (rgbGInput && document.activeElement !== rgbGInput) {
+                        rgbGInput.value = g;
+                    }
+                    if (rgbBInput && document.activeElement !== rgbBInput) {
+                        rgbBInput.value = b;
+                    }
                 } else {
                     // 降级处理：从全局背景色解析
                     const hex = opaqueBackgroundColor || '#FFFFFF';
@@ -5169,10 +5177,18 @@ SOFTWARE.</div>
                         const r = parseInt(result[1], 16);
                         const g = parseInt(result[2], 16);
                         const b = parseInt(result[3], 16);
-                        if (hexInput) hexInput.value = hex;
-                        if (rgbRInput) rgbRInput.value = r;
-                        if (rgbGInput) rgbGInput.value = g;
-                        if (rgbBInput) rgbBInput.value = b;
+                        if (hexInput && document.activeElement !== hexInput) {
+                            hexInput.value = hex;
+                        }
+                        if (rgbRInput && document.activeElement !== rgbRInput) {
+                            rgbRInput.value = r;
+                        }
+                        if (rgbGInput && document.activeElement !== rgbGInput) {
+                            rgbGInput.value = g;
+                        }
+                        if (rgbBInput && document.activeElement !== rgbBInput) {
+                            rgbBInput.value = b;
+                        }
                     }
                 }
             });
@@ -5217,6 +5233,17 @@ SOFTWARE.</div>
                         e.preventDefault();
                     }
                 }
+            });
+            
+            // 焦点进入时记录当前值
+            hexInput.addEventListener('focus', () => {
+                let value = hexInput.value.trim();
+                value = value.replace(/#/g, '');
+                value = '#' + value.replace(/[^0-9A-Fa-f]/g, '');
+                if (value.length > 7) {
+                    value = value.substring(0, 7);
+                }
+                lastValidValue = value;
             });
             
             // 失焦时同步所有输入框
