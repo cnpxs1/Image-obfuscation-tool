@@ -1330,7 +1330,7 @@
             <div id="settings-content">
                 <!-- 背景颜色设置 -->
                 <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">透明格式背景色</h4>
+                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">背景色</h4>
                     <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">用于 JPG、BMP 等不支持透明背景的格式</p>
                     
                     <!-- 颜色选择器容器 -->
@@ -5244,6 +5244,29 @@ SOFTWARE.</div>
                     value = value.substring(0, 7);
                 }
                 lastValidValue = value;
+            });
+            
+            // 粘贴时自动处理十六进制格式
+            hexInput.addEventListener('paste', (e) => {
+                const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                // 匹配十六进制颜色格式：#FFF, #FFFFFF, FFF, FFFFFF
+                const hexRegex = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+                
+                if (hexRegex.test(pasteText.trim())) {
+                    e.preventDefault();
+                    let value = pasteText.trim();
+                    // 移除所有 # 号
+                    value = value.replace(/#/g, '');
+                    // 统一添加 # 号
+                    value = '#' + value.toUpperCase();
+                    // 如果是3位，扩展为6位
+                    if (value.length === 4) {
+                        value = '#' + value[1] + value[1] + value[2] + value[2] + value[3] + value[3];
+                    }
+                    hexInput.value = value;
+                    updateColorFromHex(value);
+                    lastValidValue = value;
+                }
             });
             
             // 失焦时同步所有输入框
