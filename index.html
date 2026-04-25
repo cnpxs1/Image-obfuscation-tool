@@ -4952,113 +4952,233 @@
     
     // 显示开源许可证信息（新标签页打开）
     function showLicenseInfo() {
-        const licenseContent = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>开源许可证 - 图片混淆工具</title>
-    <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: white; }
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        h1 { color: #333; text-align: center; margin-bottom: 30px; font-size: 2em; }
-        h2 { color: #0091ff; margin: 30px 0 15px 0; border-bottom: 2px solid #0091ff; padding-bottom: 5px; }
-        a { color: #0091ff; text-decoration: underline; }
-        .license-text { white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f8f8; padding: 25px; border-radius: 4px; border-left: 4px solid #0091ff; margin-bottom: 30px; }
-        p { color: #666; font-style: italic; margin-bottom: 15px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>开源许可证</h1>
-        
-        <h2><a href="https://github.com/cnpxs1/Image-obfuscation-tool" target="_blank">Image-Obfuscation-Tool</a></h2>
-        <p>基于希尔伯特曲线的轻量化纯前端图像混淆/解混淆工具</p>
-        <div class="license-text">MIT License
+        const newTab = window.open('', '_blank');
+        if (!newTab) {
+            alert('请允许弹出窗口以查看许可证信息');
+            return;
+        }
 
-Copyright © 2026-present cnpxs1
+        const doc = newTab.document;
+        doc.title = '开源许可证 - 图片混淆工具';
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+        // 添加响应式字体样式
+        const style = doc.createElement('style');
+        /* 许可证页面全局样式定义 */
+        style.textContent = `
+            /* 页面基础样式：重置边距，设置字体和背景 */
+            body { 
+                margin: 0; 
+                padding: 20px; 
+                font-family: Arial, sans-serif; 
+                background: white; 
+            }
+            /* 内容容器：限制最大宽度并居中显示 */
+            .container { 
+                max-width: 900px; 
+                margin: 0 auto; 
+                padding: 20px; 
+            }
+            /* 主标题样式：深灰色居中显示 */
+            .main-title { 
+                color: #333; 
+                text-align: center; 
+                margin-bottom: 30px; 
+                font-size: 2em; 
+            }
+            /* 副标题样式：蓝色带下划线分隔 */
+            .section-title { 
+                color: #0091ff; 
+                margin: 30px 0 15px 0; 
+                border-bottom: 2px solid #0091ff; 
+                padding-bottom: 5px; 
+            }
+            /* 链接样式：蓝色带下划线 */
+            a { 
+                color: #0091ff; 
+                text-decoration: underline; 
+            }
+            /* 描述文本样式：灰色斜体 */
+            .description { 
+                color: #666; 
+                font-style: italic; 
+                margin-bottom: 15px; 
+            }
+            /* 许可证内容样式：等宽字体，响应式字号，横向滚动 */
+            .license-content { 
+                white-space: pre; 
+                overflow-x: auto;
+                container-type: inline-size; 
+                font-size: clamp(0.01rem, calc(100cqw / 70), 1.1rem);
+                font-family: 'Courier New', monospace;
+                background: #f8f8f8;
+                padding: 25px;
+                border-radius: 4px;
+                border-left: 4px solid #0091ff;
+                margin-bottom: 30px;
+            }
+            /* 完整许可证链接样式 */
+            .license-link {
+                margin: 15px 0;
+            }
+            .license-link a {
+                color: #666;
+                font-size: 0.9em;
+            }
+        `;
+        doc.head.appendChild(style);
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+        /* 创建副标题 */
+        function createTitle(title, link) {
+            const h2 = doc.createElement('h2');
+            h2.className = 'section-title';
+            const a = doc.createElement('a');
+            a.href = link;
+            a.target = '_blank';
+            a.textContent = title;
+            h2.appendChild(a);
+            return h2;
+        }
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.</div>
-        
-        <h2><a href="https://github.com/fengyuanchen/viewerjs" target="_blank">Viewer.js</a></h2>
-        <p>JavaScript 图像查看器</p>
-        <div class="license-text">The MIT License (MIT)
+        /* 创建描述文本 */
+        function createDesc(text) {
+            const p = doc.createElement('p');
+            p.className = 'description';
+            p.textContent = text;
+            return p;
+        }
 
-Copyright 2015-present Chen Fengyuan
+        /* 创建许可证内容 */
+        function createLicense(text) {
+            const div = doc.createElement('div');
+            div.className = 'license-content';
+            div.textContent = text;
+            return div;
+        }
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+        /* 创建完整许可证链接 */
+        function createLicenseLink(url, text) {
+            const p = doc.createElement('p');
+            p.className = 'license-link';
+            const a = doc.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.textContent = text || '查看完整许可证';
+            p.appendChild(a);
+            return p;
+        }
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+        const container = doc.createElement('div');
+        container.className = 'container';
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.</div>
-        
-        <h2><a href="https://github.com/101arrowz/fflate" target="_blank">fflate</a></h2>
-        <p>8kB 超小体积，实现高性能压缩与解压缩</p>
-        <div class="license-text">MIT License
+        const h1 = doc.createElement('h1');
+        h1.className = 'main-title';
+        h1.textContent = '开源许可证';
+        container.appendChild(h1);
 
-Copyright (c) 2023 Arjun Barrett
+        /* Image-Obfuscation-Tool */
+        const section1 = doc.createElement('div');
+        section1.appendChild(createTitle('Image-Obfuscation-Tool', 'https://github.com/cnpxs1/Image-obfuscation-tool'));
+        section1.appendChild(createDesc('基于希尔伯特曲线的轻量化纯前端图像混淆/解混淆工具'));
+        section1.appendChild(createLicense(`MIT License\n\nCopyright \u00a9 2026-present cnpxs1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
+        container.appendChild(section1);
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+        /* Viewer.js */
+        const section2 = doc.createElement('div');
+        section2.appendChild(createTitle('Viewer.js', 'https://github.com/fengyuanchen/viewerjs'));
+        section2.appendChild(createDesc('JavaScript 图像查看器'));
+        section2.appendChild(createLicense(`The MIT License (MIT)\n\nCopyright 2015-present Chen Fengyuan\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.`));
+        container.appendChild(section2);
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+        /* fflate */
+        const section3 = doc.createElement('div');
+        section3.appendChild(createTitle('fflate', 'https://github.com/101arrowz/fflate'));
+        section3.appendChild(createDesc('8kB 超小体积，实现高性能压缩与解压缩'));
+        section3.appendChild(createLicense(`MIT License\n\nCopyright (c) 2023 Arjun Barrett\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
+        container.appendChild(section3);
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.</div>
-    </div>
-</body>
-</html>`;
-        
-        // 在新标签页中打开
-        const blob = new Blob([licenseContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+        // iro.js 特殊处理（带展开/收起功能）
+        const iroSection = doc.createElement('div');
+        iroSection.appendChild(createTitle('iro.js', 'https://github.com/jaames/iro.js'));
+        iroSection.appendChild(createDesc('模块化、注重设计的JavaScript色彩选择器小部件'));
+
+        // 使用统一的完整许可证链接函数
+        iroSection.appendChild(createLicenseLink('https://www.mozilla.org/en-US/MPL/2.0/', '完整MPL 2.0许可证'));
+
+        /* 创建iro.js许可证容器，包含摘要和完整内容两个部分 */
+        const licenseContainer = doc.createElement('div');
+        licenseContainer.id = 'iro-license-container';
+        licenseContainer.style.position = 'relative';
+        licenseContainer.style.minHeight = '100px';
+        licenseContainer.className = 'license-content';
+
+        /* 许可证摘要：显示MPL 2.0简要信息 */
+        const summaryDiv = doc.createElement('div');
+        summaryDiv.id = 'iro-license-summary';
+        summaryDiv.textContent = `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`;
+        licenseContainer.appendChild(summaryDiv);
+
+        /* 完整许可证内容：默认隐藏，点击展开按钮后加载显示 */
+        const fullDiv = doc.createElement('div');
+        fullDiv.id = 'iro-license-full';
+        fullDiv.style.display = 'none';
+        licenseContainer.appendChild(fullDiv);
+
+        /* 创建展开/收起按钮，用于切换iro.js许可证的显示状态 */
+        const toggleBtn = doc.createElement('button');
+        toggleBtn.id = 'toggle-iro-license';
+        toggleBtn.textContent = '展开';
+        toggleBtn.style.position = 'absolute';
+        toggleBtn.style.bottom = '10px';
+        toggleBtn.style.left = '10px';
+        toggleBtn.style.background = '#0091ff';
+        toggleBtn.style.color = 'white';
+        toggleBtn.style.border = 'none';
+        toggleBtn.style.padding = '5px 15px';
+        toggleBtn.style.borderRadius = '4px';
+        toggleBtn.style.cursor = 'pointer';
+        toggleBtn.style.fontSize = '0.9rem';
+        licenseContainer.appendChild(toggleBtn);
+
+        /* 将iro.js许可证容器添加到对应的section中 */
+        iroSection.appendChild(licenseContainer);
+        container.appendChild(iroSection);
+        doc.body.appendChild(container);
+
+        // 绑定展开/收起事件
+        let isExpanded = false;
+        toggleBtn.addEventListener('click', async function() {
+            if (!isExpanded) {
+                if (!fullDiv.textContent.trim()) {
+                    try {
+                        const response = await fetch('../assets/irojs/LICENSE');
+                        if (response.ok) {
+                            const licenseText = await response.text();
+                            const pre = doc.createElement('pre');
+                            pre.style.whiteSpace = 'pre-wrap';
+                            pre.style.margin = '0';
+                            pre.style.fontFamily = "'Courier New', monospace";
+                            pre.textContent = licenseText;
+                            fullDiv.appendChild(pre);
+                        } else {
+                            throw new Error('加载失败');
+                        }
+                    } catch (error) {
+                        console.error('加载LICENSE文件失败:', error);
+                        fullDiv.textContent = '许可证文件加载失败';
+                        fullDiv.style.color = 'red';
+                    }
+                }
+                summaryDiv.style.display = 'none';
+                fullDiv.style.display = 'block';
+                toggleBtn.textContent = '收起';
+                isExpanded = true;
+            } else {
+                summaryDiv.style.display = 'block';
+                fullDiv.style.display = 'none';
+                toggleBtn.textContent = '展开';
+                isExpanded = false;
+            }
+        });
     }
     
     // 页面加载完成后绑定事件
