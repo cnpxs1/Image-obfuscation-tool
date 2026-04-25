@@ -1347,8 +1347,7 @@
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
                                 <input type="text" id="hex-input" placeholder="#FFFFFF" 
-                                    style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;"
-                                    maxlength="7" />
+                                    style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="display: flex; gap: 4px; align-items: center;">
@@ -5181,29 +5180,30 @@ SOFTWARE.</div>
         
         if (hexInput) {
             let isProcessing = false;
+            let lastValidValue = '#FFFFFF'; // 记录最后有效的值
+            
             hexInput.addEventListener('input', (e) => {
                 if (isProcessing) return;
                 isProcessing = true;
                 
                 let value = e.target.value.trim();
-                // 确保以 # 开头
-                if (!value.startsWith('#')) {
-                    value = '#' + value;
-                }
-                // 只保留 # 和十六进制字符
-                value = '#' + value.substring(1).replace(/[^0-9A-Fa-f]/g, '');
-                // 限制长度为7
-                if (value.length > 7) {
-                    value = value.substring(0, 7);
+                // 移除所有 # 号，然后统一添加一个 #
+                value = value.replace(/#/g, '');
+                // 只保留十六进制字符
+                value = '#' + value.replace(/[^0-9A-Fa-f]/g, '');
+                
+                // 检查是否超过FFFFFF
+                const hexPart = value.substring(1).toUpperCase();
+                if (hexPart.length > 6 || (hexPart.length === 6 && parseInt(hexPart, 16) > 0xFFFFFF)) {
+                    // 超过限制，恢复到最后有效值
+                    value = lastValidValue;
+                } else {
+                    // 更新最后有效值
+                    lastValidValue = value;
                 }
                 
                 requestAnimationFrame(() => {
-                    if (e.target.value !== value) {
-                        const cursorPos = e.target.selectionStart;
-                        e.target.value = value;
-                        // 保持光标位置
-                        e.target.setSelectionRange(cursorPos, cursorPos);
-                    }
+                    e.target.value = value;
                     updateColorFromHex(value);
                     isProcessing = false;
                 });
