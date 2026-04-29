@@ -653,8 +653,8 @@
         }
 
         .setting-info {
-            flex: 0 0 180px;
-            min-width: 140px;
+            flex: 0 0 130px;
+            min-width: 110px;
             text-align: left;
             border-right: 1px solid #e0e0e0;
             padding-right: 20px;
@@ -677,12 +677,20 @@
             flex: 1;
             min-width: 0;
             padding-left: 0;
+            display: flex;
+            align-items: center;
         }
 
         .setting-separator {
             border: none;
             border-top: 1px solid #e0e0e0;
             margin: 0;
+        }
+
+        /* 图片质量输入框始终显示微调按钮 */
+        #quality-input::-webkit-inner-spin-button,
+        #quality-input::-webkit-outer-spin-button {
+            opacity: 1;
         }
 
         /* 响应式：窄屏时切换为上下布局 */
@@ -1366,6 +1374,25 @@
         <div style="padding: 10px;">
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
             <div id="settings-content">
+                <!-- 图片质量设置 -->
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>图片质量</h4>
+                        <p>影响 JPG、WebP 等有损格式的输出质量</p>
+                    </div>
+                    <div class="setting-controls">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            <input type="range" id="quality-slider" min="1" max="100" value="100"
+                                style="max-width: 200px; height: 6px;" />
+                            <input type="number" id="quality-input" min="1" max="100" value="100"
+                                style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
+                            <span style="font-size: 0.9rem; color: #555;">%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="setting-separator" />
+
                 <!-- 背景颜色设置 -->
                 <div class="setting-section">
                     <div class="setting-info">
@@ -1405,25 +1432,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                <hr class="setting-separator" />
-
-                <!-- 图片质量设置 -->
-                <div class="setting-section">
-                    <div class="setting-info">
-                        <h4>图片质量</h4>
-                        <p>影响 JPG、WebP 等有损格式的输出质量</p>
-                    </div>
-                    <div class="setting-controls">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="range" id="quality-slider" min="1" max="100" value="100"
-                                style="flex: 1; max-width: 200px; height: 6px;" />
-                            <input type="number" id="quality-input" min="1" max="100" value="100"
-                                style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
-                            <span style="font-size: 0.9rem; color: #555;">%</span>
                         </div>
                     </div>
                 </div>
