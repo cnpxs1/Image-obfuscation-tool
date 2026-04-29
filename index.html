@@ -2340,29 +2340,21 @@
 
             // 根据当前模式重新构建缩略图内容
             if (currentViewMode === 'grid') {
-                // 网格模式：需要 canvas 缩略图
-                // 检查是否已经有 canvas
                 let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
                 if (!canvas) {
-                    // 创建 canvas 元素
                     canvas = document.createElement('canvas');
                     canvas.className = 'thumbnail-canvas';
-                    canvas.style.width = '100%';
-                    canvas.style.height = 'auto';
-                    canvas.style.maxHeight = '150px';
-                    canvas.style.objectFit = 'contain';
-                    // 清空容器并添加 canvas
+                    canvas.style.display = 'block';
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.maxHeight = '100%';
                     thumbnailContainer.innerHTML = '';
                     thumbnailContainer.appendChild(canvas);
-                    // 加载图片数据并绘制
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
                         try {
                             const bitmap = await createImageBitmap(blob);
-                            canvas.width = bitmap.width;
-                            canvas.height = bitmap.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(bitmap, 0, 0);
+                            const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                            drawThumbnail(canvas, bitmap, size.width, size.height);
                             bitmap.close();
                         } catch (e) {
                             console.warn('绘制缩略图失败', e);
@@ -3137,6 +3129,38 @@
     }
 
     /**
+     * 计算缩略图在容器内的缩放尺寸
+     * @param {HTMLElement} container - 缩略图容器元素
+     * @param {number} imgWidth - 原始图片宽度
+     * @param {number} imgHeight - 原始图片高度
+     * @returns {{width: number, height: number}}
+     */
+    function getThumbnailSize(container, imgWidth, imgHeight) {
+        const maxWidth = container.clientWidth || 250;
+        const maxHeight = container.clientHeight || 150;
+        const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+        return {
+            width: Math.round(imgWidth * scale),
+            height: Math.round(imgHeight * scale)
+        };
+    }
+
+    /**
+     * 将 ImageBitmap 按目标尺寸绘制到缩略图 canvas
+     * @param {HTMLCanvasElement} canvas
+     * @param {ImageBitmap} bitmap
+     * @param {number} drawWidth
+     * @param {number} drawHeight
+     */
+    function drawThumbnail(canvas, bitmap, drawWidth, drawHeight) {
+        canvas.width = drawWidth;
+        canvas.height = drawHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, drawWidth, drawHeight);
+        ctx.drawImage(bitmap, 0, 0, drawWidth, drawHeight);
+    }
+
+    /**
      * 更新缩略图显示
      * @param {string} imageId - 图片 ID
      * @param {Blob} blob - 图片 Blob 对象
@@ -3144,28 +3168,24 @@
      * 使用 ImageBitmap 将 Blob 绘制到 canvas 缩略图
      */
     async function updateThumbnail(imageId, blob) {
-        // 列表模式下不更新缩略图
         if (currentViewMode === 'list') return;
-        
+
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (!item) return;
         const canvas = item.querySelector('.thumbnail-canvas');
-        if (canvas) {
-            try {
-                const bitmap = await createImageBitmap(blob);
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext('2d');
-                // 清除旧内容，避免透明图层残留
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close();
-                    
-                // 只更新界面显示，不修改元数据中的尺寸（保持首次获取的尺寸不变）
-                updateImageInfo(imageId);
-            } catch (e) {
-                console.warn('更新缩略图失败', e);
-            }
+        if (!canvas) return;
+
+        const container = item.querySelector('.thumbnail-container');
+        if (!container) return;
+
+        try {
+            const bitmap = await createImageBitmap(blob);
+            const size = getThumbnailSize(container, bitmap.width, bitmap.height);
+            drawThumbnail(canvas, bitmap, size.width, size.height);
+            bitmap.close();
+            updateImageInfo(imageId);
+        } catch (e) {
+            console.warn('更新缩略图失败', e);
         }
     }
 
@@ -3536,24 +3556,19 @@
         thumbnailContainer.onclick = () => showPreview(imageData.id);
         
         if (currentViewMode === 'grid') {
-            // 网格模式：创建 canvas 用于显示缩略图
             const canvas = document.createElement('canvas');
             canvas.className = 'thumbnail-canvas';
-            canvas.style.width = '100%';
-            canvas.style.height = 'auto';
-            canvas.style.maxHeight = '150px';
-            canvas.style.objectFit = 'contain';
+            canvas.style.display = 'block';
+            canvas.style.maxWidth = '100%';
+            canvas.style.maxHeight = '100%';
             thumbnailContainer.appendChild(canvas);
-            
-            // 异步加载并绘制缩略图
+
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob) {
                 try {
                     const bitmap = await createImageBitmap(blob);
-                    canvas.width = bitmap.width;
-                    canvas.height = bitmap.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(bitmap, 0, 0);
+                    const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                    drawThumbnail(canvas, bitmap, size.width, size.height);
                     bitmap.close();
                 } catch (e) {
                     console.warn('缩略图绘制失败', e);
