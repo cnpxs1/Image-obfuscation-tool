@@ -2476,6 +2476,7 @@
         const stack = new Int32Array(maxDepth * 6);
         let sp = 0;
 
+        // 初始方向向量：dx1/dy1 和 dx2/dy2 各有一维为零
         if (width >= height) {
             stack[0] = 0; stack[1] = 0;
             stack[2] = width; stack[3] = 0;
@@ -2496,17 +2497,20 @@
             const dx2 = stack[sp + 4];
             const dy2 = stack[sp + 5];
 
-            const cellW = (dx1 | 0) !== 0 ? (dx1 > 0 ? dx1 : -dx1) : (dy1 > 0 ? dy1 : -dy1);
-            const cellH = (dx2 | 0) !== 0 ? (dx2 > 0 ? dx2 : -dx2) : (dy2 > 0 ? dy2 : -dy2);
-            const signX1 = dx1 > 0 ? 1 : dx1 < 0 ? -1 : 0;
-            const signY1 = dy1 > 0 ? 1 : dy1 < 0 ? -1 : 0;
-            const signX2 = dx2 > 0 ? 1 : dx2 < 0 ? -1 : 0;
-            const signY2 = dy2 > 0 ? 1 : dy2 < 0 ? -1 : 0;
+            // 方向向量各有一维为零，求和取绝对值即得单元尺寸（无分支）
+            const cellW = Math.abs(dx1 + dy1);
+            const cellH = Math.abs(dx2 + dy2);
+            // (v>0)-(v<0) 等价于 Math.sign 但无函数调用开销
+            const sX1 = (dx1 > 0) - (dx1 < 0);
+            const sY1 = (dy1 > 0) - (dy1 < 0);
+            const sX2 = (dx2 > 0) - (dx2 < 0);
+            const sY2 = (dy2 > 0) - (dy2 < 0);
 
             if (cellH === 1) {
-                const step = signX1 + signY1 * w;
+                const step = sX1 + sY1 * w;
                 let ptr = y0 * w + x0;
-                for (let i = 0; i < cellW; i++) {
+                const end = idx + cellW;
+                while (idx < end) {
                     order[idx++] = ptr;
                     ptr += step;
                 }
@@ -2514,71 +2518,72 @@
             }
 
             if (cellW === 1) {
-                const step = signX2 + signY2 * w;
+                const step = sX2 + sY2 * w;
                 let ptr = y0 * w + x0;
-                for (let i = 0; i < cellH; i++) {
+                const end = idx + cellH;
+                while (idx < end) {
                     order[idx++] = ptr;
                     ptr += step;
                 }
                 continue;
             }
 
-            let halfX1 = dx1 >> 1;
-            let halfY1 = dy1 >> 1;
-            let halfX2 = dx2 >> 1;
-            let halfY2 = dy2 >> 1;
-            const halfW = (halfX1 | 0) !== 0 ? (halfX1 > 0 ? halfX1 : -halfX1) : (halfY1 > 0 ? halfY1 : -halfY1);
-            const halfH = (halfX2 | 0) !== 0 ? (halfX2 > 0 ? halfX2 : -halfX2) : (halfY2 > 0 ? halfY2 : -halfY2);
+            let hX1 = dx1 >> 1;
+            let hY1 = dy1 >> 1;
+            let hX2 = dx2 >> 1;
+            let hY2 = dy2 >> 1;
+            const halfW = Math.abs(hX1 + hY1);
+            const halfH = Math.abs(hX2 + hY2);
 
             if (2 * cellW > 3 * cellH) {
                 if ((halfW & 1) && cellW > 2) {
-                    halfX1 += signX1;
-                    halfY1 += signY1;
+                    hX1 += sX1;
+                    hY1 += sY1;
                 }
 
-                stack[sp]     = x0 + halfX1;
-                stack[sp + 1] = y0 + halfY1;
-                stack[sp + 2] = dx1 - halfX1;
-                stack[sp + 3] = dy1 - halfY1;
+                stack[sp]     = x0 + hX1;
+                stack[sp + 1] = y0 + hY1;
+                stack[sp + 2] = dx1 - hX1;
+                stack[sp + 3] = dy1 - hY1;
                 stack[sp + 4] = dx2;
                 stack[sp + 5] = dy2;
                 sp += 6;
 
                 stack[sp]     = x0;
                 stack[sp + 1] = y0;
-                stack[sp + 2] = halfX1;
-                stack[sp + 3] = halfY1;
+                stack[sp + 2] = hX1;
+                stack[sp + 3] = hY1;
                 stack[sp + 4] = dx2;
                 stack[sp + 5] = dy2;
                 sp += 6;
             } else {
                 if ((halfH & 1) && cellH > 2) {
-                    halfX2 += signX2;
-                    halfY2 += signY2;
+                    hX2 += sX2;
+                    hY2 += sY2;
                 }
 
-                stack[sp]     = x0 + (dx1 - signX1) + (halfX2 - signX2);
-                stack[sp + 1] = y0 + (dy1 - signY1) + (halfY2 - signY2);
-                stack[sp + 2] = -halfX2;
-                stack[sp + 3] = -halfY2;
-                stack[sp + 4] = -(dx1 - halfX1);
-                stack[sp + 5] = -(dy1 - halfY1);
+                stack[sp]     = x0 + (dx1 - sX1) + (hX2 - sX2);
+                stack[sp + 1] = y0 + (dy1 - sY1) + (hY2 - sY2);
+                stack[sp + 2] = -hX2;
+                stack[sp + 3] = -hY2;
+                stack[sp + 4] = -(dx1 - hX1);
+                stack[sp + 5] = -(dy1 - hY1);
                 sp += 6;
 
-                stack[sp]     = x0 + halfX2;
-                stack[sp + 1] = y0 + halfY2;
+                stack[sp]     = x0 + hX2;
+                stack[sp + 1] = y0 + hY2;
                 stack[sp + 2] = dx1;
                 stack[sp + 3] = dy1;
-                stack[sp + 4] = dx2 - halfX2;
-                stack[sp + 5] = dy2 - halfY2;
+                stack[sp + 4] = dx2 - hX2;
+                stack[sp + 5] = dy2 - hY2;
                 sp += 6;
 
                 stack[sp]     = x0;
                 stack[sp + 1] = y0;
-                stack[sp + 2] = halfX2;
-                stack[sp + 3] = halfY2;
-                stack[sp + 4] = halfX1;
-                stack[sp + 5] = halfY1;
+                stack[sp + 2] = hX2;
+                stack[sp + 3] = hY2;
+                stack[sp + 4] = hX1;
+                stack[sp + 5] = hY1;
                 sp += 6;
             }
         }
@@ -5056,6 +5061,33 @@
                 color: #666;
                 font-size: 0.9em;
             }
+            /* 长许可证可展开容器 */
+            #long-license {
+                min-height: 100px;
+                padding-bottom: 10px;
+            }
+            /* 长许可证完整文本（默认隐藏） */
+            #long-license-full {
+                display: none;
+                overflow-x: auto;
+                white-space: pre;
+            }
+            /* 许可证展开/收起按钮 */
+            .license-toggle-btn {
+                display: block;
+                background: transparent;
+                color: #666;
+                border: none;
+                padding: 15px 0 0;
+                cursor: pointer;
+                font-size: 1rem;
+            }
+            /* 完整许可证文本 */
+            .license-full-text {
+                white-space: pre;
+                margin: 0;
+                font-family: 'Courier New', monospace;
+            }
         `;
         doc.head.appendChild(style);
 
@@ -5099,6 +5131,63 @@
             return p;
         }
 
+        /* 创建可展开/收起的许可证内容 */
+        function createExpandableLicense(summaryText, licenseFetchUrl) {
+            const licenseContainer = doc.createElement('div');
+            licenseContainer.id = 'long-license';
+            licenseContainer.className = 'license-content';
+
+            const summaryDiv = doc.createElement('div');
+            summaryDiv.id = 'long-license-summary';
+            summaryDiv.textContent = summaryText;
+            licenseContainer.appendChild(summaryDiv);
+
+            const fullDiv = doc.createElement('div');
+            fullDiv.id = 'long-license-full';
+            licenseContainer.appendChild(fullDiv);
+
+            const toggleBtn = doc.createElement('button');
+            toggleBtn.id = 'toggle-long-license';
+            toggleBtn.className = 'license-toggle-btn';
+            toggleBtn.textContent = '展开';
+            licenseContainer.appendChild(toggleBtn);
+
+            let isExpanded = false;
+            toggleBtn.addEventListener('click', async function() {
+                if (!isExpanded) {
+                    if (!fullDiv.textContent.trim()) {
+                        try {
+                            const response = await fetch(licenseFetchUrl);
+                            if (response.ok) {
+                                const licenseText = await response.text();
+                                const pre = doc.createElement('pre');
+                                pre.className = 'license-full-text';
+                                pre.textContent = licenseText;
+                                fullDiv.appendChild(pre);
+                            } else {
+                                throw new Error('加载失败');
+                            }
+                        } catch (error) {
+                            console.error('加载LICENSE文件失败:', error);
+                            fullDiv.textContent = '许可证文件加载失败';
+                            fullDiv.style.color = 'red';
+                        }
+                    }
+                    summaryDiv.style.display = 'none';
+                    fullDiv.style.display = 'block';
+                    toggleBtn.textContent = '收起';
+                    isExpanded = true;
+                } else {
+                    summaryDiv.style.display = 'block';
+                    fullDiv.style.display = 'none';
+                    toggleBtn.textContent = '展开';
+                    isExpanded = false;
+                }
+            });
+
+            return licenseContainer;
+        }
+
         const container = doc.createElement('div');
         container.className = 'container';
 
@@ -5136,81 +5225,12 @@
         // 使用统一的完整许可证链接函数
         iroSection.appendChild(createLicenseLink('https://www.mozilla.org/en-US/MPL/2.0/', '完整MPL 2.0许可证'));
 
-        /* 创建iro.js许可证容器，包含摘要和完整内容两个部分 */
-        const licenseContainer = doc.createElement('div');
-        licenseContainer.id = 'iro-license-container';
-        licenseContainer.style.position = 'relative';
-        licenseContainer.style.minHeight = '100px';
-        licenseContainer.style.paddingBottom = '10px';
-        licenseContainer.className = 'license-content';
-
-        /* 许可证摘要：显示MPL 2.0简要信息 */
-        const summaryDiv = doc.createElement('div');
-        summaryDiv.id = 'iro-license-summary';
-        summaryDiv.textContent = `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`;
-        licenseContainer.appendChild(summaryDiv);
-
-        /* 完整许可证内容:默认隐藏,点击展开按钮后加载显示 */
-        const fullDiv = doc.createElement('div');
-        fullDiv.id = 'iro-license-full';
-        fullDiv.style.display = 'none';
-        fullDiv.style.overflowX = 'auto';
-        fullDiv.style.whiteSpace = 'pre';
-        licenseContainer.appendChild(fullDiv);
-
-        /* 创建展开/收起按钮，用于切换iro.js许可证的显示状态 */
-        const toggleBtn = doc.createElement('button');
-        toggleBtn.id = 'toggle-iro-license';
-        toggleBtn.textContent = '展开';
-        toggleBtn.style.background = 'transparent';
-        toggleBtn.style.color = '#666';
-        toggleBtn.style.border = 'none';
-        toggleBtn.style.padding = '15px 0 0';
-        toggleBtn.style.cursor = 'pointer';
-        toggleBtn.style.fontSize = '1rem';
-        toggleBtn.style.display = 'block';
-        licenseContainer.appendChild(toggleBtn);
-
-        /* 将iro.js许可证容器添加到对应的section中 */
-        iroSection.appendChild(licenseContainer);
+        iroSection.appendChild(createExpandableLicense(
+            `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`,
+            '../assets/irojs/LICENSE'
+        ));
         container.appendChild(iroSection);
         doc.body.appendChild(container);
-
-        // 绑定展开/收起事件
-        let isExpanded = false;
-        toggleBtn.addEventListener('click', async function() {
-            if (!isExpanded) {
-                if (!fullDiv.textContent.trim()) {
-                    try {
-                        const response = await fetch('../assets/irojs/LICENSE');
-                        if (response.ok) {
-                            const licenseText = await response.text();
-                            const pre = doc.createElement('pre');
-                            pre.style.whiteSpace = 'pre';
-                            pre.style.margin = '0';
-                            pre.style.fontFamily = "'Courier New', monospace";
-                            pre.textContent = licenseText;
-                            fullDiv.appendChild(pre);
-                        } else {
-                            throw new Error('加载失败');
-                        }
-                    } catch (error) {
-                        console.error('加载LICENSE文件失败:', error);
-                        fullDiv.textContent = '许可证文件加载失败';
-                        fullDiv.style.color = 'red';
-                    }
-                }
-                summaryDiv.style.display = 'none';
-                fullDiv.style.display = 'block';
-                toggleBtn.textContent = '收起';
-                isExpanded = true;
-            } else {
-                summaryDiv.style.display = 'block';
-                fullDiv.style.display = 'none';
-                toggleBtn.textContent = '展开';
-                isExpanded = false;
-            }
-        });
     }
     
     // 页面加载完成后绑定事件
