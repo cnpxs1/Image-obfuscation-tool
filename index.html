@@ -2473,30 +2473,31 @@
         }
     };
     
+    function saveSetting(key, value) {
+        try { localStorage.setItem(key, value); } catch (e) {}
+    }
+    function loadSetting(key) {
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+
     /**
      * 加载保存的视图模式偏好
      */
     function loadViewModePreference() {
-        try {
-            const saved = localStorage.getItem('imageViewMode');
-            if (saved === 'grid' || saved === 'list') {
-                currentViewMode = saved;
-            } else {
-                currentViewMode = 'grid';
-            }
-        } catch (e) {
+        const saved = loadSetting('imageViewMode');
+        if (saved === 'grid' || saved === 'list') {
+            currentViewMode = saved;
+        } else {
             currentViewMode = 'grid';
         }
         updateViewModeButtonUI();
     }
-    
+
     /**
      * 保存视图模式偏好
      */
     function saveViewModePreference() {
-        try {
-            localStorage.setItem('imageViewMode', currentViewMode);
-        } catch (e) {}
+        saveSetting('imageViewMode', currentViewMode);
     }
     
     /**
@@ -5732,6 +5733,20 @@
             rgbBInput.addEventListener('blur', syncAllInputs);
         }
 
+        function bindToggle(id, key) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => saveSetting(key, el.checked));
+            if (loadSetting(key) === 'true') el.checked = true;
+        }
+        function bindSelect(id, key) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => saveSetting(key, el.value));
+            const saved = loadSetting(key);
+            if (saved) el.value = saved;
+        }
+
         // 图片质量 slider 与 number input 双向同步
         const qualitySlider = document.getElementById('quality-slider');
         const qualityInput = document.getElementById('quality-input');
@@ -5741,6 +5756,7 @@
             imageQuality = percent / 100;
             if (source !== 'slider' && qualitySlider) qualitySlider.value = percent;
             if (source !== 'input' && qualityInput) qualityInput.value = percent;
+            saveSetting('imageQuality', String(percent));
         }
 
         if (qualitySlider) {
@@ -5749,17 +5765,32 @@
         if (qualityInput) {
             qualityInput.addEventListener('input', () => syncQuality('input', qualityInput.value));
             qualityInput.addEventListener('change', () => {
-                // 失焦时规范化（去除非数字、限制范围）
                 const percent = Math.max(1, Math.min(100, parseInt(qualityInput.value) || 100));
                 qualityInput.value = percent;
                 imageQuality = percent / 100;
                 if (qualitySlider) qualitySlider.value = percent;
+                saveSetting('imageQuality', String(percent));
             });
         }
 
         // 初始化文字气泡（悬停+点击+边缘检测）
         const webpTooltip = document.querySelector('.text-tooltip');
         if (webpTooltip) initTextTooltip(webpTooltip);
+
+        bindToggle('webp-lossless-toggle', 'webpLossless');
+        bindToggle('zip-download-toggle', 'zipDownload');
+        bindSelect('save-format-select', 'saveFormat');
+
+        // 从 localStorage 恢复图片质量
+        (function loadQuality() {
+            const savedQuality = loadSetting('imageQuality');
+            if (savedQuality !== null) {
+                const percent = Math.max(1, Math.min(100, parseInt(savedQuality) || 100));
+                imageQuality = percent / 100;
+                if (qualitySlider) qualitySlider.value = percent;
+                if (qualityInput) qualityInput.value = percent;
+            }
+        })();
     });
 </script>
 <!-- 页面底部信息 -->
