@@ -662,6 +662,54 @@
             background-color: #dcdcdc; /* 悬停背景色 */
         }
 
+        /* 设置面板分栏布局 */
+        .setting-section {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            padding: 15px 0;
+        }
+
+        .setting-info {
+            flex: 0 0 180px;
+            min-width: 140px;
+        }
+
+        .setting-info h4 {
+            margin: 0 0 6px 0;
+            color: #555;
+            font-size: 1rem;
+        }
+
+        .setting-info p {
+            margin: 0;
+            color: #888;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .setting-controls {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .setting-separator {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 0;
+        }
+
+        /* 响应式：窄屏时切换为上下布局 */
+        @media (max-width: 500px) {
+            .setting-section {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .setting-info {
+                flex: none;
+            }
+        }
+
         /* 错误日志面板 */
         .error-log-panel {
             background-color: #ffe6e6;
@@ -1329,55 +1377,64 @@
             <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
             <div id="settings-content">
                 <!-- 背景颜色设置 -->
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">背景色</h4>
-                    <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">用于 JPG、BMP 等不支持透明背景的格式</p>
-                    
-                    <!-- 颜色选择器容器 -->
-                    <div id="color-picker-container" style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
-                        <!-- 色盘+色条固定在一行 -->
-                        <div style="display: flex; align-items: flex-start; gap: 15px; flex-shrink: 0;">
-                            <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
-                            <div id="color-picker-box"></div>
-                        </div>
-
-                        <!-- 颜色值输入框（宽度不足时换行） -->
-                        <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
-                                <input type="text" id="hex-input" placeholder="#FFFFFF"
-                                    style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>背景色</h4>
+                        <p>用于 JPG、BMP 等不支持透明背景的格式</p>
+                    </div>
+                    <div class="setting-controls">
+                        <!-- 颜色选择器容器 -->
+                        <div id="color-picker-container" style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px;">
+                            <!-- 色盘+色条固定在一行 -->
+                            <div style="display: flex; align-items: flex-start; gap: 15px; flex-shrink: 0;">
+                                <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
+                                <div id="color-picker-box"></div>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div style="display: flex; gap: 4px; align-items: center;">
-                                    <span style="font-size: 0.9rem; color: #555;">R:</span>
-                                    <input type="text" id="rgb-r-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
-                                    <span style="font-size: 0.9rem; color: #555;">G:</span>
-                                    <input type="text" id="rgb-g-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
-                                    <span style="font-size: 0.9rem; color: #555;">B:</span>
-                                    <input type="text" id="rgb-b-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
+
+                            <!-- 颜色值输入框（宽度不足时换行） -->
+                            <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
+                                    <input type="text" id="hex-input" placeholder="#FFFFFF"
+                                        style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div style="display: flex; gap: 4px; align-items: center;">
+                                        <span style="font-size: 0.9rem; color: #555;">R:</span>
+                                        <input type="text" id="rgb-r-input" placeholder="255"
+                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                            maxlength="3" />
+                                        <span style="font-size: 0.9rem; color: #555;">G:</span>
+                                        <input type="text" id="rgb-g-input" placeholder="255"
+                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                            maxlength="3" />
+                                        <span style="font-size: 0.9rem; color: #555;">B:</span>
+                                        <input type="text" id="rgb-b-input" placeholder="255"
+                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                            maxlength="3" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
+                <hr class="setting-separator" />
+
                 <!-- 图片质量设置 -->
-                <div style="margin-bottom: 20px;">
-                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">图片质量</h4>
-                    <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">影响 JPG、WebP 等有损格式的输出质量</p>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="range" id="quality-slider" min="1" max="100" value="100"
-                            style="flex: 1; max-width: 200px; height: 6px;" />
-                        <input type="number" id="quality-input" min="1" max="100" value="100"
-                            style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
-                        <span style="font-size: 0.9rem; color: #555;">%</span>
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>图片质量</h4>
+                        <p>影响 JPG、WebP 等有损格式的输出质量</p>
+                    </div>
+                    <div class="setting-controls">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="range" id="quality-slider" min="1" max="100" value="100"
+                                style="flex: 1; max-width: 200px; height: 6px;" />
+                            <input type="number" id="quality-input" min="1" max="100" value="100"
+                                style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
+                            <span style="font-size: 0.9rem; color: #555;">%</span>
+                        </div>
                     </div>
                 </div>
             </div>
