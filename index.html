@@ -1877,40 +1877,40 @@
                     // 格式转换：使用 Canvas 将图片转换为目标格式
                     const bitmap = await createImageBitmap(blob);
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-                    const ctx = canvas.getContext('2d');
+                    try {
+                        const ctx = canvas.getContext('2d');
 
-                    // 先清空并绘制图片
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(bitmap, 0, 0);
-
-                    // 仅在源格式可能包含透明通道且目标格式不支持透明时才填充背景
-                    if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
-                        ctx.fillStyle = opaqueBackgroundColor;
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.drawImage(bitmap, 0, 0);
-                    }
 
-                    bitmap.close();
-
-                    if (targetFormat === 'png') {
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                    } else if (targetFormat === 'bmp') {
-                        const bmpData = await canvasToBMPAsync(canvas);
-                        outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-                    } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
-                    } else if (targetFormat === 'webp') {
-                        if (!webpSupported) {
-                            failureCount++;
-                            logError(imageData.name, '浏览器不支持 WebP');
-                            releaseCanvasToPool(canvas);
-                            continue;
+                        if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
+                            ctx.fillStyle = opaqueBackgroundColor;
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(bitmap, 0, 0);
                         }
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
-                    } else {
-                        outputBlob = blob;
+
+                        bitmap.close();
+
+                        if (targetFormat === 'png') {
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+                        } else if (targetFormat === 'bmp') {
+                            const bmpData = await canvasToBMPAsync(canvas);
+                            outputBlob = new Blob([bmpData], { type: 'image/bmp' });
+                        } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+                        } else if (targetFormat === 'webp') {
+                            if (!webpSupported) {
+                                failureCount++;
+                                logError(imageData.name, '浏览器不支持 WebP');
+                                continue;
+                            }
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
+                        } else {
+                            outputBlob = blob;
+                        }
+                    } finally {
+                        releaseCanvasToPool(canvas);
                     }
-                    releaseCanvasToPool(canvas);
                 } else {
                     outputBlob = blob;
                 }
