@@ -678,7 +678,8 @@
             min-width: 0;
             padding-left: 0;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
+            justify-content: flex-start;
         }
 
         .setting-separator {
@@ -1378,12 +1379,12 @@
                 <div class="setting-section">
                     <div class="setting-info">
                         <h4>图片质量</h4>
-                        <p>影响 JPG、WebP 等有损格式的输出质量</p>
+                        <p>用于 JPG、WebP 等有损格式的输出质量</p>
                     </div>
                     <div class="setting-controls">
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <div style="flex: 1; align-self: stretch; display: flex; align-items: center; gap: 8px;">
                             <input type="range" id="quality-slider" min="1" max="100" value="100"
-                                style="max-width: 200px; height: 6px;" />
+                                style="flex: 1; max-width: 200px; height: 6px;" />
                             <input type="number" id="quality-input" min="1" max="100" value="100"
                                 style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
                             <span style="font-size: 0.9rem; color: #555;">%</span>
@@ -1397,11 +1398,11 @@
                 <div class="setting-section">
                     <div class="setting-info">
                         <h4>背景色</h4>
-                        <p>用于 JPG、BMP 等不支持透明背景的格式</p>
+                        <p>用于 JEPG、BMP 等无透明通道的格式的背景填充</p>
                     </div>
                     <div class="setting-controls">
                         <!-- 颜色选择器容器 -->
-                        <div id="color-picker-container" style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px;">
+                        <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px;">
                             <!-- 色盘+色条固定在一行 -->
                             <div style="display: flex; align-items: flex-start; gap: 15px; flex-shrink: 0;">
                                 <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
@@ -1409,9 +1410,9 @@
                             </div>
 
                             <!-- 颜色值输入框（宽度不足时换行） -->
-                            <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
+                                    <label style="font-size: 0.9rem; color: #555;">HEX:</label>
                                     <input type="text" id="hex-input" placeholder="#FFFFFF"
                                         style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
                                 </div>
