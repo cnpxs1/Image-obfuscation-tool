@@ -133,12 +133,6 @@
             flex-direction: column;
         }
 
-
-        /* 主要内容区域 */
-        .main-content {
-
-        }
-
         /* 缓存方案指示器 */
         #cacheIndicator {
             position: fixed;
@@ -441,17 +435,6 @@
             background: #cc0000;
         }
 
-        /* 导出按钮特殊样式 */
-        .export-btn {
-            background: #4CAF50;
-            color: white;
-            border-color: #4CAF50;
-        }
-
-        .export-btn:hover {
-            background: #45a049;
-        }
-
         /* 状态徽章样式 */
         .status-badge {
             display: inline-block;
@@ -500,7 +483,6 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
             margin: 0;
         }
 
@@ -665,7 +647,7 @@
         /* 设置面板分栏布局 */
         .setting-section {
             display: flex;
-            align-items: flex-start;
+            align-items: stretch;
             gap: 20px;
             padding: 15px 0;
         }
@@ -673,6 +655,9 @@
         .setting-info {
             flex: 0 0 180px;
             min-width: 140px;
+            text-align: left;
+            border-right: 1px solid #e0e0e0;
+            padding-right: 20px;
         }
 
         .setting-info h4 {
@@ -691,6 +676,7 @@
         .setting-controls {
             flex: 1;
             min-width: 0;
+            padding-left: 0;
         }
 
         .setting-separator {
@@ -707,6 +693,10 @@
             }
             .setting-info {
                 flex: none;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+                padding-right: 0;
+                padding-bottom: 8px;
             }
         }
 
@@ -3389,7 +3379,7 @@
 
             if (targetIds.length === 0) {
                 const statusDiv = document.getElementById('batchStatus');
-                statusDiv.innerHTML = '️ 请先选择图片';
+                statusDiv.innerHTML = '⚠️ 请先选择图片';
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
                 return;
             }
@@ -3425,16 +3415,16 @@
                 }
 
                 if (failureCount === 0) {
-                    statusDiv.innerHTML = ` 全部保存成功 (${successCount} 张)`;
+                    statusDiv.innerHTML = `✅ 全部保存成功 (${successCount} 张)`;
                 } else if (successCount === 0) {
-                    statusDiv.innerHTML = ` 全部保存失败 (${failureCount} 张)`;
+                    statusDiv.innerHTML = `❌ 全部保存失败 (${failureCount} 张)`;
                 } else {
-                    statusDiv.innerHTML = ` 成功 ${successCount} 张， 失败 ${failureCount} 张`;
+                    statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
                 }
                 setTimeout(() => statusDiv.innerHTML = '', 3000);
             } catch (error) {
                 console.error('保存失败:', error);
-                statusDiv.innerHTML = ' 保存失败';
+                statusDiv.innerHTML = '❌ 保存失败';
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         }
@@ -4312,15 +4302,6 @@
                 updateColorPreview(color.hexString);
                 opaqueBackgroundColor = color.hexString;
             });
-            
-            // 强制移除所有圆角
-            setTimeout(() => {
-                const pickerElements = document.querySelectorAll('#color-picker-box *');
-                pickerElements.forEach(el => {
-                    el.style.borderRadius = '0';
-                });
-            }, 100);
-            
             // 初始化输入框
             const initialColor = colorPickerInstance.color;
             updateColorInputs(initialColor);
@@ -4507,16 +4488,6 @@
      * 取消之前的预览操作
      * 防止多个预览实例同时存在造成内存泄漏
      */
-    function cancelPreviousPreview() {
-        // 设置取消标志
-        previewCanceled = true;
-        
-        // 清理已存在的viewer实例
-        cleanupExistingViewer();
-        
-        console.log('🔄 已取消之前的预览操作');
-    }
-    
     /**
      * 清理已存在的 viewer 实例
      */
