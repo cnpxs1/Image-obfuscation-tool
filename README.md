@@ -30,7 +30,7 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 - **本地隐私优先**：图片数据仅在用户浏览器本地缓存运算，全程不上传任何服务器，关闭页面后缓存自动清除，杜绝隐私泄露
 
-- **多格式全兼容**：支持JPG、JPEG、PNG、WebP等主流图片格式导入，保留PNG透明通道，导出可自选格式，适配各类使用需求
+- **多 格 式 兼 容**：支持JPG、JPEG、PNG、WebP等主流图片格式导入，保留PNG透明通道，导出可自选格式，适配各类使用需求
 
 - **极简零门槛操作**：可视化拖拽上传、一键功能触发、实时效果预览，无需专业技术基础，新手可快速上手操作
 
@@ -40,19 +40,21 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ## 🚀 快速开始
 
-### 方式一：本地直接运行（推荐）
+### 一、本地服务器运行（推荐）
+若需模拟生产环境或解决部分浏览器的跨域限制，可使用 Python 或 Node.js 启动本地服务器：
+- **Python**: 在根目录执行 `python -m http.server 8080`
+- **Node.js**: 安装 `http-server` 后执行 `npx http-server -p 8080`
+- 随后在浏览器访问 `http://localhost:8080`或`http://127.0.0.1:8080`
 
+### 二、本地部署（简单）
 1. 克隆仓库至本地：`git clone https://github.com/cnpxs1/Image-obfuscation-tool.git`
+2. 进入项目根目录，找到核心入口文件 **index.html**
+3. 双击文件，使用任意现代浏览器打开即可使用
 
-2. 进入项目根目录，找到核心入口文件**index.html**
-
-3. 双击文件，使用任意现代浏览器打开，即可进入工具界面开始使用
-
-### 方式二：在线预览（GitHub Pages）
-
+### 三、在线预览（GitHub Pages）
 直接访问在线地址：`https://cnpxs1.github.io/Image-obfuscation-tool/`
 
-**温馨提示**：工具不兼容IE等老旧浏览器；处理4K及以上超大分辨率图片时，处理速度受设备CPU/内存性能影响，耐心等待运算完成即可。
+**温馨提示**：工具不兼容 IE 等老旧浏览器；处理 4K 及以上超大分辨率图片时，处理速度受设备 CPU/内存性能影响，请耐心等待运算完成。
 
 ---
 
@@ -110,7 +112,8 @@ Image-obfuscation-tool/
 ├── .gitignore          # Git版本控制忽略规则配置
 ├── assets/             # 可选静态资源文件夹
 │   ├── viewerjs/       # viewer.js静态资源
-│   └── fflate/         # fflate静态资源
+│   ├── fflate/         # fflate静态资源
+│   └── irojs/          # iro.js静态资源
 └── img/                # 图标素材
     └── icons/          # 图标资源目录
         ├── favicon/    # 网站图标（Favicon）相关资源
@@ -132,7 +135,7 @@ Image-obfuscation-tool/
 
 - 工具仅为本地运算工具，关闭浏览器页面后，未导出的图片缓存会自动清除
 
-- 建议在正规现代浏览器中使用，关闭广告拦截插件，避免影响功能运行
+- 建议在正规现代浏览器中使用，避免影响功能运行
 
 ## 📜 免责声明
 
@@ -152,3 +155,4 @@ Image-obfuscation-tool/
 ### 本项目使用以下开源库：
 - [ViewerJS](https://github.com/fengyuanchen/viewerjs) - 实现图片预览功能，基于 **MIT** 协议开源
 - [fflate](https://github.com/101arrowz/fflate) - 8kB 超小体积，实现高性能 ZIP 压缩与解压缩，基于 **MIT** 协议开源
+- [iro.js](https://github.com/jaames/iro.js) - 模块化、注重设计的JavaScript色彩选择器小部件，基于 **MPL 2.0** 协议开源
