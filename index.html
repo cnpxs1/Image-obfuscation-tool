@@ -1334,38 +1334,50 @@
                     <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">用于 JPG、BMP 等不支持透明背景的格式</p>
                     
                     <!-- 颜色选择器容器 -->
-                    <div id="color-picker-container" style="display: flex; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
-                        <!-- 当前颜色预览 -->
-                        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
-                            <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff;"></div>
+                    <div id="color-picker-container" style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px; margin-bottom: 15px;">
+                        <!-- 色盘+色条固定在一行 -->
+                        <div style="display: flex; align-items: flex-start; gap: 15px; flex-shrink: 0;">
+                            <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
+                            <div id="color-picker-box"></div>
                         </div>
-                        <!-- Box & Hue Slider -->
-                        <div id="color-picker-box"></div>
-                        
-                        <!-- 颜色值输入框 -->
-                        <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+
+                        <!-- 颜色值输入框（宽度不足时换行） -->
+                        <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; gap: 8px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <label style="min-width: 70px; font-size: 0.9rem; color: #555;">十六进制:</label>
-                                <input type="text" id="hex-input" placeholder="#FFFFFF" 
+                                <input type="text" id="hex-input" placeholder="#FFFFFF"
                                     style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
                             </div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="display: flex; gap: 4px; align-items: center;">
                                     <span style="font-size: 0.9rem; color: #555;">R:</span>
-                                    <input type="text" id="rgb-r-input" placeholder="255" 
+                                    <input type="text" id="rgb-r-input" placeholder="255"
                                         style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                         maxlength="3" />
                                     <span style="font-size: 0.9rem; color: #555;">G:</span>
-                                    <input type="text" id="rgb-g-input" placeholder="255" 
+                                    <input type="text" id="rgb-g-input" placeholder="255"
                                         style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                         maxlength="3" />
                                     <span style="font-size: 0.9rem; color: #555;">B:</span>
-                                    <input type="text" id="rgb-b-input" placeholder="255" 
+                                    <input type="text" id="rgb-b-input" placeholder="255"
                                         style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                         maxlength="3" />
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 图片质量设置 -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 10px 0; color: #555; font-size: 1rem;">图片质量</h4>
+                    <p style="margin: 0 0 10px 0; color: #666; font-size: 0.9rem;">影响 JPG、WebP 等有损格式的输出质量</p>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="range" id="quality-slider" min="1" max="100" value="100"
+                            style="flex: 1; max-width: 200px; height: 6px;" />
+                        <input type="number" id="quality-input" min="1" max="100" value="100"
+                            style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
+                        <span style="font-size: 0.9rem; color: #555;">%</span>
                     </div>
                 </div>
             </div>
@@ -1897,14 +1909,14 @@
                             const bmpData = await canvasToBMPAsync(canvas);
                             outputBlob = new Blob([bmpData], { type: 'image/bmp' });
                         } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', imageQuality));
                         } else if (targetFormat === 'webp') {
                             if (!webpSupported) {
                                 failureCount++;
                                 logError(imageData.name, '浏览器不支持 WebP');
                                 continue;
                             }
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', imageQuality));
                         } else {
                             outputBlob = blob;
                         }
@@ -3421,10 +3433,10 @@
                 const bmpData = await canvasToBMPAsync(canvas);
                 outputBlob = new Blob([bmpData], { type: 'image/bmp' });
             } else if (format === 'jpg' || format === 'jpeg') {
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 1.0));
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', imageQuality));
             } else if (format === 'webp') {
                 if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', imageQuality));
             } else {
                 outputBlob = blob;
             }
@@ -4191,6 +4203,12 @@
      * @type {string} 十六进制颜色值
      */
     let opaqueBackgroundColor = '#ffffff';
+
+    /**
+     * 图片输出质量 (0.0–1.0)，影响 JPG/WebP 有损压缩
+     * @type {number}
+     */
+    let imageQuality = 1.0;
     
     /**
      * iro.js 颜色选择器实例
@@ -5521,6 +5539,31 @@
             });
             
             rgbBInput.addEventListener('blur', syncAllInputs);
+        }
+
+        // 图片质量 slider 与 number input 双向同步
+        const qualitySlider = document.getElementById('quality-slider');
+        const qualityInput = document.getElementById('quality-input');
+
+        function syncQuality(source, value) {
+            const percent = Math.max(1, Math.min(100, parseInt(value) || 100));
+            imageQuality = percent / 100;
+            if (source !== 'slider' && qualitySlider) qualitySlider.value = percent;
+            if (source !== 'input' && qualityInput) qualityInput.value = percent;
+        }
+
+        if (qualitySlider) {
+            qualitySlider.addEventListener('input', () => syncQuality('slider', qualitySlider.value));
+        }
+        if (qualityInput) {
+            qualityInput.addEventListener('input', () => syncQuality('input', qualityInput.value));
+            qualityInput.addEventListener('change', () => {
+                // 失焦时规范化（去除非数字、限制范围）
+                const percent = Math.max(1, Math.min(100, parseInt(qualityInput.value) || 100));
+                qualityInput.value = percent;
+                imageQuality = percent / 100;
+                if (qualitySlider) qualitySlider.value = percent;
+            });
         }
     });
 </script>
