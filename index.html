@@ -723,7 +723,7 @@
             display: flex;
             align-items: stretch;
             gap: 20px;
-            padding: 15px 0;
+            padding: 10px 0;
         }
 
         .setting-info {
@@ -731,7 +731,7 @@
             min-width: 110px;
             text-align: left;
             border-right: 1px solid #e0e0e0;
-            padding-right: 20px;
+            padding-right: 10px;
         }
 
         .setting-info h4 {
@@ -1458,6 +1458,7 @@
                     <div class="setting-controls">
                         <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
                             <div style="display: flex; align-items: center; gap: 8px;">
+                                <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
                                 <input type="range" id="quality-slider" min="1" max="100" value="100"
                                     style="flex: 1; max-width: 200px; height: 6px;" />
                                 <input type="number" id="quality-input" min="1" max="100" value="100"
@@ -1495,21 +1496,21 @@
                             <!-- 颜色值输入框（宽度不足时换行） -->
                             <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label style="font-size: 0.9rem; color: #555;">HEX:</label>
+                                    <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
                                     <input type="text" id="hex-input" placeholder="#FFFFFF"
                                         style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <div style="display: flex; gap: 4px; align-items: center;">
-                                        <span style="font-size: 0.9rem; color: #555;">R:</span>
+                                        <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
                                         <input type="text" id="rgb-r-input" placeholder="255"
                                             style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                             maxlength="3" />
-                                        <span style="font-size: 0.9rem; color: #555;">G:</span>
+                                        <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
                                         <input type="text" id="rgb-g-input" placeholder="255"
                                             style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                             maxlength="3" />
-                                        <span style="font-size: 0.9rem; color: #555;">B:</span>
+                                        <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
                                         <input type="text" id="rgb-b-input" placeholder="255"
                                             style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
                                             maxlength="3" />
@@ -1553,7 +1554,7 @@
             <p style="margin-bottom: 0.5rem;">拖拽图片文件到这里，或点击选择文件</p>
             <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持 PNG、JPG、BMP、WebP 及 ZIP 批量导入</p>
             <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; pointer-events: none; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
-                添加图片<input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="pointer-events: none;" />
+                <label for="add-images">添加图片</label><input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="pointer-events: none;" />
             </span>
         </div>
     </div>
