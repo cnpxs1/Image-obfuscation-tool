@@ -328,75 +328,104 @@
             width: calc(180px + 0.6rem); /* 3 个按钮宽度 (60px*3) + 2 个间隙 (0.3rem*2) */
         }
         
-        /* ZIP 下载切换开关样式 */
-        .zip-switch-container {
-            display: inline-flex; /* 行内弹性布局 */
-            align-items: center; /* 垂直居中对齐 */
-            justify-content: center; /* 两端对齐 */
-            height: 2rem; /* 容器高度 */
-            padding: 0 0; /* 内边距 */
-            margin: 0.3rem; /* 外边距 */
-            border: 2px solid #c8c8c8; /* 边框样式 */
-            border-radius: 6px; /* 圆角半径 */
-            background: #fff; /* 背景颜色 */
-            gap: 0.5rem; /* 子元素间距 */
-            box-sizing: border-box; /* 盒模型计算方式 */
-            transition: border-color 0s; /* 边框颜色过渡效果 */
+        /* 通用开关样式（不含颜色） */
+        .toggle-switch-container {
+            display: inline-flex;
+            align-items: center;
+            height: 2rem;
+            padding: 0 0;
+            margin: 0.3rem;
+            border: 2px solid;
+            border-radius: 6px;
+            background: #fff;
+            gap: 0.5rem;
+            box-sizing: border-box;
         }
-        .zip-switch-container:has(input:checked) {
-            border-color: #78c878; /* 开启状态边框颜色 */
-        }
-        .zip-switch-text::before {
-            content: "逐个下载"; /* 关闭状态文本 */
-            margin-right: 0.5rem; /* 文字右侧间距 */
+        .toggle-switch {
+            width: 4rem;
+            height: calc(2rem - 4px);
+            margin: 0;
+            border-radius: 4px;
+            display: block;
             position: relative;
-            top: -1px;
-        }
-        .zip-switch-container:has(input:checked) .zip-switch-text::before {
-            content: "打包下载"; /* 开启状态文本 */
-            margin-right: 0.5rem; /* 文字右侧间距 */
-            position: relative;
-            top: -1px;
-        }
-        .zip-switch {
-            width: 4rem; /* 开关宽度 */
-            height: calc(2rem - 4px); /* 开关高度 */
-            margin: 0; /* 外边距 */
-            border-radius: 4px; /* 圆角半径 */
-            display: block; /* 块级元素 */
-            position: relative; /* 相对定位，为子元素绝对定位提供参考 */
-            cursor: pointer; /* 鼠标悬停时显示手型指针 */
-            background: #b4b4b4; /* 关闭状态背景色 */
-            overflow: hidden; /* 隐藏超出边界的内容 */
-            transition: 0.3s; /* 过渡效果时长 */
+            cursor: pointer;
+            overflow: hidden;
+            transition: 0.3s;
             flex-shrink: 0;
         }
-        .zip-switch input {
-            opacity: 0; /* 隐藏原始复选框 */
-            position: absolute; /* 绝对定位 */
+        .toggle-switch input {
+            opacity: 0;
+            position: absolute;
         }
-        .zip-slider { /* 滑动轨道背景 */
-            position: absolute; /* 绝对定位填充整个开关 */
-            inset: 0; /* 上下左右均为 0，等同于 top:0; right:0; bottom:0; left:0; */
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
         }
-        .zip-slider::before { /* 滑动按钮（伪元素） */
-            content: ""; /* 伪元素必需属性 */
-            position: absolute; /* 绝对定位 */
-            left: 0.25rem; /* 默认位置：左侧 */
-            top: 50%; /* 垂直居中 */
-            transform: translateY(-50%); /* 修正垂直居中偏移 */
-            width: calc(1.5rem - 2px); /* 滑块宽度 */
-            height: calc(1.5rem - 2px); /* 滑块高度 */
-            border-radius: 4px; /* 滑块圆角 */
-            background: #fff; /* 滑块颜色（白色） */
-            transition: 0.3s; /* 滑动过渡效果 */
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            left: 0.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: calc(1.5rem - 2px);
+            height: calc(1.5rem - 2px);
+            border-radius: 4px;
+            background: #fff;
+            transition: 0.3s;
         }
-        .zip-switch input:checked + .zip-slider { /* 选中状态时的轨道背景 */
-            background: #4caf50; /* 激活背景色 */
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translate(calc(2rem + 2px), -50%);
         }
-        .zip-switch input:checked + .zip-slider::before { /* 选中状态时的滑块位置 */
-            transform: translate(calc(2rem + 2px), -50%); /* 向右滑动calc(2rem + 2px)，保持垂直居中 */
+        .toggle-switch-text {
+            position: relative;
+            top: -1px;
         }
+        .toggle-switch-text::before {
+            margin-right: 0.5rem;
+        }
+
+        /* 打包下载开关：颜色与文本 */
+        .zip-download-container {
+            border-color: #c8c8c8;
+        }
+        .zip-download-container:has(input:checked) {
+            border-color: #78c878;
+        }
+        .zip-download-container .toggle-switch {
+            background: #b4b4b4;
+        }
+        .zip-download-container .toggle-switch input:checked + .toggle-slider {
+            background: #4caf50;
+        }
+        .zip-download-text::before {
+            content: "逐个下载";
+        }
+        .zip-download-container:has(input:checked) .zip-download-text::before {
+            content: "打包下载";
+        }
+
+        /* WebP 无损开关：颜色和尺寸 */
+        .toggle-switch:has(#webp-lossless-toggle) {
+            width: 3rem;
+            height: 1.5rem;
+            border-radius: 3px;
+        }
+        #webp-lossless-toggle + .toggle-slider {
+            background: #b4b4b4;
+        }
+        #webp-lossless-toggle:checked + .toggle-slider {
+            background: #0091ff;
+        }
+        #webp-lossless-toggle ~ .toggle-slider::before {
+            left: 3px;
+            width: calc(1.5rem - 5px);
+            height: calc(1.5rem - 5px);
+            border-radius: 3px;
+        }
+        #webp-lossless-toggle:checked ~ .toggle-slider::before {
+            transform: translate(calc(1.5rem - 1px), -50%);
+        }
+
         /* 删除和保存按钮平均分配空间 */
         .action-group .action-btn {
             flex: 1;
@@ -1382,12 +1411,21 @@
                         <p>用于 JPG、WebP 等有损格式的输出质量</p>
                     </div>
                     <div class="setting-controls">
-                        <div style="flex: 1; align-self: stretch; display: flex; align-items: center; gap: 8px;">
-                            <input type="range" id="quality-slider" min="1" max="100" value="100"
-                                style="flex: 1; max-width: 200px; height: 6px;" />
-                            <input type="number" id="quality-input" min="1" max="100" value="100"
-                                style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
-                            <span style="font-size: 0.9rem; color: #555;">%</span>
+                        <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="range" id="quality-slider" min="1" max="100" value="100"
+                                    style="flex: 1; max-width: 200px; height: 6px;" />
+                                <input type="number" id="quality-input" min="1" max="100" value="100"
+                                    style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
+                                <span style="font-size: 0.9rem; color: #555;">%</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.95rem; color: #888;">无损WebP</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="webp-lossless-toggle" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1446,12 +1484,12 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,75c13.75,0,25,11.25,25,25s-11.25,25-25,25-25-11.25-25-25,11.25-25,25-25M100,62.5c-20.625,0-37.5,16.875-37.5,37.5s16.875,37.5,37.5,37.5,37.5-16.875,37.5-37.5-16.875-37.5-37.5-37.5Z"/></svg>
         </button>
         <!-- fflate 打包下载开关 -->
-        <div class="zip-switch-container">
-            <label class="zip-switch">
+        <div class="toggle-switch-container zip-download-container">
+            <label class="toggle-switch">
                 <input type="checkbox" id="zip-download-toggle" />
-                <span class="zip-slider"></span>
+                <span class="toggle-slider"></span>
             </label>
-            <span class="zip-switch-text"></span>
+            <span class="toggle-switch-text zip-download-text"></span>
         </div>
         <!-- 保存格式选择 -->
         <label for="save-format-select" class="normal_button" style="background-color: #4CAF50;color:#fff;display:inline-flex;align-items:center;justify-content:center;height:2rem;font-size:1rem;padding:0 0.5rem;margin:0.3rem;border:0;border-radius:6px;cursor:pointer;">保存格式:
@@ -1972,7 +2010,9 @@
                                 logError(imageData.name, '浏览器不支持 WebP');
                                 continue;
                             }
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', imageQuality));
+                            const webpLossless = document.getElementById('webp-lossless-toggle')?.checked;
+                            const webpQuality = webpLossless ? 1.0 : imageQuality;
+                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
                         } else {
                             outputBlob = blob;
                         }
@@ -3492,7 +3532,9 @@
                 outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', imageQuality));
             } else if (format === 'webp') {
                 if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', imageQuality));
+                const webpLossless = document.getElementById('webp-lossless-toggle')?.checked;
+                const webpQuality = webpLossless ? 1.0 : imageQuality;
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
             } else {
                 outputBlob = blob;
             }
