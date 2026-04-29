@@ -42,8 +42,8 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ### 一、本地部署（推荐）
 若需模拟生产环境或解决部分浏览器的跨域限制，可使用 Python 或 Node.js 启动本地服务器：
-- **Python**: 安装 `python` 后，在根目录执行 `python -m http.server 8080`
-- **Node.js**: 安装 `http-server` 后，在根目录执行 `npx http-server -p 8080`
+- **Python:** 安装 `python` 后，在根目录执行 `python -m http.server 8080`
+- **Node.js:** 安装 `Node.js` 后，在根目录执行 `npx http-server -p 8080`
 - 随后在浏览器访问 `http://localhost:8080`或`http://127.0.0.1:8080`
 
 ### 二、直接打开（简单）
