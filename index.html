@@ -202,6 +202,51 @@
             }
         }
 
+        /* 通用文字气泡提示 */
+        .text-tooltip {
+            position: relative;
+            cursor: help;
+        }
+        .text-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            max-width: calc(100vw - 20px);
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        /* 屏幕边缘检测：左边缘 */
+        .text-tooltip.edge-left::after {
+            left: 0;
+            transform: none;
+        }
+        /* 屏幕边缘检测：右边缘 */
+        .text-tooltip.edge-right::after {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        /* PC端：鼠标悬停 */
+        @media (hover: hover) {
+            .text-tooltip:hover::after {
+                display: block;
+            }
+        }
+        /* 移动端：点击激活 */
+        .text-tooltip.tooltip-active::after {
+            display: block;
+        }
+
         /* 通用按钮样式 */
         .normal_button {
             min-width: 4rem;
@@ -1417,10 +1462,10 @@
                                     style="flex: 1; max-width: 200px; height: 6px;" />
                                 <input type="number" id="quality-input" min="1" max="100" value="100"
                                     style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
-                                <span style="font-size: 0.9rem; color: #555;">%</span>
+                                <span style="font-size: 1rem; color: #000;">%</span>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.95rem; color: #888;">无损WebP</span>
+                                <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="webp-lossless-toggle" />
                                     <span class="toggle-slider"></span>
@@ -2165,7 +2210,73 @@
             }
         }
     }
-    
+
+    /**
+     * 检测屏幕边缘，防止气泡超出屏幕
+     * @param {HTMLElement} el
+     */
+    function checkTooltipEdge(el) {
+        const rect = el.getBoundingClientRect();
+        const tooltipWidth = 200; // 估算气泡宽度（px）
+        const centerX = rect.left + rect.width / 2;
+        el.classList.remove('edge-left', 'edge-right');
+        if (centerX - tooltipWidth / 2 < 10) {
+            el.classList.add('edge-left');
+        } else if (centerX + tooltipWidth / 2 > window.innerWidth - 10) {
+            el.classList.add('edge-right');
+        }
+    }
+
+    /**
+     * 为文字气泡元素绑定PC悬停+移动端点击，含屏幕边缘检测
+     * @param {HTMLElement} el
+     */
+    function initTextTooltip(el) {
+        // PC端：鼠标进入时检测边缘
+        el.addEventListener('mouseenter', () => checkTooltipEdge(el));
+        el.addEventListener('mouseleave', () => el.classList.remove('edge-left', 'edge-right'));
+
+        // 移动端点击行为
+        if (window.innerWidth > 768) return;
+        let listener = null;
+        let startY = 0;
+
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            el.classList.toggle('tooltip-active');
+
+            if (el.classList.contains('tooltip-active')) {
+                checkTooltipEdge(el);
+                if (listener) document.removeEventListener('click', listener);
+                listener = function closeTooltip(ev) {
+                    if (!el.contains(ev.target)) {
+                        el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+                        document.removeEventListener('click', listener);
+                        listener = null;
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', listener), 0);
+            } else {
+                el.classList.remove('edge-left', 'edge-right');
+                if (listener) {
+                    document.removeEventListener('click', listener);
+                    listener = null;
+                }
+            }
+        });
+
+        const closeOnScroll = (e) => {
+            if (!el.classList.contains('tooltip-active')) return;
+            if (e.type === 'touchstart') {
+                startY = e.touches[0].clientY;
+            } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+            }
+        };
+        document.addEventListener('touchstart', closeOnScroll, { passive: true });
+        document.addEventListener('touchmove', closeOnScroll, { passive: true });
+    }
+
     // =============================================
     // 全局变量声明
     // =============================================
@@ -5644,6 +5755,10 @@
                 if (qualitySlider) qualitySlider.value = percent;
             });
         }
+
+        // 初始化文字气泡（悬停+点击+边缘检测）
+        const webpTooltip = document.querySelector('.text-tooltip');
+        if (webpTooltip) initTextTooltip(webpTooltip);
     });
 </script>
 <!-- 页面底部信息 -->
