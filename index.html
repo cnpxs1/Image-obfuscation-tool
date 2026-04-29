@@ -1903,6 +1903,7 @@
                         if (!webpSupported) {
                             failureCount++;
                             logError(imageData.name, '浏览器不支持 WebP');
+                            releaseCanvasToPool(canvas);
                             continue;
                         }
                         outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
@@ -2399,38 +2400,42 @@
     // =============================================
     
     // 希尔伯特曲线缓存 - 基于访问频率的LFU策略
-    const curveCache = new Map(); // key -> {data: Uint32Array, frequency: number, lastAccess: number}
+    // 同时缓存 shiftedCurve（加密解密映射表），避免循环内取模运算
+    const curveCache = new Map(); // key -> {curve: Uint32Array, shiftedCurve: Uint32Array, frequency: number, lastAccess: number}
     const MAX_CACHE_SIZE = 20;
     let accessCounter = 0; // 全局访问计数器，用于记录访问时间
-    
+
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
-        
+
         if (curveCache.has(key)) {
-            // 命中缓存：增加访问频率并更新最后访问时间
             const cacheEntry = curveCache.get(key);
             cacheEntry.frequency++;
             cacheEntry.lastAccess = accessCounter;
             return cacheEntry.data;
         }
-        
-        // 未命中：生成新的曲线数据
+
+        // 未命中：生成新的曲线数据及映射表
+        const totalPixels = width * height;
         const curve = hilbert2d(width, height);
-        
-        // 检查是否需要淘汰
+        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+        const shiftedCurve = new Uint32Array(totalPixels);
+        for (let i = 0; i < totalPixels; i++) {
+            shiftedCurve[i] = curve[(i + offset) % totalPixels];
+        }
+
         if (curveCache.size >= MAX_CACHE_SIZE) {
             evictLFUCacheEntry();
         }
-        
-        // 添加新条目
+
         curveCache.set(key, {
-            data: curve,
+            data: { curve, shiftedCurve },
             frequency: 1,
             lastAccess: accessCounter
         });
-        
-        return curve;
+
+        return curveCache.get(key).data;
     }
     
     // LFU淘汰策略：淘汰访问频率最低的条目，频率相同时淘汰最久未访问的
@@ -3081,8 +3086,7 @@
             // 获取像素数据
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const totalPixels = canvas.width * canvas.height;
-            const curve = getCachedCurve(canvas.width, canvas.height);
-            const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+            const { curve, shiftedCurve } = getCachedCurve(canvas.width, canvas.height);
             let dstBuffer;
             try {
                 dstBuffer = getPixelBuffer(imgData.data.length);
@@ -3091,16 +3095,12 @@
 
                 if (operation === 'encrypt') {
                     for (let i = 0; i < totalPixels; i++) {
-                        const oldIdx = curve[i];
-                        const newIdx = curve[(i + offset) % totalPixels];
-                        dstU32[newIdx] = srcU32[oldIdx];
+                        dstU32[shiftedCurve[i]] = srcU32[curve[i]];
                     }
                     imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
-                } else if (operation === 'decrypt') {
+                } else {
                     for (let i = 0; i < totalPixels; i++) {
-                        const oldIdx = curve[i];
-                        const newIdx = curve[(i + offset) % totalPixels];
-                        dstU32[oldIdx] = srcU32[newIdx];
+                        dstU32[curve[i]] = srcU32[shiftedCurve[i]];
                     }
                     imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
                 }
@@ -3136,8 +3136,8 @@
      * @returns {{width: number, height: number}}
      */
     function getThumbnailSize(container, imgWidth, imgHeight) {
-        const maxWidth = container.clientWidth || 250;
-        const maxHeight = container.clientHeight || 150;
+        const maxWidth = container.clientWidth || 256;
+        const maxHeight = container.clientHeight || 256;
         const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
         return {
             width: Math.round(imgWidth * scale),
@@ -3395,47 +3395,48 @@
         // 需要转换格式
         const bitmap = await createImageBitmap(blob);
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-        const ctx = canvas.getContext('2d');
+        try {
+            const ctx = canvas.getContext('2d');
 
-        // 先清空并绘制图片
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0);
-
-        // 仅在源格式可能包含透明通道且目标格式不支持透明时才填充背景
-        if ((format === 'jpg' || format === 'jpeg' || format === 'bmp') && blobMightHaveTransparency(currentType)) {
-            ctx.fillStyle = opaqueBackgroundColor;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(bitmap, 0, 0);
+
+            if ((format === 'jpg' || format === 'jpeg' || format === 'bmp') && blobMightHaveTransparency(currentType)) {
+                ctx.fillStyle = opaqueBackgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(bitmap, 0, 0);
+            }
+
+            bitmap.close();
+
+            let outputBlob;
+            if (format === 'png') {
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+            } else if (format === 'bmp') {
+                const bmpData = await canvasToBMPAsync(canvas);
+                outputBlob = new Blob([bmpData], { type: 'image/bmp' });
+            } else if (format === 'jpg' || format === 'jpeg') {
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 1.0));
+            } else if (format === 'webp') {
+                if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
+                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
+            } else {
+                outputBlob = blob;
+            }
+
+            const url = URL.createObjectURL(outputBlob);
+            const a = document.createElement('a');
+            const ext = format === 'jpeg' ? 'jpg' : format;
+            const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
+            a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
+            a.href = url;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } finally {
+            releaseCanvasToPool(canvas);
         }
-
-        bitmap.close();
-
-        let outputBlob;
-        if (format === 'png') {
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-        } else if (format === 'bmp') {
-            const bmpData = await canvasToBMPAsync(canvas);
-            outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-        } else if (format === 'jpg' || format === 'jpeg') {
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 1.0));
-        } else if (format === 'webp') {
-            if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
-        } else {
-            outputBlob = blob;
-        }
-
-        const url = URL.createObjectURL(outputBlob);
-        const a = document.createElement('a');
-        const ext = format === 'jpeg' ? 'jpg' : format;
-        const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
-        a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        releaseCanvasToPool(canvas);
     }
 
     // =============================================
