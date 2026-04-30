@@ -162,13 +162,12 @@
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 0.95rem;
-            white-space: normal;
             max-width: 250px;
             min-width: 150px;
             z-index: 1000;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             line-height: 1.3;
-            display: none; /* 默认隐藏 */
+            display: none;
         }
 
         /* PC端：鼠标悬停显示气泡 */
@@ -287,7 +286,8 @@
             min-height: 100px; /* 为内容预留最小高度 */
         }
 
-        .drop-zone.drag-over {
+        .drop-zone.drag-over,
+        .image-item.selected {
             border-color: #0091ff;
             background-color: rgba(0, 132, 255, 0.1);
         }
@@ -310,11 +310,6 @@
             position: relative;
         }
 
-        .image-item.selected {
-            border-color: #0091ff;
-            background-color: rgba(0, 132, 255, 0.1);
-        }
-
         /* 缩略图容器 */
         .thumbnail-container {
             position: relative;
@@ -331,8 +326,7 @@
         /* 文本截断样式 - 使用更兼容的方式 */
         .text-multiline {
             line-height: 1.4em;
-            height: 2.8em; /* 固定高度为2行的高度 */
-            min-height: 2.8em; /* 最小高度为2行的高度 */
+            height: 2.8em;
             overflow: hidden;
             text-align: center;
             word-wrap: break-word;
@@ -351,8 +345,7 @@
             color: #666;
             text-align: center;
             min-height: 3.5rem; /* 为两行文本预留空间 */
-            overflow-wrap: break-word; /* 确保长单词能换行 */
-            word-wrap: break-word; /* 兼容性支持 */
+            overflow-wrap: break-word;
             word-break: break-word; /* 用于中文等语言 */
         }
 
@@ -677,45 +670,35 @@
             background-color: #969696;
         }
 
-        /* 刷新按钮样式 */
+        /* 图标按钮基础样式 */
+        .icon-btn {
+            color: #333333;
+            padding: 0;
+            border: 2px solid #646464;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .icon-btn:hover {
+            background-color: #dcdcdc;
+        }
+
+        /* 刷新按钮 */
         .refresh-btn {
-            background-color: #f5f5f5; /* 背景颜色 */
-            color: #333333; /* 文字颜色 */
-            padding: 0; /* 内边距 */
-            border: 2px solid #646464; /* 边框 */
-            border-radius: 6px; /* 圆角半径 */
-            cursor: pointer; /* 鼠标样式：指针 */
-            display: flex; /* 显示模式：弹性盒子 */
-            align-items: center; /* 垂直对齐：居中 */
-            justify-content: center; /* 水平对齐：居中 */
-            min-width: 36px; /* 宽度 */
-            height: 36px; /* 高度 */
-            transition: background-color 0.2s; /* 过渡效果 */
+            background-color: #f5f5f5;
+            min-width: 36px;
+            height: 36px;
         }
 
-        .refresh-btn:hover {
-            background-color: #dcdcdc; /* 悬停背景色 */
-        }
-
-        /* 设置按钮样式 */
+        /* 设置按钮 */
         .settings-btn {
-            background-color: #ffffff; /* 背景颜色 */
-            color: #333333; /* 文字颜色 */
-            padding: 0; /* 内边距 */
+            background-color: #ffffff;
             margin: 0.3rem;
-            border: 2px solid #646464; /* 边框 */
-            border-radius: 6px; /* 圆角半径 */
-            cursor: pointer; /* 鼠标样式：指针 */
-            display: flex; /* 显示模式：弹性盒子 */
-            align-items: center; /* 垂直对齐：居中 */
-            justify-content: center; /* 水平对齐：居中 */
-            width: 2rem; /* 宽度 */
-            height: 2rem; /* 高度 */
-            transition: background-color 0.2s; /* 过渡效果 */
-        }
-
-        .settings-btn:hover {
-            background-color: #dcdcdc; /* 悬停背景色 */
+            width: 2rem;
+            height: 2rem;
         }
 
         /* 设置面板分栏布局 */
@@ -1526,7 +1509,7 @@
 
     <div class="controls-section" style="gap: 0;">
         <!-- 设置按钮 ./img/icons/settings.svg -->
-        <button id="settings-btn" class="settings-btn">
+        <button id="settings-btn" class="icon-btn settings-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,75c13.75,0,25,11.25,25,25s-11.25,25-25,25-25-11.25-25-25,11.25-25,25-25M100,62.5c-20.625,0-37.5,16.875-37.5,37.5s16.875,37.5,37.5,37.5,37.5-16.875,37.5-37.5-16.875-37.5-37.5-37.5Z"/></svg>
         </button>
         <!-- fflate 打包下载开关 -->
@@ -1583,7 +1566,7 @@
     <!-- 列表管理按钮容器 -->
     <div class="list-management-container" style="display: flex; justify-content: flex-end; max-width: 1200px; margin: 0 auto 10px;">
         <!-- 视图切换按钮：网格/列表视图切换 -->
-        <button id="view-toggle-btn" class="refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
+        <button id="view-toggle-btn" class="icon-btn refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
             <!-- 网格视图图标 ./img/icons/grid.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer;" id="grid-view-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
@@ -1600,7 +1583,7 @@
             </span>
         </button>
 
-        <button id="refresh-list-btn" class="refresh-btn" title="刷新列表">
+        <button id="refresh-list-btn" class="icon-btn refresh-btn" title="刷新列表">
             <!-- 刷新预览图图标 ./img/icons/refresh.svg -->
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 26px; height: 26px;">
                 <path fill="#333" d="M175.7955,110.0905c.5396-4.0352-2.2959-7.7431-6.3314-8.2793-4.0336-.5377-7.7431,2.2959-8.2793,6.3314-2.0305,15.2155-9.6307,29.0334-21.399,38.9082-12.5682,10.546-28.4896,15.567-44.8336,14.1371s-31.1516-9.1394-41.6976-21.7076c-10.546-12.5682-15.567-28.4896-14.1371-44.8336s9.1394-31.1516,21.7076-41.6976,28.4896-15.567,44.8336-14.1371c12.5263,1.0959,24.1471,5.8828,33.6409,13.7151l-9.1128,7.6466c-3.2352,2.7147-1.7666,7.9736,2.4058,8.6194l30.3253,4.6917c2.9371.454,5.602-1.7821,5.663-4.7519l.6436-30.6777c.0885-4.2211-4.8355-6.5807-8.0707-3.866l-10.4039,8.7299c-12.1366-10.7717-27.3449-17.3495-43.8066-18.7898-20.2656-1.773-40.0102,4.4516-55.5934,17.5275-15.5832,13.0759-25.1419,31.4396-26.9149,51.7052-1.773,20.2656,4.4516,40.0102,17.5275,55.5934s31.4396,25.1419,51.7052,26.9149c20.2656,1.773,40.0102-4.4516,55.5935-17.5275,14.5933-12.2452,24.0168-29.3826,26.5344-48.2525Z"/>
@@ -1708,16 +1691,6 @@
             console.error('全局遮罩层清理失败:', error);
             return 0;
         }
-    }
-    
-    /**
-     * 清理所有图片资源
-     * 在页面卸载时调用
-     */
-    function cleanupAllImageResources() {
-        // StorageAdapter 中的数据会在页面关闭时自动被浏览器回收
-        // 无需额外清理 Blob URL（当前未创建长期 URL）
-        console.log('页面卸载：所有图片资源将由浏览器自动回收');
     }
     
     // =============================================
@@ -2010,7 +1983,6 @@
             }
 
             try {
-                // 获取当前图片 Blob
                 const blob = await storage.get(`current_${imageData.id}`);
                 if (!blob) {
                     failureCount++;
@@ -2018,56 +1990,14 @@
                     continue;
                 }
 
-                let outputBlob;
                 const targetFormat = format.toLowerCase();
-                const currentType = blob.type;
-                const needConvert = !(currentType === `image/${targetFormat}` ||
-                    (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
-                    (targetFormat === 'jpeg' && currentType === 'image/jpg'));
-
-                if (needConvert) {
-                    // 格式转换：使用 Canvas 将图片转换为目标格式
-                    const bitmap = await createImageBitmap(blob);
-                    const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-                    try {
-                        const ctx = canvas.getContext('2d');
-
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(bitmap, 0, 0);
-
-                        if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
-                            ctx.fillStyle = opaqueBackgroundColor;
-                            ctx.fillRect(0, 0, canvas.width, canvas.height);
-                            ctx.drawImage(bitmap, 0, 0);
-                        }
-
-                        bitmap.close();
-
-                        if (targetFormat === 'png') {
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                        } else if (targetFormat === 'bmp') {
-                            const bmpData = await canvasToBMPAsync(canvas);
-                            outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-                        } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', imageQuality));
-                        } else if (targetFormat === 'webp') {
-                            if (!webpSupported) {
-                                failureCount++;
-                                logError(imageData.name, '浏览器不支持 WebP');
-                                continue;
-                            }
-                            const webpLossless = document.getElementById('webp-lossless-toggle')?.checked;
-                            const webpQuality = webpLossless ? 1.0 : imageQuality;
-                            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
-                        } else {
-                            outputBlob = blob;
-                        }
-                    } finally {
-                        releaseCanvasToPool(canvas);
-                    }
-                } else {
-                    outputBlob = blob;
+                if (targetFormat === 'webp' && !webpSupported) {
+                    failureCount++;
+                    logError(imageData.name, '浏览器不支持 WebP');
+                    continue;
                 }
+
+                const outputBlob = await convertImageBlob(blob, targetFormat);
 
                 // 生成文件名（使用 getStatusSuffix 基于 scrambleLevel）
                 const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
@@ -2121,15 +2051,8 @@
 
             // 下载 ZIP 文件
             const zipBlob = new Blob([zipData], { type: 'application/zip' });
-            const url = URL.createObjectURL(zipBlob);
-            const a = document.createElement('a');
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `混淆图片_${timestamp}.zip`;
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
+            downloadBlob(zipBlob, `混淆图片_${timestamp}.zip`);
 
             statusDiv.innerHTML = `✅ 打包完成，已下载 ${successCount} 张图片${failureCount ? `，${failureCount} 张失败` : ''}`;
             setTimeout(() => statusDiv.innerHTML = '', 3000);
@@ -2147,6 +2070,8 @@
     
     /** @type {Object|null} 当前移动端气泡关闭监听器 */
     let mobileTooltipListener = null;
+    /** @type {Object} 缓存指示器 touch 滚动监听器引用（防泄漏） */
+    let cacheIndicatorTouchListeners = null;
 
     /**
      * 更新缓存方案指示器显示
@@ -2196,6 +2121,11 @@
                     }, 0);
                 };
 
+                // 清理旧的 touch 滚动监听器，防止重复绑定
+                if (cacheIndicatorTouchListeners) {
+                    document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
+                    document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
+                }
                 // 移动端滑动页面时关闭气泡
                 let startY = 0;
                 const closeOnScroll = (e) => {
@@ -2206,6 +2136,7 @@
                         indicator.classList.remove('tooltip-active');
                     }
                 };
+                cacheIndicatorTouchListeners = closeOnScroll;
                 document.addEventListener('touchstart', closeOnScroll, { passive: true });
                 document.addEventListener('touchmove', closeOnScroll, { passive: true });
             }
@@ -2473,6 +2404,102 @@
         }
     };
     
+    // =============================================
+    // 公共工具函数
+    // =============================================
+
+    /** 触发浏览器下载 Blob */
+    function downloadBlob(blob, fileName) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = fileName;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    /** 在图片项上显示处理中遮罩，返回遮罩元素 */
+    function showProcessingOverlay(item) {
+        const overlay = document.createElement('div');
+        overlay.className = 'processing-overlay';
+        overlay.innerHTML = '<div class="loading"></div>';
+        item.querySelector('.thumbnail-container').appendChild(overlay);
+        return overlay;
+    }
+
+    /** 显示批量操作结果状态消息 */
+    function showBatchStatus(successCount, failureCount, actionVerb) {
+        const statusDiv = document.getElementById('batchStatus');
+        if (failureCount === 0) {
+            statusDiv.innerHTML = `✅ 全部${actionVerb}成功 (${successCount} 张)`;
+        } else if (successCount === 0) {
+            statusDiv.innerHTML = `❌ 全部${actionVerb}失败 (${failureCount} 张)`;
+        } else {
+            statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
+        }
+        setTimeout(() => statusDiv.innerHTML = '', 3000);
+    }
+
+    /** 校验 RGB 输入值（钳位到 0-255），返回数值 */
+    function validateRgbInput(input) {
+        let value = parseInt(input.value) || 0;
+        if (value > 255) {
+            value = 255;
+            input.value = '255';
+        }
+        return value;
+    }
+
+    /**
+     * 将图片 Blob 转换为目标格式
+     * @param {Blob} blob - 原始图片 Blob
+     * @param {string} targetFormat - 目标格式 (png/jpg/jpeg/bmp/webp)
+     * @param {Object} [opts] - 选项
+     * @returns {Promise<Blob>} 转换后的 Blob
+     */
+    async function convertImageBlob(blob, targetFormat, opts = {}) {
+        const currentType = blob.type;
+        const needConvert = !(currentType === `image/${targetFormat}` ||
+            (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
+            (targetFormat === 'jpeg' && currentType === 'image/jpg'));
+
+        if (!needConvert) return blob;
+
+        const bitmap = await createImageBitmap(blob);
+        const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
+        try {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+
+            if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
+                ctx.fillStyle = opts.fillColor || opaqueBackgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(bitmap, 0, 0);
+            }
+
+            bitmap.close();
+
+            if (targetFormat === 'png') {
+                return await new Promise(r => canvas.toBlob(r, 'image/png'));
+            } else if (targetFormat === 'bmp') {
+                const bmpData = await canvasToBMPAsync(canvas);
+                return new Blob([bmpData], { type: 'image/bmp' });
+            } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
+                return await new Promise(r => canvas.toBlob(r, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality));
+            } else if (targetFormat === 'webp') {
+                const webpLossless = opts.lossless != null ? opts.lossless : document.getElementById('webp-lossless-toggle')?.checked;
+                const webpQuality = webpLossless ? 1.0 : (opts.quality != null ? opts.quality : imageQuality);
+                return await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
+            }
+            return blob;
+        } finally {
+            releaseCanvasToPool(canvas);
+        }
+    }
+
     function saveSetting(key, value) {
         try { localStorage.setItem(key, value); } catch (e) {}
     }
@@ -3454,15 +3481,8 @@
                 const imageId = targetIds[i];
                 const imageData = images.find(img => img.id === imageId);
                 if (imageData) {
-                    // 显示处理中遮罩，提供视觉反馈
                     const item = document.querySelector(`[data-id="${imageId}"]`);
-                    let overlay = null;
-                    if (item) {
-                        overlay = document.createElement('div');
-                        overlay.className = 'processing-overlay';
-                        overlay.innerHTML = '<div class="loading"></div>';
-                        item.querySelector('.thumbnail-container').appendChild(overlay);
-                    }
+                    let overlay = item ? showProcessingOverlay(item) : null;
 
                     try {
                         await processSingleImage(imageData, operation);
@@ -3470,12 +3490,8 @@
                     } catch (error) {
                         console.error(`处理图片失败: ${imageData.name}`, error);
                         failureCount++;
-                        // 记录错误到日志
-                        if (typeof logError !== 'undefined') {
-                            logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
-                        }
+                        logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
                     } finally {
-                        // 简化遮罩清理：直接移除overlay（如果存在）
                         overlay?.remove();
                     }
 
@@ -3493,15 +3509,7 @@
                 }
             }
 
-            // 根据成功和失败数量显示不同状态
-            if (failureCount === 0) {
-                statusDiv.innerHTML = `✅ 全部处理成功 (${successCount} 张)`;
-            } else if (successCount === 0) {
-                statusDiv.innerHTML = `❌ 全部处理失败 (${failureCount} 张)`;
-            } else {
-                statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
-            }
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showBatchStatus(successCount, failureCount, '处理');
         } catch (error) {
             console.error('批量处理失败:', error);
             statusDiv.innerHTML = '❌ 处理失败';
@@ -3576,14 +3584,7 @@
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
-                if (failureCount === 0) {
-                    statusDiv.innerHTML = `✅ 全部保存成功 (${successCount} 张)`;
-                } else if (successCount === 0) {
-                    statusDiv.innerHTML = `❌ 全部保存失败 (${failureCount} 张)`;
-                } else {
-                    statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
-                }
-                setTimeout(() => statusDiv.innerHTML = '', 3000);
+                showBatchStatus(successCount, failureCount, '保存');
             } catch (error) {
                 console.error('保存失败:', error);
                 statusDiv.innerHTML = '❌ 保存失败';
@@ -3599,72 +3600,13 @@
         const blob = await storage.get(`current_${imageData.id}`);
         if (!blob) throw new Error('图片数据不存在');
 
-        // 如果格式已经是目标格式，直接下载
         const targetFormat = format.toLowerCase();
-        const currentType = blob.type;
-        const isSame = (currentType === `image/${targetFormat}`) ||
-                       (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
-                       (targetFormat === 'jpeg' && currentType === 'image/jpg');
-        if (isSame) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
-            a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${targetFormat === 'jpeg' ? 'jpg' : targetFormat}`;
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            return;
-        }
+        const outputBlob = await convertImageBlob(blob, targetFormat);
 
-        // 需要转换格式
-        const bitmap = await createImageBitmap(blob);
-        const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-        try {
-            const ctx = canvas.getContext('2d');
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(bitmap, 0, 0);
-
-            if ((format === 'jpg' || format === 'jpeg' || format === 'bmp') && blobMightHaveTransparency(currentType)) {
-                ctx.fillStyle = opaqueBackgroundColor;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(bitmap, 0, 0);
-            }
-
-            bitmap.close();
-
-            let outputBlob;
-            if (format === 'png') {
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-            } else if (format === 'bmp') {
-                const bmpData = await canvasToBMPAsync(canvas);
-                outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-            } else if (format === 'jpg' || format === 'jpeg') {
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', imageQuality));
-            } else if (format === 'webp') {
-                if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
-                const webpLossless = document.getElementById('webp-lossless-toggle')?.checked;
-                const webpQuality = webpLossless ? 1.0 : imageQuality;
-                outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
-            } else {
-                outputBlob = blob;
-            }
-
-            const url = URL.createObjectURL(outputBlob);
-            const a = document.createElement('a');
-            const ext = format === 'jpeg' ? 'jpg' : format;
-            const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
-            a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-        } finally {
-            releaseCanvasToPool(canvas);
-        }
+        const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+        const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
+        const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
+        downloadBlob(outputBlob, fileName);
     }
 
     // =============================================
@@ -4176,20 +4118,13 @@
 
         const statusDiv = document.getElementById('batchStatus');
         
+        let overlay = null;
         try {
             if (operation === 'save') {
-                // 保存操作：调用单独的保存函数
                 await saveSingleImage(imageId);
             } else {
-                // 显示处理中遮罩
                 const item = document.querySelector(`[data-id="${imageId}"]`);
-                let overlay = null;
-                if (item) {
-                    overlay = document.createElement('div');
-                    overlay.className = 'processing-overlay';
-                    overlay.innerHTML = '<div class="loading"></div>';
-                    item.querySelector('.thumbnail-container').appendChild(overlay);
-                }
+                if (item) overlay = showProcessingOverlay(item);
 
                 await processSingleImage(imageData, operation);
 
@@ -4201,11 +4136,7 @@
             statusDiv.innerHTML = `❌ "${imageData.name}" 处理失败`;
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         } finally {
-            // 简化遮罩清理：直接移除overlay（如果存在）
-            if (operation !== 'save') {
-                const overlay = document.querySelector(`[data-id="${imageId}"] .processing-overlay`);
-                overlay?.remove();
-            }
+            overlay?.remove();
             isProcessing = false;
         }
     }
@@ -5066,8 +4997,7 @@
             console.log(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
         
-        // 清理所有图片的Blob URL资源
-        cleanupAllImageResources();
+        console.log('页面卸载：所有图片资源将由浏览器自动回收');
     });
     
     // 页面可见性变化处理
@@ -5171,15 +5101,7 @@
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
             
-            // 显示最终结果
-            if (failureCount === 0) {
-                statusDiv.innerHTML = ` 缩略图刷新完成 (${successCount} 张)`;
-            } else if (successCount === 0) {
-                statusDiv.innerHTML = ` 缩略图刷新全部失败 (${failureCount} 张)`;
-            } else {
-                statusDiv.innerHTML = ` 成功刷新 ${successCount} 张， 失败 ${failureCount} 张`;
-            }
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showBatchStatus(successCount, failureCount, '刷新');
             
             console.log(`缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
@@ -5694,43 +5616,13 @@
             }
         });
         
-        if (rgbRInput) {
-            rgbRInput.addEventListener('input', () => {
-                let value = parseInt(rgbRInput.value) || 0;
-                if (value > 255) {
-                    value = 255;
-                    rgbRInput.value = '255';
-                }
+        for (const input of [rgbRInput, rgbGInput, rgbBInput]) {
+            if (!input) continue;
+            input.addEventListener('input', () => {
+                validateRgbInput(input);
                 updateColorFromRgb();
             });
-            
-            rgbRInput.addEventListener('blur', syncAllInputs);
-        }
-        
-        if (rgbGInput) {
-            rgbGInput.addEventListener('input', () => {
-                let value = parseInt(rgbGInput.value) || 0;
-                if (value > 255) {
-                    value = 255;
-                    rgbGInput.value = '255';
-                }
-                updateColorFromRgb();
-            });
-            
-            rgbGInput.addEventListener('blur', syncAllInputs);
-        }
-        
-        if (rgbBInput) {
-            rgbBInput.addEventListener('input', () => {
-                let value = parseInt(rgbBInput.value) || 0;
-                if (value > 255) {
-                    value = 255;
-                    rgbBInput.value = '255';
-                }
-                updateColorFromRgb();
-            });
-            
-            rgbBInput.addEventListener('blur', syncAllInputs);
+            input.addEventListener('blur', syncAllInputs);
         }
 
         function bindToggle(id, key) {
@@ -5764,13 +5656,7 @@
         }
         if (qualityInput) {
             qualityInput.addEventListener('input', () => syncQuality('input', qualityInput.value));
-            qualityInput.addEventListener('change', () => {
-                const percent = Math.max(1, Math.min(100, parseInt(qualityInput.value) || 100));
-                qualityInput.value = percent;
-                imageQuality = percent / 100;
-                if (qualitySlider) qualitySlider.value = percent;
-                saveSetting('imageQuality', String(percent));
-            });
+            qualityInput.addEventListener('change', () => syncQuality('input', qualityInput.value));
         }
 
         // 初始化文字气泡（悬停+点击+边缘检测）
