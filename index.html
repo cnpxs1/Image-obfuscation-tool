@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图片混淆工具</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-    <!-- Viewer.js CSS 智能加载 | 许可证：MIT License -->
+    <!-- Viewer.js CSS 加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
     <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
-    <!-- iro.js 颜色选择器库智能加载 | 许可证：MIT License -->
+    <!-- iro.js 颜色选择器库加载 | 许可证：MIT License -->
     <script>
         // iro.js 资源加载状态
         window.iroResources = {
@@ -1557,6 +1557,7 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
+                            <button id="clear-localstorage-btn" style="font-size: 1rem; color: #fff; background: #ff0000; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; align-self: flex-start;">清除配置</button>
                         </div>
                     </div>
                 </div>
@@ -5853,6 +5854,18 @@
         bindToggle('debug-mode-toggle', 'debugMode', (v) => { debugMode = v; });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+
+        // 清除 localStorage 按钮
+        document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
+            if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
+            localStorage.clear();
+            localStorageEnabled = true;
+            localStorage.setItem('localStorageEnabled', 'true');
+            const lsToggle = document.getElementById('localstorage-toggle');
+            if (lsToggle) lsToggle.checked = true;
+            console.log('🗑️ 已清除全部 localStorage 数据');
+            location.reload();
+        });
 
         // 从 localStorage 恢复图片质量
         (function loadQuality() {
