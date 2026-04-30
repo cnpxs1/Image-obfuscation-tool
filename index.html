@@ -2725,23 +2725,52 @@
     // 希尔伯特曲线缓存（LRU淘汰策略）
     // =============================================
     
-    // 希尔伯特曲线缓存 - 基于访问频率的LFU策略
+    // 希尔伯特曲线缓存 - LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
     // 同时缓存 shiftedCurve（加密解密映射表），避免循环内取模运算
     const curveCache = new Map(); // key -> {curve: Uint32Array, shiftedCurve: Uint32Array, frequency: number, lastAccess: number}
     const MAX_CACHE_SIZE = 20;
-    let accessCounter = 0; // 全局访问计数器，用于记录访问时间
+    let accessCounter = 0;
+    const STATS_INTERVAL = MAX_CACHE_SIZE * 2; // 每 40 次访问输出一次监控
+
+    // 命中率监控（仅调试模式，非调试模式完全跳过计算）
+    let cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
+
+    function logCacheStats() {
+        if (!debugMode) return;
+        const total = cacheHits + cacheMisses;
+        if (total === 0) return;
+        const rate = (cacheHits / total * 100).toFixed(1);
+        const freqs = [...curveCache.values()].map(e => e.frequency);
+        const minF = freqs.length ? Math.min(...freqs) : 0;
+        const maxF = freqs.length ? Math.max(...freqs) : 0;
+        console.log(`📊 曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+    }
+
+    function avgCacheFrequency() {
+        if (curveCache.size === 0) return 1;
+        let sum = 0;
+        for (const entry of curveCache.values()) sum += entry.frequency;
+        return Math.max(1, Math.ceil(sum / curveCache.size));
+    }
+
+    function ageFrequencies() {
+        for (const entry of curveCache.values()) entry.frequency >>= 1;
+    }
 
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
 
         if (curveCache.has(key)) {
+            if (debugMode) cacheHits++;
             const cacheEntry = curveCache.get(key);
             cacheEntry.frequency++;
             cacheEntry.lastAccess = accessCounter;
+            if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
             return cacheEntry.data;
         }
 
+        if (debugMode) cacheMisses++;
         // 未命中：生成新的曲线数据及映射表
         const totalPixels = width * height;
         const curve = hilbert2d(width, height);
@@ -2752,38 +2781,52 @@
         }
 
         if (curveCache.size >= MAX_CACHE_SIZE) {
+            ageFrequencies();
             evictLFUCacheEntry();
+            if (debugMode) cacheEvictions++;
         }
 
         curveCache.set(key, {
             data: { curve, shiftedCurve },
-            frequency: 1,
+            frequency: avgCacheFrequency(),
             lastAccess: accessCounter
         });
 
+        if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
         return curveCache.get(key).data;
     }
-    
+
     // LFU淘汰策略：淘汰访问频率最低的条目，频率相同时淘汰最久未访问的
     function evictLFUCacheEntry() {
         let minFreq = Infinity;
+        for (const entry of curveCache.values()) {
+            if (entry.frequency < minFreq) minFreq = entry.frequency;
+        }
+        if (minFreq === 1) {
+            let oldestAccess = Infinity;
+            let evictionKey = null;
+            for (const [key, entry] of curveCache.entries()) {
+                if (entry.lastAccess < oldestAccess) {
+                    oldestAccess = entry.lastAccess;
+                    evictionKey = key;
+                }
+            }
+            if (evictionKey !== null) curveCache.delete(evictionKey);
+            return;
+        }
         let oldestAccess = Infinity;
         let evictionKey = null;
-        
-        // 找到访问频率最低且最久未访问的条目
         for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency < minFreq || 
-                (entry.frequency === minFreq && entry.lastAccess < oldestAccess)) {
+            if (entry.frequency < minFreq) {
                 minFreq = entry.frequency;
+                oldestAccess = entry.lastAccess;
+                evictionKey = key;
+            } else if (entry.frequency === minFreq && entry.lastAccess < oldestAccess) {
                 oldestAccess = entry.lastAccess;
                 evictionKey = key;
             }
         }
-        
-        if (evictionKey !== null) {
-            curveCache.delete(evictionKey);
-            console.log(`LFU缓存淘汰: ${evictionKey} (频率: ${minFreq}, 最后访问: ${oldestAccess})`);
-        }
+        if (evictionKey !== null) curveCache.delete(evictionKey);
     }
 
     /**
