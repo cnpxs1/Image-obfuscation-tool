@@ -442,25 +442,25 @@
             content: "打包下载";
         }
 
-        /* WebP 无损开关：颜色和尺寸 */
-        .toggle-switch:has(#webp-lossless-toggle) {
+        /* 设置开关（小尺寸），用于 WebP 无损、调试模式等 */
+        .toggle-switch:has(.setting-switch) {
             width: 3rem;
             height: 1.5rem;
             border-radius: 3px;
         }
-        #webp-lossless-toggle + .toggle-slider {
+        .setting-switch + .toggle-slider {
             background: #b4b4b4;
         }
-        #webp-lossless-toggle:checked + .toggle-slider {
+        .setting-switch:checked + .toggle-slider {
             background: #0091ff;
         }
-        #webp-lossless-toggle ~ .toggle-slider::before {
+        .setting-switch ~ .toggle-slider::before {
             left: 3px;
             width: calc(1.5rem - 5px);
             height: calc(1.5rem - 5px);
             border-radius: 3px;
         }
-        #webp-lossless-toggle:checked ~ .toggle-slider::before {
+        .toggle-switch .setting-switch:checked ~ .toggle-slider::before {
             transform: translate(calc(1.5rem - 1px), -50%);
         }
 
@@ -1021,7 +1021,7 @@
         
         // CDN降级加载函数
         function loadCDNFallback(resourceType, failedCDN) {
-            console.log(`${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
+            console.warn(`${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
             
             if (resourceType === 'css') {
                 // 清除CSS超时定时器
@@ -1045,7 +1045,7 @@
                         }
                     };
                     cdnjsCss.onerror = () => {
-                        console.log('cdnjs CSS 加载失败，尝试本地资源');
+                        console.warn('cdnjs CSS 加载失败，尝试本地资源');
                         loadLocalViewerCss();
                     };
                     document.head.appendChild(cdnjsCss);
@@ -1053,7 +1053,7 @@
                     // 设置超时检测
                     window.viewerResources.cssTimeout = setTimeout(() => {
                         if (!window.viewerResources.cssLoaded) {
-                            console.log('cdnjs CSS 加载超时，尝试本地资源');
+                            console.warn('cdnjs CSS 加载超时，尝试本地资源');
                             loadLocalViewerCss();
                         }
                     }, 3000);
@@ -1097,7 +1097,7 @@
                 }
             };
             cdnjsScript.onerror = () => {
-                console.log('cdnjs Viewer.js JS 加载失败');
+                console.warn('cdnjs Viewer.js JS 加载失败');
                 loadLocalViewerJs();
             };
             document.head.appendChild(cdnjsScript);
@@ -1105,7 +1105,7 @@
             // 设置超时检测
             window.viewerResources.jsTimeout = setTimeout(() => {
                 if (!window.viewerResources.jsLoaded) {
-                    console.log('cdnjs JS 加载超时，尝试本地资源');
+                    console.warn('cdnjs JS 加载超时，尝试本地资源');
                     loadLocalViewerJs();
                 }
             }, 3000);
@@ -1115,7 +1115,7 @@
         function loadLocalViewerCss() {
             if (window.viewerResources.localFallback) return;
             
-            console.log('CDN 加载失败，尝试加载本地 Viewer.js CSS');
+            console.warn('CDN 加载失败，尝试加载本地 Viewer.js CSS');
             const localCss = document.createElement('link');
             localCss.rel = 'stylesheet';
             localCss.href = './assets/viewerjs/viewer.min.css';
@@ -1128,7 +1128,7 @@
                 console.error('本地 Viewer.js CSS 加载失败');
                 // CSS和JS都失败时，启用基础查看器模式
                 window.viewerResources.localFallback = true;
-                console.log('Viewer.js CSS资源完全不可用，启用基础图片查看器模式');
+                console.warn('Viewer.js CSS资源完全不可用，启用基础图片查看器模式');
                 
                 // 首次完全失败时显示提示
                 if (!window.viewerResources.promptShown) {
@@ -1145,7 +1145,7 @@
         function loadLocalViewerJs() {
             if (window.viewerResources.localFallback) return;
             
-            console.log('CDN 加载失败，尝试加载本地 Viewer.js JS');
+            console.warn('CDN 加载失败，尝试加载本地 Viewer.js JS');
             
             const localJs = document.createElement('script');
             localJs.src = './assets/viewerjs/viewer.min.js';
@@ -1163,7 +1163,7 @@
                 console.error('本地 Viewer.js JS 加载失败');
                 // JS失败时也启用基础查看器模式
                 window.viewerResources.localFallback = true;
-                console.log('Viewer.js JS资源完全不可用，启用基础图片查看器模式');
+                console.warn('Viewer.js JS资源完全不可用，启用基础图片查看器模式');
                 
                 // 首次完全失败时显示提示
                 if (!window.viewerResources.promptShown) {
@@ -1451,7 +1451,7 @@
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
                                 <label class="toggle-switch">
-                                    <input type="checkbox" id="webp-lossless-toggle" />
+                                    <input type="checkbox" id="webp-lossless-toggle" class="setting-switch" />
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -1500,6 +1500,25 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="setting-separator" />
+
+                <!-- 调试模式设置 -->
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>调试模式</h4>
+                        <p>开启后在控制台显示全部日志，关闭则仅显示错误、警告和缓存方法</p>
+                    </div>
+                    <div class="setting-controls">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 0.85rem; color: #888;">调试模式</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -1657,7 +1676,7 @@
                     resolve(supported);
                 }, 'image/webp');
             } catch (e) {
-                console.log('WebP 支持检测失败:', e);
+                console.warn('WebP 支持检测失败:', e);
                 resolve(false);
             }
         });
@@ -2225,7 +2244,20 @@
     let viewerInstance = null;
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
-    
+    /** @type {boolean} 调试模式标志 */
+    let debugMode = false;
+
+    // 覆盖 console.log：调试模式关闭时仅输出缓存方法相关日志
+    (function setupConsoleLog() {
+        const _origLog = console.log.bind(console);
+        const cacheKeywords = ['✅ 使用 Cache API', '✅ 使用 IndexedDB'];
+        console.log = function(...args) {
+            if (debugMode || cacheKeywords.some(k => args.some(a => typeof a === 'string' && a.includes(k)))) {
+                _origLog(...args);
+            }
+        };
+    })();
+
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
     
@@ -2284,7 +2316,7 @@
                 console.log(`🗑️ 已从 UI 层移除最旧错误日志：${logId}`);
             }
         }
-        
+
         console.log(`📝 错误已记录: ${fileName} - ${reason}`);
     }
     
@@ -3652,7 +3684,7 @@
                     blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                     releaseCanvasToPool(canvas);
                     originalFormat = 'PNG'; // 强制格式为 PNG
-                    console.log(`已将图片 ${file.name} 转换为 PNG 格式存储`);
+                    console.warn(`已将图片 ${file.name} 转换为 PNG 格式存储（回退方案）`);
                 } catch (thirdError) {
                     console.error(`所有读取方式均失败：${file.name}`, thirdError);
                     throw thirdError; // 彻底失败
@@ -5666,6 +5698,19 @@
         bindToggle('webp-lossless-toggle', 'webpLossless');
         bindToggle('zip-download-toggle', 'zipDownload');
         bindSelect('save-format-select', 'saveFormat');
+
+        // 调试模式开关：初始化状态并绑定事件
+        (function initDebugMode() {
+            const debugToggle = document.getElementById('debug-mode-toggle');
+            if (!debugToggle) return;
+            const saved = loadSetting('debugMode');
+            debugMode = saved === 'true';
+            debugToggle.checked = debugMode;
+            debugToggle.addEventListener('change', () => {
+                debugMode = debugToggle.checked;
+                saveSetting('debugMode', debugToggle.checked);
+            });
+        })();
 
         // 从 localStorage 恢复图片质量
         (function loadQuality() {
