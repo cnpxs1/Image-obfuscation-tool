@@ -1472,8 +1472,8 @@
                     <div class="setting-controls">
                         <!-- 颜色选择器容器 -->
                         <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px;">
-                            <!-- 色盘+色条固定在一行 -->
-                            <div style="display: flex; align-items: flex-start; gap: 15px; flex-shrink: 0;">
+                            <!-- 色盘+色条，允许换行 -->
+                            <div style="display: flex; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
                                 <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
                                 <div id="color-picker-box"></div>
                             </div>
@@ -1517,14 +1517,7 @@
                     <div class="setting-controls">
                         <div style="display: flex; flex-direction: column; gap: 6px;">
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">调试模式</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储设置</span>
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储配置</span>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
                                     <span class="toggle-slider"></span>
@@ -1541,6 +1534,13 @@
                                 <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">iro.js</span>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">调试模式</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
                                     <span class="toggle-slider"></span>
                                 </label>
                             </div>
@@ -2787,7 +2787,7 @@
 
         const maxDepth = Math.ceil(Math.log2(Math.max(width, height))) * 2 + 4;
         const stack = new Int32Array(maxDepth * 6);
-        let sp = 0;
+        let sp;
 
         // 初始方向向量：dx1/dy1 和 dx2/dy2 各有一维为零
         if (width >= height) {
@@ -4435,7 +4435,7 @@
         }
         
         try {
-            // 创建颜色选择器实例 - Box & Hue Slider 布局（色条在右侧）
+            // 创建颜色选择器实例 - Box & Hue Slider 布局
             colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
                 width: 200,
                 layoutDirection: 'horizontal',
@@ -4469,6 +4469,33 @@
             updateColorPreview(initialColor.hexString);
             
             console.log('✅ 颜色选择器初始化成功');
+
+            // 监听容器宽度：换行时切换为垂直布局（色条自动变为横向）
+            let isWrapped = false;
+            const pickerRow = document.getElementById('color-picker-box')?.parentElement;
+            if (pickerRow) {
+                const layout = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
+                new ResizeObserver(() => {
+                    const wrapped = pickerRow.clientHeight > 250;
+                    if (wrapped === isWrapped) return;
+                    isWrapped = wrapped;
+                    const currentColor = colorPickerInstance.color.hsv;
+                    document.getElementById('color-picker-box').innerHTML = '';
+                    colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
+                        width: 200, layoutDirection: wrapped ? 'vertical' : 'horizontal', layout,
+                        color: currentColor, borderWidth: 1, borderColor: '#ddd',
+                        containerStyle: 'border-radius: 0;'
+                    });
+                    colorPickerInstance.on('color:change', (color) => {
+                        updateColorInputs(color);
+                        updateColorPreview(color.hexString);
+                        opaqueBackgroundColor = color.hexString;
+                    });
+                    const c = colorPickerInstance.color;
+                    updateColorInputs(c);
+                    updateColorPreview(c.hexString);
+                }).observe(pickerRow);
+            }
         } catch (error) {
             console.error('颜色选择器初始化失败:', error);
         }
@@ -5369,7 +5396,9 @@
                                 pre.textContent = licenseText;
                                 fullDiv.appendChild(pre);
                             } else {
-                                throw new Error('加载失败');
+                                console.error('加载LICENSE文件失败:', response.status);
+                                fullDiv.textContent = '许可证文件加载失败';
+                                fullDiv.style.color = 'red';
                             }
                         } catch (error) {
                             console.error('加载LICENSE文件失败:', error);
