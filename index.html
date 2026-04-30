@@ -1209,23 +1209,25 @@
             const imgContainer = document.createElement('div');
             imgContainer.style.cssText = `
                 position: relative;
-                max-width: 90vw;
-                max-height: 90vh;
                 display: flex;
                 align-items: center;
                 justify-content: center;
             `;
-            
+
             // 创建图片元素
             const img = document.createElement('img');
+            img.draggable = false;
             img.src = imageData.blobUrl || imageData.url;
             img.alt = escapeHtml(imageData.originalName);
             img.style.cssText = `
-                max-width: 100%;
-                max-height: 100%;
+                display: block;
                 object-fit: contain;
+                transition: none;
+                -webkit-user-drag: none;
+                user-select: none;
             `;
-            
+            img.addEventListener('dragstart', (e) => e.preventDefault());
+
             // 添加加载状态
             const loadingIndicator = document.createElement('div');
             loadingIndicator.textContent = '图片加载中...';
@@ -1238,12 +1240,12 @@
                 border-radius: 4px;
                 display: block;
             `;
-            
+
             imgContainer.appendChild(loadingIndicator);
             imgContainer.appendChild(img);
             viewerContainer.appendChild(imgContainer);
-            
-            // 添加关闭按钮（使用Viewer.css样式）
+
+            // 添加关闭按钮
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '×';
             closeBtn.style.cssText = `
@@ -1266,28 +1268,39 @@
                 justify-content: center;
                 z-index: 10001;
             `;
-            
+
             closeBtn.onmouseenter = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             };
-            
+
             closeBtn.onmouseleave = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             };
-            
+
             viewerContainer.appendChild(closeBtn);
-            
-            // 不显示图片信息和操作提示
-            
+
             // 禁用页面滚动
             document.body.style.overflow = 'hidden';
-            
+
             // 添加到页面
             document.body.appendChild(viewerContainer);
-            
-            // 图片加载完成处理
+
+            // 图片加载完成后根据实际尺寸调整显示大小
             img.onload = () => {
                 loadingIndicator.style.display = 'none';
+                const margin = 50; // 页面边距
+                const maxW = window.innerWidth - margin;
+                const maxH = window.innerHeight - margin;
+                const iw = img.naturalWidth;
+                const ih = img.naturalHeight;
+                if (iw && ih) {
+                    const scale = Math.min(1, maxW / iw, maxH / ih);
+                    img.style.width = (iw * scale) + 'px';
+                    img.style.height = (ih * scale) + 'px';
+                }
+                imgContainer.style.maxWidth = maxW + 'px';
+                imgContainer.style.maxHeight = maxH + 'px';
+                img.style.cursor = img.naturalWidth * img.naturalHeight > maxW * maxH ? 'zoom-out' : 'default';
                 console.log('基础查看器：图片加载完成');
             };
             
@@ -1512,7 +1525,7 @@
                 <div class="setting-section">
                     <div class="setting-info">
                         <h4>调试</h4>
-                        <p>日志输出、存储行为与图片查看器</p>
+                        <p>日志输出、存储行为与图片查看器配置</p>
                     </div>
                     <div class="setting-controls">
                         <div style="display: flex; flex-direction: column; gap: 6px;">
