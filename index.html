@@ -47,14 +47,16 @@
             document.head.appendChild(script);
         }
 
-        // 优先级：jsDelivr -> unpkg -> 本地
-        loadIro(
-            'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
-            [
-                'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
-                './assets/irojs/iro.js'
-            ]
-        );
+        // localStorage 禁用时使用默认值（开启），否则按开关状态决定
+        if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
+            loadIro(
+                'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
+                [
+                    'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
+                    './assets/irojs/iro.js'
+                ]
+            );
+        }
     </script>
     <!-- fflate 库智能加载 - ZIP 压缩/解压 | 许可证：MIT License -->
     <script>
@@ -1506,19 +1508,42 @@
 
                 <hr class="setting-separator" />
 
-                <!-- 调试模式设置 -->
+                <!-- 调试设置 -->
                 <div class="setting-section">
                     <div class="setting-info">
-                        <h4>调试模式</h4>
-                        <p>开启后在控制台显示全部日志，关闭则仅显示错误、警告和缓存方法</p>
+                        <h4>调试</h4>
+                        <p>日志输出、存储行为与图片查看器</p>
                     </div>
                     <div class="setting-controls">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 0.85rem; color: #888;">调试模式</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
-                                <span class="toggle-slider"></span>
-                            </label>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">调试模式</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储设置</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">Viewer.js</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="viewerjs-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">iro.js</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2246,6 +2271,12 @@
     let previewCanceled = false;
     /** @type {boolean} 调试模式标志 */
     let debugMode = false;
+    /** @type {boolean} 本地存储开关 */
+    let localStorageEnabled = true;
+    /** @type {boolean} 使用 Viewer.js 查看器 */
+    let useViewerJs = true;
+    /** @type {boolean} 使用 iro.js 颜色选择器 */
+    let useIroJs = true;
 
     // 覆盖 console.log：调试模式关闭时仅输出缓存方法相关日志
     (function setupConsoleLog() {
@@ -2317,7 +2348,7 @@
             }
         }
 
-        console.log(`📝 错误已记录: ${fileName} - ${reason}`);
+        console.warn(`📝 错误已记录: ${fileName} - ${reason}`);
     }
     
     /** @type {Array<Object>} 错误日志数据存储 */
@@ -2533,9 +2564,11 @@
     }
 
     function saveSetting(key, value) {
+        if (key !== 'localStorageEnabled' && !localStorageEnabled) return;
         try { localStorage.setItem(key, value); } catch (e) {}
     }
     function loadSetting(key) {
+        if (key !== 'localStorageEnabled' && !localStorageEnabled) return null;
         try { return localStorage.getItem(key); } catch (e) { return null; }
     }
 
@@ -4394,6 +4427,7 @@
      * 初始化 iro.js 颜色选择器
      */
     function initColorPicker() {
+        if (!useIroJs) return;
         // 检查 iro.js 是否加载成功
         if (!window.iro || typeof iro.ColorPicker !== 'function') {
             console.warn('iro.js 未加载，颜色选择器不可用');
@@ -4589,7 +4623,13 @@
         const galleryContainer = await createImageGalleryContainer();
                 
         try {
-            // 4. 等待 Viewer 资源加载并初始化
+            // 4. 若关闭 Viewer.js 开关，直接使用基础查看器
+            if (!useViewerJs) {
+                await handleViewerInitializationFailure(galleryContainer, imageData);
+                return;
+            }
+
+            // 5. 等待 Viewer 资源加载并初始化
             await getViewerLoadPromise();
                 
             if (previewCanceled) {
@@ -5657,16 +5697,25 @@
             input.addEventListener('blur', syncAllInputs);
         }
 
-        function bindToggle(id, key) {
+        function bindToggle(id, key, onChange) {
             const el = document.getElementById(id);
             if (!el) return;
-            el.addEventListener('change', () => saveSetting(key, el.checked));
-            if (loadSetting(key) === 'true') el.checked = true;
+            el.addEventListener('change', () => {
+                if (!localStorageEnabled) return;
+                saveSetting(key, el.checked);
+                if (onChange) onChange(el.checked);
+            });
+            const saved = loadSetting(key);
+            if (saved !== null) el.checked = saved === 'true';
+            if (onChange) onChange(el.checked);
         }
         function bindSelect(id, key) {
             const el = document.getElementById(id);
             if (!el) return;
-            el.addEventListener('change', () => saveSetting(key, el.value));
+            el.addEventListener('change', () => {
+                if (!localStorageEnabled) return;
+                saveSetting(key, el.value);
+            });
             const saved = loadSetting(key);
             if (saved) el.value = saved;
         }
@@ -5680,7 +5729,7 @@
             imageQuality = percent / 100;
             if (source !== 'slider' && qualitySlider) qualitySlider.value = percent;
             if (source !== 'input' && qualityInput) qualityInput.value = percent;
-            saveSetting('imageQuality', String(percent));
+            if (localStorageEnabled) saveSetting('imageQuality', String(percent));
         }
 
         if (qualitySlider) {
@@ -5695,22 +5744,30 @@
         const webpTooltip = document.querySelector('.text-tooltip');
         if (webpTooltip) initTextTooltip(webpTooltip);
 
+        // 本地存储开关（必须在所有 bindToggle 前初始化，确保 loadSetting 正确判断）
+        localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        const lsToggle = document.getElementById('localstorage-toggle');
+        if (lsToggle) {
+            lsToggle.checked = localStorageEnabled;
+            lsToggle.addEventListener('change', function() {
+                localStorageEnabled = this.checked;
+                localStorage.setItem('localStorageEnabled', this.checked);
+                // 关闭时清空其他键，仅保留 localStorageEnabled 自身
+                if (!this.checked) {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                    }
+                }
+            });
+        }
+
         bindToggle('webp-lossless-toggle', 'webpLossless');
         bindToggle('zip-download-toggle', 'zipDownload');
         bindSelect('save-format-select', 'saveFormat');
-
-        // 调试模式开关：初始化状态并绑定事件
-        (function initDebugMode() {
-            const debugToggle = document.getElementById('debug-mode-toggle');
-            if (!debugToggle) return;
-            const saved = loadSetting('debugMode');
-            debugMode = saved === 'true';
-            debugToggle.checked = debugMode;
-            debugToggle.addEventListener('change', () => {
-                debugMode = debugToggle.checked;
-                saveSetting('debugMode', debugToggle.checked);
-            });
-        })();
+        bindToggle('debug-mode-toggle', 'debugMode', (v) => { debugMode = v; });
+        bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
+        bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
 
         // 从 localStorage 恢复图片质量
         (function loadQuality() {
