@@ -2418,15 +2418,7 @@
             
             return logEntry;
         },
-        
-        /**
-         * 获取所有错误日志
-         * @returns {Array<Object>} 错误日志数组
-         */
-        getAll() {
-            return [...errorLogs];
-        },
-        
+
         /**
          * 清理错误日志
          * @param {Array<Object>} [logs] - 要清理的日志数组，如果不提供则清理所有日志
@@ -3145,7 +3137,7 @@
      * 在页面卸载时调用，完全释放所有Canvas资源
      */
     function clearAllCanvasPools() {
-        canvasPoolBySize.forEach((pool, key) => {
+        canvasPoolBySize.forEach((pool) => {
             pool.forEach(canvas => {
                 // 重置尺寸以帮助垃圾回收
                 canvas.width = 0;
