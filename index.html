@@ -5,9 +5,59 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图片混淆工具</title>
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-    <!-- Viewer.js CSS 智能加载 | 许可证：MIT License -->
+    <!-- Viewer.js CSS 加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
     <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
+    <!-- iro.js 颜色选择器库加载 | 许可证：MIT License -->
+    <script>
+        // iro.js 资源加载状态
+        window.iroResources = {
+            loaded: false,
+            loading: false,
+            failed: false
+        };
+        
+        function loadIro(cdnUrl, fallbackUrls, index = 0) {
+            if (window.iroResources.loaded || window.iroResources.loading) return;
+            window.iroResources.loading = true;
+            
+            const script = document.createElement('script');
+            script.src = cdnUrl;
+            script.onload = () => {
+                if (typeof iro !== 'undefined') {
+                    window.iroResources.loaded = true;
+                    window.iroResources.loading = false;
+                    console.log('iro.js 加载成功:', cdnUrl);
+                } else {
+                    console.warn('iro.js 脚本加载但未定义，视为失败');
+                    window.iroResources.loading = false;
+                    script.onerror(new Error('iro is not defined'));
+                }
+            };
+            script.onerror = () => {
+                console.warn('iro.js 加载失败:', cdnUrl);
+                window.iroResources.loading = false;
+                if (index < fallbackUrls.length) {
+                    loadIro(fallbackUrls[index], fallbackUrls, index + 1);
+                } else {
+                    window.iroResources.failed = true;
+                    console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用');
+                }
+            };
+            document.head.appendChild(script);
+        }
+
+        // localStorage 禁用时使用默认值（开启），否则按开关状态决定
+        if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
+            loadIro(
+                'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
+                [
+                    'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
+                    './assets/irojs/iro.js'
+                ]
+            );
+        }
+    </script>
     <!-- fflate 库智能加载 - ZIP 压缩/解压 | 许可证：MIT License -->
     <script>
         // fflate 资源加载状态
@@ -85,12 +135,6 @@
             flex-direction: column;
         }
 
-
-        /* 主要内容区域 */
-        .main-content {
-
-        }
-
         /* 缓存方案指示器 */
         #cacheIndicator {
             position: fixed;
@@ -120,13 +164,12 @@
             padding: 4px 8px;
             border-radius: 6px;
             font-size: 0.95rem;
-            white-space: normal;
             max-width: 250px;
             min-width: 150px;
             z-index: 1000;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             line-height: 1.3;
-            display: none; /* 默认隐藏 */
+            display: none;
         }
 
         /* PC端：鼠标悬停显示气泡 */
@@ -158,6 +201,51 @@
             #cacheIndicator.tooltip-active::after {
                 display: block;
             }
+        }
+
+        /* 通用文字气泡提示 */
+        .text-tooltip {
+            position: relative;
+            cursor: help;
+        }
+        .text-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 6px;
+            background: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            white-space: nowrap;
+            max-width: calc(100vw - 20px);
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+        /* 屏幕边缘检测：左边缘 */
+        .text-tooltip.edge-left::after {
+            left: 0;
+            transform: none;
+        }
+        /* 屏幕边缘检测：右边缘 */
+        .text-tooltip.edge-right::after {
+            left: auto;
+            right: 0;
+            transform: none;
+        }
+        /* PC端：鼠标悬停 */
+        @media (hover: hover) {
+            .text-tooltip:hover::after {
+                display: block;
+            }
+        }
+        /* 移动端：点击激活 */
+        .text-tooltip.tooltip-active::after {
+            display: block;
         }
 
         /* 通用按钮样式 */
@@ -200,7 +288,8 @@
             min-height: 100px; /* 为内容预留最小高度 */
         }
 
-        .drop-zone.drag-over {
+        .drop-zone.drag-over,
+        .image-item.selected {
             border-color: #0091ff;
             background-color: rgba(0, 132, 255, 0.1);
         }
@@ -223,11 +312,6 @@
             position: relative;
         }
 
-        .image-item.selected {
-            border-color: #0091ff;
-            background-color: rgba(0, 132, 255, 0.1);
-        }
-
         /* 缩略图容器 */
         .thumbnail-container {
             position: relative;
@@ -244,8 +328,7 @@
         /* 文本截断样式 - 使用更兼容的方式 */
         .text-multiline {
             line-height: 1.4em;
-            height: 2.8em; /* 固定高度为2行的高度 */
-            min-height: 2.8em; /* 最小高度为2行的高度 */
+            height: 2.8em;
             overflow: hidden;
             text-align: center;
             word-wrap: break-word;
@@ -264,8 +347,7 @@
             color: #666;
             text-align: center;
             min-height: 3.5rem; /* 为两行文本预留空间 */
-            overflow-wrap: break-word; /* 确保长单词能换行 */
-            word-wrap: break-word; /* 兼容性支持 */
+            overflow-wrap: break-word;
             word-break: break-word; /* 用于中文等语言 */
         }
 
@@ -286,75 +368,104 @@
             width: calc(180px + 0.6rem); /* 3 个按钮宽度 (60px*3) + 2 个间隙 (0.3rem*2) */
         }
         
-        /* ZIP 下载切换开关样式 */
-        .zip-switch-container {
-            display: inline-flex; /* 行内弹性布局 */
-            align-items: center; /* 垂直居中对齐 */
-            justify-content: center; /* 两端对齐 */
-            height: 2rem; /* 容器高度 */
-            padding: 0 0; /* 内边距 */
-            margin: 0.3rem; /* 外边距 */
-            border: 2px solid #c8c8c8; /* 边框样式 */
-            border-radius: 6px; /* 圆角半径 */
-            background: #fff; /* 背景颜色 */
-            gap: 0.5rem; /* 子元素间距 */
-            box-sizing: border-box; /* 盒模型计算方式 */
-            transition: border-color 0s; /* 边框颜色过渡效果 */
+        /* 通用开关样式（不含颜色） */
+        .toggle-switch-container {
+            display: inline-flex;
+            align-items: center;
+            height: 2rem;
+            padding: 0 0;
+            margin: 0.3rem;
+            border: 2px solid;
+            border-radius: 6px;
+            background: #fff;
+            gap: 0.5rem;
+            box-sizing: border-box;
         }
-        .zip-switch-container:has(input:checked) {
-            border-color: #78c878; /* 开启状态边框颜色 */
-        }
-        .zip-switch-text::before {
-            content: "逐个下载"; /* 关闭状态文本 */
-            margin-right: 0.5rem; /* 文字右侧间距 */
+        .toggle-switch {
+            width: 4rem;
+            height: calc(2rem - 4px);
+            margin: 0;
+            border-radius: 4px;
+            display: block;
             position: relative;
-            top: -1px;
-        }
-        .zip-switch-container:has(input:checked) .zip-switch-text::before {
-            content: "打包下载"; /* 开启状态文本 */
-            margin-right: 0.5rem; /* 文字右侧间距 */
-            position: relative;
-            top: -1px;
-        }
-        .zip-switch {
-            width: 4rem; /* 开关宽度 */
-            height: calc(2rem - 4px); /* 开关高度 */
-            margin: 0; /* 外边距 */
-            border-radius: 4px; /* 圆角半径 */
-            display: block; /* 块级元素 */
-            position: relative; /* 相对定位，为子元素绝对定位提供参考 */
-            cursor: pointer; /* 鼠标悬停时显示手型指针 */
-            background: #b4b4b4; /* 关闭状态背景色 */
-            overflow: hidden; /* 隐藏超出边界的内容 */
-            transition: 0.3s; /* 过渡效果时长 */
+            cursor: pointer;
+            overflow: hidden;
+            transition: 0.3s;
             flex-shrink: 0;
         }
-        .zip-switch input {
-            opacity: 0; /* 隐藏原始复选框 */
-            position: absolute; /* 绝对定位 */
+        .toggle-switch input {
+            opacity: 0;
+            position: absolute;
         }
-        .zip-slider { /* 滑动轨道背景 */
-            position: absolute; /* 绝对定位填充整个开关 */
-            inset: 0; /* 上下左右均为 0，等同于 top:0; right:0; bottom:0; left:0; */
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
         }
-        .zip-slider::before { /* 滑动按钮（伪元素） */
-            content: ""; /* 伪元素必需属性 */
-            position: absolute; /* 绝对定位 */
-            left: 0.25rem; /* 默认位置：左侧 */
-            top: 50%; /* 垂直居中 */
-            transform: translateY(-50%); /* 修正垂直居中偏移 */
-            width: calc(1.5rem - 2px); /* 滑块宽度 */
-            height: calc(1.5rem - 2px); /* 滑块高度 */
-            border-radius: 4px; /* 滑块圆角 */
-            background: #fff; /* 滑块颜色（白色） */
-            transition: 0.3s; /* 滑动过渡效果 */
+        .toggle-slider::before {
+            content: "";
+            position: absolute;
+            left: 0.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: calc(1.5rem - 2px);
+            height: calc(1.5rem - 2px);
+            border-radius: 4px;
+            background: #fff;
+            transition: 0.3s;
         }
-        .zip-switch input:checked + .zip-slider { /* 选中状态时的轨道背景 */
-            background: #4caf50; /* 激活背景色 */
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translate(calc(2rem + 2px), -50%);
         }
-        .zip-switch input:checked + .zip-slider::before { /* 选中状态时的滑块位置 */
-            transform: translate(calc(2rem + 2px), -50%); /* 向右滑动calc(2rem + 2px)，保持垂直居中 */
+        .toggle-switch-text {
+            position: relative;
+            top: -1px;
         }
+        .toggle-switch-text::before {
+            margin-right: 0.5rem;
+        }
+
+        /* 打包下载开关：颜色与文本 */
+        .zip-download-container {
+            border-color: #c8c8c8;
+        }
+        .zip-download-container:has(input:checked) {
+            border-color: #78c878;
+        }
+        .zip-download-container .toggle-switch {
+            background: #b4b4b4;
+        }
+        .zip-download-container .toggle-switch input:checked + .toggle-slider {
+            background: #4caf50;
+        }
+        .zip-download-text::before {
+            content: "逐个下载";
+        }
+        .zip-download-container:has(input:checked) .zip-download-text::before {
+            content: "打包下载";
+        }
+
+        /* 设置开关（小尺寸），用于 WebP 无损、调试模式等 */
+        .toggle-switch:has(.setting-switch) {
+            width: 3rem;
+            height: 1.5rem;
+            border-radius: 3px;
+        }
+        .setting-switch + .toggle-slider {
+            background: #b4b4b4;
+        }
+        .setting-switch:checked + .toggle-slider {
+            background: #0091ff;
+        }
+        .setting-switch ~ .toggle-slider::before {
+            left: 3px;
+            width: calc(1.5rem - 5px);
+            height: calc(1.5rem - 5px);
+            border-radius: 3px;
+        }
+        .toggle-switch .setting-switch:checked ~ .toggle-slider::before {
+            transform: translate(calc(1.5rem - 1px), -50%);
+        }
+
         /* 删除和保存按钮平均分配空间 */
         .action-group .action-btn {
             flex: 1;
@@ -393,17 +504,6 @@
             background: #cc0000;
         }
 
-        /* 导出按钮特殊样式 */
-        .export-btn {
-            background: #4CAF50;
-            color: white;
-            border-color: #4CAF50;
-        }
-
-        .export-btn:hover {
-            background: #45a049;
-        }
-
         /* 状态徽章样式 */
         .status-badge {
             display: inline-block;
@@ -417,19 +517,19 @@
         .status-original {
             background: #e3f2fd;
             color: #1976d2;
-            border-color: #1976d2; /* 边框颜色与字体颜色一致 */
+            border-color: #1976d2;
         }
 
         .status-encrypted {
             background: #fce4ec;
             color: #c2185b;
-            border-color: #c2185b; /* 边框颜色与字体颜色一致 */
+            border-color: #c2185b;
         }
 
         .status-decrypted {
             background: #e8f5e8;
             color: #388e3c;
-            border-color: #388e3c; /* 边框颜色与字体颜色一致 */
+            border-color: #388e3c;
         }
 
         /* 处理中遮罩层 */
@@ -452,7 +552,6 @@
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            gap: 10px;
             margin: 0;
         }
 
@@ -573,24 +672,104 @@
             background-color: #969696;
         }
 
-        /* 刷新按钮样式 */
-        .refresh-btn {
-            background-color: #f5f5f5; /* 背景颜色：淡米黄色 */
-            color: #333333; /* 文字颜色：深灰色 */
-            padding: 0; /* 内边距：8像素 */
-            border: 2px solid #646464; /* 边框：2像素实线，中灰色 */
-            border-radius: 6px; /* 圆角半径：6像素 */
-            cursor: pointer; /* 鼠标样式：指针 */
-            display: flex; /* 显示模式：弹性盒子 */
-            align-items: center; /* 垂直对齐：居中 */
-            justify-content: center; /* 水平对齐：居中 */
-            min-width: 36px; /* 宽度：36像素 */
-            height: 36px; /* 高度：36像素 */
-            transition: background-color 0.2s; /* 过渡效果：背景色0.2秒 */
+        /* 图标按钮基础样式 */
+        .icon-btn {
+            color: #333333;
+            padding: 0;
+            border: 2px solid #646464;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+        .icon-btn:hover {
+            background-color: #dcdcdc;
         }
 
-        .refresh-btn:hover {
-            background-color: #dcdcdc; /* 悬停背景色 */
+        /* 刷新按钮 */
+        .refresh-btn {
+            background-color: #f5f5f5;
+            min-width: 36px;
+            height: 36px;
+        }
+
+        /* 设置按钮 */
+        .settings-btn {
+            background-color: #ffffff;
+            margin: 0.3rem;
+            width: 2rem;
+            height: 2rem;
+        }
+
+        /* 设置面板分栏布局 */
+        .setting-section {
+            display: flex;
+            align-items: stretch;
+            gap: 20px;
+            padding: 10px 0;
+        }
+
+        .setting-info {
+            flex: 0 0 130px;
+            min-width: 110px;
+            text-align: left;
+            border-right: 1px solid #e0e0e0;
+            padding-right: 10px;
+        }
+
+        .setting-info h4 {
+            margin: 0 0 6px 0;
+            color: #555;
+            font-size: 1rem;
+        }
+
+        .setting-info p {
+            margin: 0;
+            color: #888;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .setting-controls {
+            flex: 1;
+            min-width: 0;
+            padding-left: 0;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+
+        .setting-separator {
+            border: none;
+            border-top: 1px solid #e0e0e0;
+            margin: 0;
+        }
+
+        /* 图片质量输入框始终显示微调按钮 */
+        #quality-input::-webkit-inner-spin-button,
+        #quality-input::-webkit-outer-spin-button {
+            opacity: 1;
+        }
+
+        /* 响应式：窄屏时切换为上下布局 */
+        @media (max-width: 500px) {
+            .setting-section {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .setting-info {
+                flex: none;
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+                padding-right: 0;
+                padding-bottom: 8px;
+            }
+            .setting-controls > div:not(#color-picker-container) > div:not(#quality-row) {
+                justify-content: space-between;
+                width: 100%;
+            }
         }
 
         /* 错误日志面板 */
@@ -738,6 +917,11 @@
             border-radius: 4px;
         }
         
+        /* 颜色选择器容器直角样式 */
+        #color-picker-box * {
+            border-radius: 0 !important;
+        }
+        
         @media (max-width: 768px) {
             .image-item.list-view {
                 flex-wrap: wrap;
@@ -843,7 +1027,7 @@
         
         // CDN降级加载函数
         function loadCDNFallback(resourceType, failedCDN) {
-            console.log(`${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
+            console.warn(`${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
             
             if (resourceType === 'css') {
                 // 清除CSS超时定时器
@@ -867,7 +1051,7 @@
                         }
                     };
                     cdnjsCss.onerror = () => {
-                        console.log('cdnjs CSS 加载失败，尝试本地资源');
+                        console.warn('cdnjs CSS 加载失败，尝试本地资源');
                         loadLocalViewerCss();
                     };
                     document.head.appendChild(cdnjsCss);
@@ -875,7 +1059,7 @@
                     // 设置超时检测
                     window.viewerResources.cssTimeout = setTimeout(() => {
                         if (!window.viewerResources.cssLoaded) {
-                            console.log('cdnjs CSS 加载超时，尝试本地资源');
+                            console.warn('cdnjs CSS 加载超时，尝试本地资源');
                             loadLocalViewerCss();
                         }
                     }, 3000);
@@ -919,7 +1103,7 @@
                 }
             };
             cdnjsScript.onerror = () => {
-                console.log('cdnjs Viewer.js JS 加载失败');
+                console.warn('cdnjs Viewer.js JS 加载失败');
                 loadLocalViewerJs();
             };
             document.head.appendChild(cdnjsScript);
@@ -927,7 +1111,7 @@
             // 设置超时检测
             window.viewerResources.jsTimeout = setTimeout(() => {
                 if (!window.viewerResources.jsLoaded) {
-                    console.log('cdnjs JS 加载超时，尝试本地资源');
+                    console.warn('cdnjs JS 加载超时，尝试本地资源');
                     loadLocalViewerJs();
                 }
             }, 3000);
@@ -937,7 +1121,7 @@
         function loadLocalViewerCss() {
             if (window.viewerResources.localFallback) return;
             
-            console.log('CDN 加载失败，尝试加载本地 Viewer.js CSS');
+            console.warn('CDN 加载失败，尝试加载本地 Viewer.js CSS');
             const localCss = document.createElement('link');
             localCss.rel = 'stylesheet';
             localCss.href = './assets/viewerjs/viewer.min.css';
@@ -950,7 +1134,7 @@
                 console.error('本地 Viewer.js CSS 加载失败');
                 // CSS和JS都失败时，启用基础查看器模式
                 window.viewerResources.localFallback = true;
-                console.log('Viewer.js CSS资源完全不可用，启用基础图片查看器模式');
+                console.warn('Viewer.js CSS资源完全不可用，启用基础图片查看器模式');
                 
                 // 首次完全失败时显示提示
                 if (!window.viewerResources.promptShown) {
@@ -967,7 +1151,7 @@
         function loadLocalViewerJs() {
             if (window.viewerResources.localFallback) return;
             
-            console.log('CDN 加载失败，尝试加载本地 Viewer.js JS');
+            console.warn('CDN 加载失败，尝试加载本地 Viewer.js JS');
             
             const localJs = document.createElement('script');
             localJs.src = './assets/viewerjs/viewer.min.js';
@@ -985,7 +1169,7 @@
                 console.error('本地 Viewer.js JS 加载失败');
                 // JS失败时也启用基础查看器模式
                 window.viewerResources.localFallback = true;
-                console.log('Viewer.js JS资源完全不可用，启用基础图片查看器模式');
+                console.warn('Viewer.js JS资源完全不可用，启用基础图片查看器模式');
                 
                 // 首次完全失败时显示提示
                 if (!window.viewerResources.promptShown) {
@@ -1029,23 +1213,25 @@
             const imgContainer = document.createElement('div');
             imgContainer.style.cssText = `
                 position: relative;
-                max-width: 90vw;
-                max-height: 90vh;
                 display: flex;
                 align-items: center;
                 justify-content: center;
             `;
-            
+
             // 创建图片元素
             const img = document.createElement('img');
+            img.draggable = false;
             img.src = imageData.blobUrl || imageData.url;
             img.alt = escapeHtml(imageData.originalName);
             img.style.cssText = `
-                max-width: 100%;
-                max-height: 100%;
+                display: block;
                 object-fit: contain;
+                transition: none;
+                -webkit-user-drag: none;
+                user-select: none;
             `;
-            
+            img.addEventListener('dragstart', (e) => e.preventDefault());
+
             // 添加加载状态
             const loadingIndicator = document.createElement('div');
             loadingIndicator.textContent = '图片加载中...';
@@ -1058,12 +1244,12 @@
                 border-radius: 4px;
                 display: block;
             `;
-            
+
             imgContainer.appendChild(loadingIndicator);
             imgContainer.appendChild(img);
             viewerContainer.appendChild(imgContainer);
-            
-            // 添加关闭按钮（使用Viewer.css样式）
+
+            // 添加关闭按钮
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '×';
             closeBtn.style.cssText = `
@@ -1086,28 +1272,39 @@
                 justify-content: center;
                 z-index: 10001;
             `;
-            
+
             closeBtn.onmouseenter = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             };
-            
+
             closeBtn.onmouseleave = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             };
-            
+
             viewerContainer.appendChild(closeBtn);
-            
-            // 不显示图片信息和操作提示
-            
+
             // 禁用页面滚动
             document.body.style.overflow = 'hidden';
-            
+
             // 添加到页面
             document.body.appendChild(viewerContainer);
-            
-            // 图片加载完成处理
+
+            // 图片加载完成后根据实际尺寸调整显示大小
             img.onload = () => {
                 loadingIndicator.style.display = 'none';
+                const margin = 50; // 页面边距
+                const maxW = window.innerWidth - margin;
+                const maxH = window.innerHeight - margin;
+                const iw = img.naturalWidth;
+                const ih = img.naturalHeight;
+                if (iw && ih) {
+                    const scale = Math.min(1, maxW / iw, maxH / ih);
+                    img.style.width = (iw * scale) + 'px';
+                    img.style.height = (ih * scale) + 'px';
+                }
+                imgContainer.style.maxWidth = maxW + 'px';
+                imgContainer.style.maxHeight = maxH + 'px';
+                img.style.cursor = img.naturalWidth * img.naturalHeight > maxW * maxH ? 'zoom-out' : 'default';
                 console.log('基础查看器：图片加载完成');
             };
             
@@ -1244,15 +1441,146 @@
         基于希尔伯特曲线的图片混淆。混淆算法保持像素的空间相关性，混淆图被压缩仍能保持色彩。
     </div>
 
-    <div class="controls-section" style="gap: 0;">
-        <!-- fflate 打包下载开关 -->
-        <div class="zip-switch-container">
-            <label class="zip-switch">
-                <input type="checkbox" id="zip-download-toggle" />
-                <span class="zip-slider"></span>
-            </label>
-            <span class="zip-switch-text"></span>
+    <!-- 设置容器 -->
+    <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
+        <!-- 关闭按钮./img/icons/close.svg -->
+        <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 200 200"><path fill="#333" d="M121.4286,100L195.7143,25.7143c5.7143-5.7143,5.7143-15.7143,0-21.4286-5.7143-5.7143-15.7143-5.7143-21.4286,0l-74.2857,74.2857L25.7143,4.2857C20-1.4286,10-1.4286,4.2857,4.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286l74.2857,74.2857L4.2857,174.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286,5.7143,5.7143,15.7143,5.7143,21.4286,0l74.2857-74.2857,74.2857,74.2857c5.7143,5.7143,15.7143,5.7143,21.4286,0,5.7143-5.7143,5.7143-15.7143,0-21.4286l-74.2857-74.2857Z"/></svg>
+        </button>
+        <!-- 设置内容 -->
+        <div style="padding: 10px;">
+            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
+            <div id="settings-content">
+                <!-- 图片质量设置 -->
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>图片质量</h4>
+                        <p>用于 JPG、WebP 等有损格式的输出质量</p>
+                    </div>
+                    <div class="setting-controls">
+                        <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+                            <div id="quality-row" style="display: flex; align-items: center; gap: 3px;">
+                                <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
+                                <input type="range" id="quality-slider" min="1" max="100" value="100"
+                                    style="flex: 1; max-width: 200px; height: 6px;" />
+                                <input type="number" id="quality-input" min="1" max="100" value="100"
+                                    style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
+                                <span style="font-size: 1rem; color: #000;">%</span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="webp-lossless-toggle" class="setting-switch" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="setting-separator" />
+
+                <!-- 背景颜色设置 -->
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>背景色</h4>
+                        <p>用于 JEPG、BMP 等无透明通道的格式的背景填充</p>
+                    </div>
+                    <div class="setting-controls">
+                        <!-- 颜色选择器容器 -->
+                        <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 15px;">
+                            <!-- 色盘+色条，允许换行 -->
+                            <div style="display: flex; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
+                                <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
+                                <div id="color-picker-box"></div>
+                            </div>
+
+                            <!-- 颜色值输入框（宽度不足时换行） -->
+                            <div id="color-input-panel" style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
+                                    <input type="text" id="hex-input" placeholder="#FFFFFF"
+                                        style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
+                                    <input type="text" id="rgb-r-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
+                                    <input type="text" id="rgb-g-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
+                                    <input type="text" id="rgb-b-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="setting-separator" />
+
+                <!-- 调试设置 -->
+                <div class="setting-section">
+                    <div class="setting-info">
+                        <h4>调试</h4>
+                        <p>日志输出、存储行为与图片查看器配置</p>
+                    </div>
+                    <div class="setting-controls">
+                        <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储配置</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">Viewer.js</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="viewerjs-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">iro.js</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">调试模式</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <button id="clear-localstorage-btn" style="font-size: 1rem; color: #fff; background: #ff0000; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; align-self: flex-start;">清除配置</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+    </div>
+
+    <div class="controls-section" style="gap: 0;">
+        <!-- 设置按钮 ./img/icons/settings.svg -->
+        <button id="settings-btn" class="icon-btn settings-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,75c13.75,0,25,11.25,25,25s-11.25,25-25,25-25-11.25-25-25,11.25-25,25-25M100,62.5c-20.625,0-37.5,16.875-37.5,37.5s16.875,37.5,37.5,37.5,37.5-16.875,37.5-37.5-16.875-37.5-37.5-37.5Z"/></svg>
+        </button>
+        <!-- fflate 打包下载开关 -->
+        <div class="toggle-switch-container zip-download-container">
+            <label class="toggle-switch">
+                <input type="checkbox" id="zip-download-toggle" />
+                <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-switch-text zip-download-text"></span>
+        </div>
+        <!-- 保存格式选择 -->
         <label for="save-format-select" class="normal_button" style="background-color: #4CAF50;color:#fff;display:inline-flex;align-items:center;justify-content:center;height:2rem;font-size:1rem;padding:0 0.5rem;margin:0.3rem;border:0;border-radius:6px;cursor:pointer;">保存格式:
             <select id="save-format-select" style="margin-left:0.3rem;background-color:white;color:#333;height:1.5rem;border:1px solid #ccc;border-radius:4px;padding:0 0.2rem;font-size:0.9rem;cursor:pointer;">
                 <option value="png">PNG</option>
@@ -1263,12 +1591,13 @@
         </label>
     </div>
 
+    <!-- 拖拽区域 -->
     <div class="drop-zone" id="dropZone">
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
             <p style="margin-bottom: 0.5rem;">拖拽图片文件到这里，或点击选择文件</p>
-            <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持多个文件批量处理</p>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持 PNG、JPG、BMP、WebP 及 ZIP 批量导入</p>
             <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; pointer-events: none; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
-                添加图片<input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="pointer-events: none;" />
+                <label for="add-images">添加图片</label><input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="pointer-events: none;" />
             </span>
         </div>
     </div>
@@ -1281,7 +1610,7 @@
             <button id="select-all" class="normal_button" style="background-color: #0091ff;color:#fff;min-width: 65px;">全 选</button>
             <button id="clear-selection" class="normal_button" style="background-color: #666;color:#fff;">清空选择</button>
             <button id="clear-all" class="normal_button" style="background-color: #ff1100;color:#fff;">删除所选</button>
-            <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所选</button>
+            <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所有</button>
         </div>
     </div>
 
@@ -1297,7 +1626,7 @@
     <!-- 列表管理按钮容器 -->
     <div class="list-management-container" style="display: flex; justify-content: flex-end; max-width: 1200px; margin: 0 auto 10px;">
         <!-- 视图切换按钮：网格/列表视图切换 -->
-        <button id="view-toggle-btn" class="refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
+        <button id="view-toggle-btn" class="icon-btn refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
             <!-- 网格视图图标 ./img/icons/grid.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer;" id="grid-view-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
@@ -1314,7 +1643,7 @@
             </span>
         </button>
 
-        <button id="refresh-list-btn" class="refresh-btn" title="刷新列表">
+        <button id="refresh-list-btn" class="icon-btn refresh-btn" title="刷新列表">
             <!-- 刷新预览图图标 ./img/icons/refresh.svg -->
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 26px; height: 26px;">
                 <path fill="#333" d="M175.7955,110.0905c.5396-4.0352-2.2959-7.7431-6.3314-8.2793-4.0336-.5377-7.7431,2.2959-8.2793,6.3314-2.0305,15.2155-9.6307,29.0334-21.399,38.9082-12.5682,10.546-28.4896,15.567-44.8336,14.1371s-31.1516-9.1394-41.6976-21.7076c-10.546-12.5682-15.567-28.4896-14.1371-44.8336s9.1394-31.1516,21.7076-41.6976,28.4896-15.567,44.8336-14.1371c12.5263,1.0959,24.1471,5.8828,33.6409,13.7151l-9.1128,7.6466c-3.2352,2.7147-1.7666,7.9736,2.4058,8.6194l30.3253,4.6917c2.9371.454,5.602-1.7821,5.663-4.7519l.6436-30.6777c.0885-4.2211-4.8355-6.5807-8.0707-3.866l-10.4039,8.7299c-12.1366-10.7717-27.3449-17.3495-43.8066-18.7898-20.2656-1.773-40.0102,4.4516-55.5934,17.5275-15.5832,13.0759-25.1419,31.4396-26.9149,51.7052-1.773,20.2656,4.4516,40.0102,17.5275,55.5934s31.4396,25.1419,51.7052,26.9149c20.2656,1.773,40.0102-4.4516,55.5935-17.5275,14.5933-12.2452,24.0168-29.3826,26.5344-48.2525Z"/>
@@ -1388,7 +1717,7 @@
                     resolve(supported);
                 }, 'image/webp');
             } catch (e) {
-                console.log('WebP 支持检测失败:', e);
+                console.warn('WebP 支持检测失败:', e);
                 resolve(false);
             }
         });
@@ -1422,16 +1751,6 @@
             console.error('全局遮罩层清理失败:', error);
             return 0;
         }
-    }
-    
-    /**
-     * 清理所有图片资源
-     * 在页面卸载时调用
-     */
-    function cleanupAllImageResources() {
-        // StorageAdapter 中的数据会在页面关闭时自动被浏览器回收
-        // 无需额外清理 Blob URL（当前未创建长期 URL）
-        console.log('页面卸载：所有图片资源将由浏览器自动回收');
     }
     
     // =============================================
@@ -1724,43 +2043,21 @@
             }
 
             try {
-                // 获取当前图片 Blob
                 const blob = await storage.get(`current_${imageData.id}`);
-                if (!blob) throw new Error('图片数据不存在');
-
-                let outputBlob;
-                const targetFormat = format.toLowerCase();
-                const currentType = blob.type;
-                const needConvert = !(currentType === `image/${targetFormat}` ||
-                    (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
-                    (targetFormat === 'jpeg' && currentType === 'image/jpg'));
-
-                if (needConvert) {
-                    // 需要转换格式
-                    const bitmap = await createImageBitmap(blob);
-                    const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-                    const ctx = canvas.getContext('2d');
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(bitmap, 0, 0);
-                    bitmap.close();
-
-                    if (targetFormat === 'png') {
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-                    } else if (targetFormat === 'bmp') {
-                        const bmpData = await canvasToBMPAsync(canvas);
-                        outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-                    } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.95));
-                    } else if (targetFormat === 'webp') {
-                        if (!webpSupported) throw new Error('浏览器不支持 WebP');
-                        outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 0.95));
-                    } else {
-                        outputBlob = blob;
-                    }
-                    releaseCanvasToPool(canvas);
-                } else {
-                    outputBlob = blob;
+                if (!blob) {
+                    failureCount++;
+                    logError(imageData.name, '图片数据不存在');
+                    continue;
                 }
+
+                const targetFormat = format.toLowerCase();
+                if (targetFormat === 'webp' && !webpSupported) {
+                    failureCount++;
+                    logError(imageData.name, '浏览器不支持 WebP');
+                    continue;
+                }
+
+                const outputBlob = await convertImageBlob(blob, targetFormat);
 
                 // 生成文件名（使用 getStatusSuffix 基于 scrambleLevel）
                 const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
@@ -1814,15 +2111,8 @@
 
             // 下载 ZIP 文件
             const zipBlob = new Blob([zipData], { type: 'application/zip' });
-            const url = URL.createObjectURL(zipBlob);
-            const a = document.createElement('a');
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            a.download = `混淆图片_${timestamp}.zip`;
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
+            downloadBlob(zipBlob, `混淆图片_${timestamp}.zip`);
 
             statusDiv.innerHTML = `✅ 打包完成，已下载 ${successCount} 张图片${failureCount ? `，${failureCount} 张失败` : ''}`;
             setTimeout(() => statusDiv.innerHTML = '', 3000);
@@ -1840,6 +2130,8 @@
     
     /** @type {Object|null} 当前移动端气泡关闭监听器 */
     let mobileTooltipListener = null;
+    /** @type {Object} 缓存指示器 touch 滚动监听器引用（防泄漏） */
+    let cacheIndicatorTouchListeners = null;
 
     /**
      * 更新缓存方案指示器显示
@@ -1889,6 +2181,11 @@
                     }, 0);
                 };
 
+                // 清理旧的 touch 滚动监听器，防止重复绑定
+                if (cacheIndicatorTouchListeners) {
+                    document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
+                    document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
+                }
                 // 移动端滑动页面时关闭气泡
                 let startY = 0;
                 const closeOnScroll = (e) => {
@@ -1899,12 +2196,79 @@
                         indicator.classList.remove('tooltip-active');
                     }
                 };
+                cacheIndicatorTouchListeners = closeOnScroll;
                 document.addEventListener('touchstart', closeOnScroll, { passive: true });
                 document.addEventListener('touchmove', closeOnScroll, { passive: true });
             }
         }
     }
-    
+
+    /**
+     * 检测屏幕边缘，防止气泡超出屏幕
+     * @param {HTMLElement} el
+     */
+    function checkTooltipEdge(el) {
+        const rect = el.getBoundingClientRect();
+        const tooltipWidth = 200; // 估算气泡宽度（px）
+        const centerX = rect.left + rect.width / 2;
+        el.classList.remove('edge-left', 'edge-right');
+        if (centerX - tooltipWidth / 2 < 10) {
+            el.classList.add('edge-left');
+        } else if (centerX + tooltipWidth / 2 > window.innerWidth - 10) {
+            el.classList.add('edge-right');
+        }
+    }
+
+    /**
+     * 为文字气泡元素绑定PC悬停+移动端点击，含屏幕边缘检测
+     * @param {HTMLElement} el
+     */
+    function initTextTooltip(el) {
+        // PC端：鼠标进入时检测边缘
+        el.addEventListener('mouseenter', () => checkTooltipEdge(el));
+        el.addEventListener('mouseleave', () => el.classList.remove('edge-left', 'edge-right'));
+
+        // 移动端点击行为
+        if (window.innerWidth > 768) return;
+        let listener = null;
+        let startY = 0;
+
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            el.classList.toggle('tooltip-active');
+
+            if (el.classList.contains('tooltip-active')) {
+                checkTooltipEdge(el);
+                if (listener) document.removeEventListener('click', listener);
+                listener = function closeTooltip(ev) {
+                    if (!el.contains(ev.target)) {
+                        el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+                        document.removeEventListener('click', listener);
+                        listener = null;
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', listener), 0);
+            } else {
+                el.classList.remove('edge-left', 'edge-right');
+                if (listener) {
+                    document.removeEventListener('click', listener);
+                    listener = null;
+                }
+            }
+        });
+
+        const closeOnScroll = (e) => {
+            if (!el.classList.contains('tooltip-active')) return;
+            if (e.type === 'touchstart') {
+                startY = e.touches[0].clientY;
+            } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+            }
+        };
+        document.addEventListener('touchstart', closeOnScroll, { passive: true });
+        document.addEventListener('touchmove', closeOnScroll, { passive: true });
+    }
+
     // =============================================
     // 全局变量声明
     // =============================================
@@ -1921,7 +2285,26 @@
     let viewerInstance = null;
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
-    
+    /** @type {boolean} 调试模式标志 */
+    let debugMode = false;
+    /** @type {boolean} 本地存储开关 */
+    let localStorageEnabled = true;
+    /** @type {boolean} 使用 Viewer.js 查看器 */
+    let useViewerJs = true;
+    /** @type {boolean} 使用 iro.js 颜色选择器 */
+    let useIroJs = true;
+
+    // 覆盖 console.log：调试模式关闭时仅输出缓存方法相关日志
+    (function setupConsoleLog() {
+        const _origLog = console.log.bind(console);
+        const cacheKeywords = ['✅ 使用 Cache API', '✅ 使用 IndexedDB'];
+        console.log = function(...args) {
+            if (debugMode || cacheKeywords.some(k => args.some(a => typeof a === 'string' && a.includes(k)))) {
+                _origLog(...args);
+            }
+        };
+    })();
+
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
     
@@ -1980,8 +2363,8 @@
                 console.log(`🗑️ 已从 UI 层移除最旧错误日志：${logId}`);
             }
         }
-        
-        console.log(`📝 错误已记录: ${fileName} - ${reason}`);
+
+        console.warn(`📝 错误已记录: ${fileName} - ${reason}`);
     }
     
     /** @type {Array<Object>} 错误日志数据存储 */
@@ -2037,15 +2420,7 @@
             
             return logEntry;
         },
-        
-        /**
-         * 获取所有错误日志
-         * @returns {Array<Object>} 错误日志数组
-         */
-        getAll() {
-            return [...errorLogs];
-        },
-        
+
         /**
          * 清理错误日志
          * @param {Array<Object>} [logs] - 要清理的日志数组，如果不提供则清理所有日志
@@ -2100,30 +2475,129 @@
         }
     };
     
+    // =============================================
+    // 公共工具函数
+    // =============================================
+
+    /** 触发浏览器下载 Blob */
+    function downloadBlob(blob, fileName) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.download = fileName;
+        a.href = url;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    /** 在图片项上显示处理中遮罩，返回遮罩元素 */
+    function showProcessingOverlay(item) {
+        const overlay = document.createElement('div');
+        overlay.className = 'processing-overlay';
+        overlay.innerHTML = '<div class="loading"></div>';
+        item.querySelector('.thumbnail-container').appendChild(overlay);
+        return overlay;
+    }
+
+    /** 显示批量操作结果状态消息 */
+    function showBatchStatus(successCount, failureCount, actionVerb) {
+        const statusDiv = document.getElementById('batchStatus');
+        if (failureCount === 0) {
+            statusDiv.innerHTML = `✅ 全部${actionVerb}成功 (${successCount} 张)`;
+        } else if (successCount === 0) {
+            statusDiv.innerHTML = `❌ 全部${actionVerb}失败 (${failureCount} 张)`;
+        } else {
+            statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
+        }
+        setTimeout(() => statusDiv.innerHTML = '', 3000);
+    }
+
+    /** 校验 RGB 输入值（钳位到 0-255），返回数值 */
+    function validateRgbInput(input) {
+        let value = parseInt(input.value) || 0;
+        if (value > 255) {
+            value = 255;
+            input.value = '255';
+        }
+        return value;
+    }
+
+    /**
+     * 将图片 Blob 转换为目标格式
+     * @param {Blob} blob - 原始图片 Blob
+     * @param {string} targetFormat - 目标格式 (png/jpg/jpeg/bmp/webp)
+     * @param {Object} [opts] - 选项
+     * @returns {Promise<Blob>} 转换后的 Blob
+     */
+    async function convertImageBlob(blob, targetFormat, opts = {}) {
+        const currentType = blob.type;
+        const needConvert = !(currentType === `image/${targetFormat}` ||
+            (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
+            (targetFormat === 'jpeg' && currentType === 'image/jpg'));
+
+        if (!needConvert) return blob;
+
+        const bitmap = await createImageBitmap(blob);
+        const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
+        try {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+
+            if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
+                ctx.fillStyle = opts.fillColor || opaqueBackgroundColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(bitmap, 0, 0);
+            }
+
+            bitmap.close();
+
+            if (targetFormat === 'png') {
+                return await new Promise(r => canvas.toBlob(r, 'image/png'));
+            } else if (targetFormat === 'bmp') {
+                const bmpData = await canvasToBMPAsync(canvas);
+                return new Blob([bmpData], { type: 'image/bmp' });
+            } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
+                return await new Promise(r => canvas.toBlob(r, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality));
+            } else if (targetFormat === 'webp') {
+                const webpLossless = opts.lossless != null ? opts.lossless : document.getElementById('webp-lossless-toggle')?.checked;
+                const webpQuality = webpLossless ? 1.0 : (opts.quality != null ? opts.quality : imageQuality);
+                return await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
+            }
+            return blob;
+        } finally {
+            releaseCanvasToPool(canvas);
+        }
+    }
+
+    function saveSetting(key, value) {
+        if (key !== 'localStorageEnabled' && !localStorageEnabled) return;
+        try { localStorage.setItem(key, value); } catch (e) {}
+    }
+    function loadSetting(key) {
+        if (key !== 'localStorageEnabled' && !localStorageEnabled) return null;
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+    }
+
     /**
      * 加载保存的视图模式偏好
      */
     function loadViewModePreference() {
-        try {
-            const saved = localStorage.getItem('imageViewMode');
-            if (saved === 'grid' || saved === 'list') {
-                currentViewMode = saved;
-            } else {
-                currentViewMode = 'grid';
-            }
-        } catch (e) {
+        const saved = loadSetting('imageViewMode');
+        if (saved === 'grid' || saved === 'list') {
+            currentViewMode = saved;
+        } else {
             currentViewMode = 'grid';
         }
         updateViewModeButtonUI();
     }
-    
+
     /**
      * 保存视图模式偏好
      */
     function saveViewModePreference() {
-        try {
-            localStorage.setItem('imageViewMode', currentViewMode);
-        } catch (e) {}
+        saveSetting('imageViewMode', currentViewMode);
     }
     
     /**
@@ -2152,10 +2626,11 @@
     
     /**
      * 获取占位符 SVG
+     * ./img/icons/placeholder.svg
      * @returns {string} SVG 字符串
      */
     function getPlaceholderSVG() {
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="198" viewBox="0 0 252 198"><defs><style>.st0{fill:#4d4d4d;}.st1{fill:#fa4;}.st2{fill:#1a6;}</style></defs><path class="st1" d="M222.6,53.625c0,13.669-11.2824,24.75-25.2,24.75s-25.2-11.081-25.2-24.75,11.2824-24.75,25.2-24.75,25.2,11.081,25.2,24.75Z"/><path class="st2" d="M91.476,87.615c-11.0428-9.638-27.6811-9.638-38.724,0L9,127.3013v61.6987h83.1633l55.5927-50.4-56.28-50.985Z"/><path class="st1" d="M160.188,127.2975h0s-12.4321,11.3024-12.4321,11.3024l-55.5927,50.4h150.8368v-24.8636l-40.8122-36.8388c-12.0145-10.3562-29.9854-10.3563-41.9998,0Z"/><path class="st0" d="M242.9981,0H9.0019C4.0303,0,0,4.0303,0,9.0019v179.9962c0,4.9716,4.0303,9.0019,9.0019,9.0019h233.9962c4.9716,0,9.0019-4.0303,9.0019-9.0019V9.0019c0-4.9716-4.0303-9.0019-9.0019-9.0019ZM243,189H9V9h234v180Z"/></svg>';
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="198" viewBox="0 0 252 198"><path fill="#fa4" d="M222.6,53.625c0,13.669-11.2824,24.75-25.2,24.75s-25.2-11.081-25.2-24.75,11.2824-24.75,25.2-24.75,25.2,11.081,25.2,24.75Z"/><path fill="#1a6" d="M91.476,87.615c-11.0428-9.638-27.6811-9.638-38.724,0L9,127.3013v61.6987h83.1633l55.5927-50.4-56.28-50.985Z"/><path fill="#fa4" d="M160.188,127.2975h0s-12.4321,11.3024-12.4321,11.3024l-55.5927,50.4h150.8368v-24.8636l-40.8122-36.8388c-12.0145-10.3562-29.9854-10.3563-41.9998,0Z"/><path fill="#4d4d4d" d="M242.9981,0H9.0019C4.0303,0,0,4.0303,0,9.0019v179.9962c0,4.9716,4.0303,9.0019,9.0019,9.0019h233.9962c4.9716,0,9.0019-4.0303,9.0019-9.0019V9.0019c0-4.9716-4.0303-9.0019-9.0019-9.0019ZM243,189H9V9h234v180Z"/></svg>';
     }
     
     /**
@@ -2187,29 +2662,21 @@
 
             // 根据当前模式重新构建缩略图内容
             if (currentViewMode === 'grid') {
-                // 网格模式：需要 canvas 缩略图
-                // 检查是否已经有 canvas
                 let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
                 if (!canvas) {
-                    // 创建 canvas 元素
                     canvas = document.createElement('canvas');
                     canvas.className = 'thumbnail-canvas';
-                    canvas.style.width = '100%';
-                    canvas.style.height = 'auto';
-                    canvas.style.maxHeight = '150px';
-                    canvas.style.objectFit = 'contain';
-                    // 清空容器并添加 canvas
+                    canvas.style.display = 'block';
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.maxHeight = '100%';
                     thumbnailContainer.innerHTML = '';
                     thumbnailContainer.appendChild(canvas);
-                    // 加载图片数据并绘制
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
                         try {
                             const bitmap = await createImageBitmap(blob);
-                            canvas.width = bitmap.width;
-                            canvas.height = bitmap.height;
-                            const ctx = canvas.getContext('2d');
-                            ctx.drawImage(bitmap, 0, 0);
+                            const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                            drawThumbnail(canvas, bitmap, size.width, size.height);
                             bitmap.close();
                         } catch (e) {
                             console.warn('绘制缩略图失败', e);
@@ -2253,121 +2720,239 @@
     // 希尔伯特曲线缓存（LRU淘汰策略）
     // =============================================
     
-    // 希尔伯特曲线缓存 - 基于访问频率的LFU策略
-    const curveCache = new Map(); // key -> {data: Uint32Array, frequency: number, lastAccess: number}
+    // 希尔伯特曲线缓存 - LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
+    // 同时缓存 shiftedCurve（加密解密映射表），避免循环内取模运算
+    const curveCache = new Map(); // key -> {curve: Uint32Array, shiftedCurve: Uint32Array, frequency: number, lastAccess: number}
     const MAX_CACHE_SIZE = 20;
-    let accessCounter = 0; // 全局访问计数器，用于记录访问时间
-    
+    let accessCounter = 0;
+    const STATS_INTERVAL = MAX_CACHE_SIZE * 2; // 每 40 次访问输出一次监控
+
+    // 命中率监控（仅调试模式，非调试模式完全跳过计算）
+    let cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
+
+    function logCacheStats() {
+        if (!debugMode) return;
+        const total = cacheHits + cacheMisses;
+        if (total === 0) return;
+        const rate = (cacheHits / total * 100).toFixed(1);
+        const freqs = [...curveCache.values()].map(e => e.frequency);
+        const minF = freqs.length ? Math.min(...freqs) : 0;
+        const maxF = freqs.length ? Math.max(...freqs) : 0;
+        console.log(`📊 曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+    }
+
+    function avgCacheFrequency() {
+        if (curveCache.size === 0) return 1;
+        let sum = 0;
+        for (const entry of curveCache.values()) sum += entry.frequency;
+        return Math.max(1, Math.ceil(sum / curveCache.size));
+    }
+
+    function ageFrequencies() {
+        for (const entry of curveCache.values()) entry.frequency >>= 1;
+    }
+
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
-        
+
         if (curveCache.has(key)) {
-            // 命中缓存：增加访问频率并更新最后访问时间
+            if (debugMode) cacheHits++;
             const cacheEntry = curveCache.get(key);
             cacheEntry.frequency++;
             cacheEntry.lastAccess = accessCounter;
+            if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
             return cacheEntry.data;
         }
-        
-        // 未命中：生成新的曲线数据
-        const curve = gilbert2d(width, height);
-        
-        // 检查是否需要淘汰
-        if (curveCache.size >= MAX_CACHE_SIZE) {
-            evictLFUCacheEntry();
+
+        if (debugMode) cacheMisses++;
+        // 未命中：生成新的曲线数据及映射表
+        const totalPixels = width * height;
+        const curve = hilbert2d(width, height);
+        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+        const shiftedCurve = new Uint32Array(totalPixels);
+        for (let i = 0; i < totalPixels; i++) {
+            shiftedCurve[i] = curve[(i + offset) % totalPixels];
         }
-        
-        // 添加新条目
+
+        if (curveCache.size >= MAX_CACHE_SIZE) {
+            ageFrequencies();
+            evictLFUCacheEntry();
+            if (debugMode) cacheEvictions++;
+        }
+
         curveCache.set(key, {
-            data: curve,
-            frequency: 1,
+            data: { curve, shiftedCurve },
+            frequency: avgCacheFrequency(),
             lastAccess: accessCounter
         });
-        
-        return curve;
+
+        if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
+        return curveCache.get(key).data;
     }
-    
+
     // LFU淘汰策略：淘汰访问频率最低的条目，频率相同时淘汰最久未访问的
     function evictLFUCacheEntry() {
         let minFreq = Infinity;
+        for (const entry of curveCache.values()) {
+            if (entry.frequency < minFreq) minFreq = entry.frequency;
+        }
+        if (minFreq === 1) {
+            let oldestAccess = Infinity;
+            let evictionKey = null;
+            for (const [key, entry] of curveCache.entries()) {
+                if (entry.lastAccess < oldestAccess) {
+                    oldestAccess = entry.lastAccess;
+                    evictionKey = key;
+                }
+            }
+            if (evictionKey !== null) curveCache.delete(evictionKey);
+            return;
+        }
         let oldestAccess = Infinity;
         let evictionKey = null;
-        
-        // 找到访问频率最低且最久未访问的条目
         for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency < minFreq || 
-                (entry.frequency === minFreq && entry.lastAccess < oldestAccess)) {
+            if (entry.frequency < minFreq) {
                 minFreq = entry.frequency;
+                oldestAccess = entry.lastAccess;
+                evictionKey = key;
+            } else if (entry.frequency === minFreq && entry.lastAccess < oldestAccess) {
                 oldestAccess = entry.lastAccess;
                 evictionKey = key;
             }
         }
-        
-        if (evictionKey !== null) {
-            curveCache.delete(evictionKey);
-            console.log(`LFU缓存淘汰: ${evictionKey} (频率: ${minFreq}, 最后访问: ${oldestAccess})`);
-        }
+        if (evictionKey !== null) curveCache.delete(evictionKey);
     }
-    
-    function gilbert2d(width, height) {
-        const totalPixels = width * height;
-        const indices = new Uint32Array(totalPixels);
+
+    /**
+     * 生成二维希尔伯特曲线遍历顺序的像素索引数组
+     * @param {number} width  - 图像宽度
+     * @param {number} height - 图像高度
+     * @returns {Uint32Array} 按曲线顺序排列的像素线性索引
+     */
+    function hilbert2d(width, height) {
+        const w = width;
+        const total = width * height;
+        const order = new Uint32Array(total);
         let idx = 0;
 
-        function generate2d(x, y, ax, ay, bx, by) {
-            const w = Math.abs(ax + ay);
-            const h = Math.abs(bx + by);
-            const dax = Math.sign(ax), day = Math.sign(ay);
-            const dbx = Math.sign(bx), dby = Math.sign(by);
+        const maxDepth = Math.ceil(Math.log2(Math.max(width, height))) * 2 + 4;
+        const stack = new Int32Array(maxDepth * 6);
+        let sp;
 
-            if (h === 1) {
-                for (let i = 0; i < w; i++) {
-                    indices[idx++] = y * width + x;  // 直接存储线性索引
-                    x += dax;
-                    y += day;
-                }
-                return;
-            }
-            if (w === 1) {
-                for (let i = 0; i < h; i++) {
-                    indices[idx++] = y * width + x;  // 直接存储线性索引
-                    x += dbx;
-                    y += dby;
-                }
-                return;
-            }
-
-            let ax2 = Math.floor(ax / 2), ay2 = Math.floor(ay / 2);
-            let bx2 = Math.floor(bx / 2), by2 = Math.floor(by / 2);
-            const w2 = Math.abs(ax2 + ay2);
-            const h2 = Math.abs(bx2 + by2);
-
-            if (2 * w > 3 * h) {
-                if ((w2 % 2) && (w > 2)) {
-                    ax2 += dax;
-                    ay2 += day;
-                }
-                generate2d(x, y, ax2, ay2, bx, by);
-                generate2d(x + ax2, y + ay2, ax - ax2, ay - ay2, bx, by);
-            } else {
-                if ((h2 % 2) && (h > 2)) {
-                    bx2 += dbx;
-                    by2 += dby;
-                }
-                generate2d(x, y, bx2, by2, ax2, ay2);
-                generate2d(x + bx2, y + by2, ax, ay, bx - bx2, by - by2);
-                generate2d(x + (ax - dax) + (bx2 - dbx), y + (ay - day) + (by2 - dby),
-                           -bx2, -by2, -(ax - ax2), -(ay - ay2));
-            }
-        }
-
+        // 初始方向向量：dx1/dy1 和 dx2/dy2 各有一维为零
         if (width >= height) {
-            generate2d(0, 0, width, 0, 0, height);
+            stack[0] = 0; stack[1] = 0;
+            stack[2] = width; stack[3] = 0;
+            stack[4] = 0; stack[5] = height;
         } else {
-            generate2d(0, 0, 0, height, width, 0);
+            stack[0] = 0; stack[1] = 0;
+            stack[2] = 0; stack[3] = height;
+            stack[4] = width; stack[5] = 0;
         }
-        return indices;
+        sp = 6;
+
+        while (sp > 0) {
+            sp -= 6;
+            const x0  = stack[sp];
+            const y0  = stack[sp + 1];
+            const dx1 = stack[sp + 2];
+            const dy1 = stack[sp + 3];
+            const dx2 = stack[sp + 4];
+            const dy2 = stack[sp + 5];
+
+            // 方向向量各有一维为零，求和取绝对值即得单元尺寸（无分支）
+            const cellW = Math.abs(dx1 + dy1);
+            const cellH = Math.abs(dx2 + dy2);
+            // (v>0)-(v<0) 等价于 Math.sign 但无函数调用开销
+            const sX1 = (dx1 > 0) - (dx1 < 0);
+            const sY1 = (dy1 > 0) - (dy1 < 0);
+            const sX2 = (dx2 > 0) - (dx2 < 0);
+            const sY2 = (dy2 > 0) - (dy2 < 0);
+
+            if (cellH === 1) {
+                const step = sX1 + sY1 * w;
+                let ptr = y0 * w + x0;
+                const end = idx + cellW;
+                while (idx < end) {
+                    order[idx++] = ptr;
+                    ptr += step;
+                }
+                continue;
+            }
+
+            if (cellW === 1) {
+                const step = sX2 + sY2 * w;
+                let ptr = y0 * w + x0;
+                const end = idx + cellH;
+                while (idx < end) {
+                    order[idx++] = ptr;
+                    ptr += step;
+                }
+                continue;
+            }
+
+            let hX1 = dx1 >> 1;
+            let hY1 = dy1 >> 1;
+            let hX2 = dx2 >> 1;
+            let hY2 = dy2 >> 1;
+            const halfW = Math.abs(hX1 + hY1);
+            const halfH = Math.abs(hX2 + hY2);
+
+            if (2 * cellW > 3 * cellH) {
+                if ((halfW & 1) && cellW > 2) {
+                    hX1 += sX1;
+                    hY1 += sY1;
+                }
+
+                stack[sp]     = x0 + hX1;
+                stack[sp + 1] = y0 + hY1;
+                stack[sp + 2] = dx1 - hX1;
+                stack[sp + 3] = dy1 - hY1;
+                stack[sp + 4] = dx2;
+                stack[sp + 5] = dy2;
+                sp += 6;
+
+                stack[sp]     = x0;
+                stack[sp + 1] = y0;
+                stack[sp + 2] = hX1;
+                stack[sp + 3] = hY1;
+                stack[sp + 4] = dx2;
+                stack[sp + 5] = dy2;
+                sp += 6;
+            } else {
+                if ((halfH & 1) && cellH > 2) {
+                    hX2 += sX2;
+                    hY2 += sY2;
+                }
+
+                stack[sp]     = x0 + (dx1 - sX1) + (hX2 - sX2);
+                stack[sp + 1] = y0 + (dy1 - sY1) + (hY2 - sY2);
+                stack[sp + 2] = -hX2;
+                stack[sp + 3] = -hY2;
+                stack[sp + 4] = -(dx1 - hX1);
+                stack[sp + 5] = -(dy1 - hY1);
+                sp += 6;
+
+                stack[sp]     = x0 + hX2;
+                stack[sp + 1] = y0 + hY2;
+                stack[sp + 2] = dx1;
+                stack[sp + 3] = dy1;
+                stack[sp + 4] = dx2 - hX2;
+                stack[sp + 5] = dy2 - hY2;
+                sp += 6;
+
+                stack[sp]     = x0;
+                stack[sp + 1] = y0;
+                stack[sp + 2] = hX2;
+                stack[sp + 3] = hY2;
+                stack[sp + 4] = hX1;
+                stack[sp + 5] = hY1;
+                sp += 6;
+            }
+        }
+
+        return order;
     }
 
     // =============================================
@@ -2554,7 +3139,7 @@
      * 在页面卸载时调用，完全释放所有Canvas资源
      */
     function clearAllCanvasPools() {
-        canvasPoolBySize.forEach((pool, key) => {
+        canvasPoolBySize.forEach((pool) => {
             pool.forEach(canvas => {
                 // 重置尺寸以帮助垃圾回收
                 canvas.width = 0;
@@ -2739,19 +3324,29 @@
                 const blobUrl = URL.createObjectURL(blob);
                 const worker = new Worker(blobUrl);
                 
+                let settled = false;
+                function finalize(err) {
+                    if (settled) return;
+                    settled = true;
+                    URL.revokeObjectURL(blobUrl);
+                    worker.terminate();
+                    reject(err);
+                }
+                
                 worker.onmessage = function(e) {
-                    URL.revokeObjectURL(blobUrl); // 释放Web Worker的blob URL
+                    if (settled) return;
+                    settled = true;
+                    URL.revokeObjectURL(blobUrl);
                     resolve(e.data);
                 };
                 
                 worker.onerror = function(error) {
-                    URL.revokeObjectURL(blobUrl); // 释放Web Worker的blob URL
-                    reject(new Error(`Web Worker处理失败: ${error.message}`));
+                    finalize(new Error(`Web Worker处理失败: ${error.message}`));
                 };
                 
                 // 确保Worker终止时也能释放资源
                 worker.addEventListener('messageerror', function() {
-                    URL.revokeObjectURL(blobUrl);
+                    finalize(new Error('Web Worker消息传输失败'));
                 });
                 
                 const ctx = canvas.getContext('2d');
@@ -2827,13 +3422,25 @@
      * 通过黄金分割比例计算偏移量实现混淆效果
      */
     async function processSingleImage(imageData, operation) {
-        // 获取当前图片 Blob (如果是 restore，直接使用原始图片)
-        let sourceBlob;
+        // 还原操作：直接复制原始 Blob，完全跳过 Canvas 处理
         if (operation === 'restore') {
-            sourceBlob = await storage.get(`original_${imageData.id}`);
-        } else {
-            sourceBlob = await storage.get(`current_${imageData.id}`);
+            const originalBlob = await storage.get(`original_${imageData.id}`);
+            if (!originalBlob) throw new Error('原始图片数据不存在');
+
+            await storage.set(`current_${imageData.id}`, originalBlob);
+
+            imageData.scrambleLevel = 0;
+            imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
+            imageData.processed = false;
+            imageData.size = originalBlob.size;
+
+            await updateThumbnail(imageData.id, originalBlob);
+            updateImageInfo(imageData.id);
+            return;
         }
+
+        // 获取当前图片 Blob
+        const sourceBlob = await storage.get(`current_${imageData.id}`);
         if (!sourceBlob) throw new Error('图片数据不存在');
 
         // 通过 ImageBitmap 加载到 canvas
@@ -2848,8 +3455,7 @@
             // 获取像素数据
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const totalPixels = canvas.width * canvas.height;
-            const curve = getCachedCurve(canvas.width, canvas.height);
-            const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
+            const { curve, shiftedCurve } = getCachedCurve(canvas.width, canvas.height);
             let dstBuffer;
             try {
                 dstBuffer = getPixelBuffer(imgData.data.length);
@@ -2858,24 +3464,14 @@
 
                 if (operation === 'encrypt') {
                     for (let i = 0; i < totalPixels; i++) {
-                        const oldIdx = curve[i];
-                        const newIdx = curve[(i + offset) % totalPixels];
-                        dstU32[newIdx] = srcU32[oldIdx];
+                        dstU32[shiftedCurve[i]] = srcU32[curve[i]];
                     }
-                    // 混淆级别 +1
                     imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
-                } else if (operation === 'decrypt') {
+                } else {
                     for (let i = 0; i < totalPixels; i++) {
-                        const oldIdx = curve[i];
-                        const newIdx = curve[(i + offset) % totalPixels];
-                        dstU32[oldIdx] = srcU32[newIdx];
+                        dstU32[curve[i]] = srcU32[shiftedCurve[i]];
                     }
-                    // 解混淆级别 -1
                     imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
-                } else if (operation === 'restore') {
-                    dstBuffer.set(imgData.data);
-                    // 还原操作：重置混淆级别为 0
-                    imageData.scrambleLevel = 0;
                 }
 
                 // 写回 canvas
@@ -2884,27 +3480,53 @@
 
                 // 生成新 Blob (PNG 格式存储)
                 const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                // 存储当前图片
                 await storage.set(`current_${imageData.id}`, newBlob);
-                
-                // 更新图片元数据（不修改尺寸，只更新格式和状态）
+
                 imageData.format = 'PNG';
                 imageData.processed = true;
-                imageData.size = newBlob.size; // 更新文件大小
-                
-                // 更新预览
+                imageData.size = newBlob.size;
+
                 await updateThumbnail(imageData.id, newBlob);
-                // 更新界面显示
                 updateImageInfo(imageData.id);
             } finally {
                 releasePixelBuffer(dstBuffer);
             }
         } finally {
-            // 释放 ImageBitmap
             if (bitmap) bitmap.close();
-            // 释放 canvas
             releaseCanvasToPool(canvas);
         }
+    }
+
+    /**
+     * 计算缩略图在容器内的缩放尺寸
+     * @param {HTMLElement} container - 缩略图容器元素
+     * @param {number} imgWidth - 原始图片宽度
+     * @param {number} imgHeight - 原始图片高度
+     * @returns {{width: number, height: number}}
+     */
+    function getThumbnailSize(container, imgWidth, imgHeight) {
+        const maxWidth = container.clientWidth || 256;
+        const maxHeight = container.clientHeight || 256;
+        const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+        return {
+            width: Math.round(imgWidth * scale),
+            height: Math.round(imgHeight * scale)
+        };
+    }
+
+    /**
+     * 将 ImageBitmap 按目标尺寸绘制到缩略图 canvas
+     * @param {HTMLCanvasElement} canvas
+     * @param {ImageBitmap} bitmap
+     * @param {number} drawWidth
+     * @param {number} drawHeight
+     */
+    function drawThumbnail(canvas, bitmap, drawWidth, drawHeight) {
+        canvas.width = drawWidth;
+        canvas.height = drawHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, drawWidth, drawHeight);
+        ctx.drawImage(bitmap, 0, 0, drawWidth, drawHeight);
     }
 
     /**
@@ -2915,28 +3537,24 @@
      * 使用 ImageBitmap 将 Blob 绘制到 canvas 缩略图
      */
     async function updateThumbnail(imageId, blob) {
-        // 列表模式下不更新缩略图
         if (currentViewMode === 'list') return;
-        
+
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (!item) return;
         const canvas = item.querySelector('.thumbnail-canvas');
-        if (canvas) {
-            try {
-                const bitmap = await createImageBitmap(blob);
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
-                const ctx = canvas.getContext('2d');
-                // 清除旧内容，避免透明图层残留
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close();
-                    
-                // 只更新界面显示，不修改元数据中的尺寸（保持首次获取的尺寸不变）
-                updateImageInfo(imageId);
-            } catch (e) {
-                console.warn('更新缩略图失败', e);
-            }
+        if (!canvas) return;
+
+        const container = item.querySelector('.thumbnail-container');
+        if (!container) return;
+
+        try {
+            const bitmap = await createImageBitmap(blob);
+            const size = getThumbnailSize(container, bitmap.width, bitmap.height);
+            drawThumbnail(canvas, bitmap, size.width, size.height);
+            bitmap.close();
+            updateImageInfo(imageId);
+        } catch (e) {
+            console.warn('更新缩略图失败', e);
         }
     }
 
@@ -2979,15 +3597,8 @@
                 const imageId = targetIds[i];
                 const imageData = images.find(img => img.id === imageId);
                 if (imageData) {
-                    // 显示处理中遮罩，提供视觉反馈
                     const item = document.querySelector(`[data-id="${imageId}"]`);
-                    let overlay = null;
-                    if (item) {
-                        overlay = document.createElement('div');
-                        overlay.className = 'processing-overlay';
-                        overlay.innerHTML = '<div class="loading"></div>';
-                        item.querySelector('.thumbnail-container').appendChild(overlay);
-                    }
+                    let overlay = item ? showProcessingOverlay(item) : null;
 
                     try {
                         await processSingleImage(imageData, operation);
@@ -2995,12 +3606,8 @@
                     } catch (error) {
                         console.error(`处理图片失败: ${imageData.name}`, error);
                         failureCount++;
-                        // 记录错误到日志
-                        if (typeof logError !== 'undefined') {
-                            logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
-                        }
+                        logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
                     } finally {
-                        // 简化遮罩清理：直接移除overlay（如果存在）
                         overlay?.remove();
                     }
 
@@ -3018,15 +3625,7 @@
                 }
             }
 
-            // 根据成功和失败数量显示不同状态
-            if (failureCount === 0) {
-                statusDiv.innerHTML = `✅ 全部处理成功 (${successCount} 张)`;
-            } else if (successCount === 0) {
-                statusDiv.innerHTML = `❌ 全部处理失败 (${failureCount} 张)`;
-            } else {
-                statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
-            }
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showBatchStatus(successCount, failureCount, '处理');
         } catch (error) {
             console.error('批量处理失败:', error);
             statusDiv.innerHTML = '❌ 处理失败';
@@ -3066,7 +3665,7 @@
 
             if (targetIds.length === 0) {
                 const statusDiv = document.getElementById('batchStatus');
-                statusDiv.innerHTML = '️ 请先选择图片';
+                statusDiv.innerHTML = '⚠️ 请先选择图片';
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
                 return;
             }
@@ -3101,17 +3700,10 @@
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
-                if (failureCount === 0) {
-                    statusDiv.innerHTML = ` 全部保存成功 (${successCount} 张)`;
-                } else if (successCount === 0) {
-                    statusDiv.innerHTML = ` 全部保存失败 (${failureCount} 张)`;
-                } else {
-                    statusDiv.innerHTML = ` 成功 ${successCount} 张， 失败 ${failureCount} 张`;
-                }
-                setTimeout(() => statusDiv.innerHTML = '', 3000);
+                showBatchStatus(successCount, failureCount, '保存');
             } catch (error) {
                 console.error('保存失败:', error);
-                statusDiv.innerHTML = ' 保存失败';
+                statusDiv.innerHTML = '❌ 保存失败';
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         }
@@ -3124,60 +3716,13 @@
         const blob = await storage.get(`current_${imageData.id}`);
         if (!blob) throw new Error('图片数据不存在');
 
-        // 如果格式已经是目标格式，直接下载
         const targetFormat = format.toLowerCase();
-        const currentType = blob.type;
-        const isSame = (currentType === `image/${targetFormat}`) ||
-                       (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
-                       (targetFormat === 'jpeg' && currentType === 'image/jpg');
-        if (isSame) {
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
-            a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${targetFormat === 'jpeg' ? 'jpg' : targetFormat}`;
-            a.href = url;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 100);
-            return;
-        }
+        const outputBlob = await convertImageBlob(blob, targetFormat);
 
-        // 需要转换格式
-        const bitmap = await createImageBitmap(blob);
-        const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-        const ctx = canvas.getContext('2d');
-        // 清除旧内容，避免导出多余内容
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
-
-        let outputBlob;
-        if (format === 'png') {
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-        } else if (format === 'bmp') {
-            const bmpData = await canvasToBMPAsync(canvas);
-            outputBlob = new Blob([bmpData], { type: 'image/bmp' });
-        } else if (format === 'jpg' || format === 'jpeg') {
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 1.0));
-        } else if (format === 'webp') {
-            if (!(await isWebPSupported())) throw new Error('浏览器不支持 WebP');
-            outputBlob = await new Promise(r => canvas.toBlob(r, 'image/webp', 1.0));
-        } else {
-            outputBlob = blob;
-        }
-
-        const url = URL.createObjectURL(outputBlob);
-        const a = document.createElement('a');
-        const ext = format === 'jpeg' ? 'jpg' : format;
+        const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
         const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
-        a.download = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
-        a.href = url;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
-        releaseCanvasToPool(canvas);
+        const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
+        downloadBlob(outputBlob, fileName);
     }
 
     // =============================================
@@ -3223,7 +3768,7 @@
                     blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                     releaseCanvasToPool(canvas);
                     originalFormat = 'PNG'; // 强制格式为 PNG
-                    console.log(`已将图片 ${file.name} 转换为 PNG 格式存储`);
+                    console.warn(`已将图片 ${file.name} 转换为 PNG 格式存储（回退方案）`);
                 } catch (thirdError) {
                     console.error(`所有读取方式均失败：${file.name}`, thirdError);
                     throw thirdError; // 彻底失败
@@ -3298,24 +3843,19 @@
         thumbnailContainer.onclick = () => showPreview(imageData.id);
         
         if (currentViewMode === 'grid') {
-            // 网格模式：创建 canvas 用于显示缩略图
             const canvas = document.createElement('canvas');
             canvas.className = 'thumbnail-canvas';
-            canvas.style.width = '100%';
-            canvas.style.height = 'auto';
-            canvas.style.maxHeight = '150px';
-            canvas.style.objectFit = 'contain';
+            canvas.style.display = 'block';
+            canvas.style.maxWidth = '100%';
+            canvas.style.maxHeight = '100%';
             thumbnailContainer.appendChild(canvas);
-            
-            // 异步加载并绘制缩略图
+
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob) {
                 try {
                     const bitmap = await createImageBitmap(blob);
-                    canvas.width = bitmap.width;
-                    canvas.height = bitmap.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(bitmap, 0, 0);
+                    const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                    drawThumbnail(canvas, bitmap, size.width, size.height);
                     bitmap.close();
                 } catch (e) {
                     console.warn('缩略图绘制失败', e);
@@ -3480,6 +4020,17 @@
     // =============================================
 
     /**
+     * 更新保存按钮文字
+     * 根据是否有选中项动态显示“保存所选”或“保存所有”
+     */
+    function updateSaveButtonText() {
+        const saveBtn = document.getElementById('save-format-btn');
+        if (saveBtn) {
+            saveBtn.textContent = selectedImages.size > 0 ? '保存所选' : '保存所有';
+        }
+    }
+
+    /**
      * 切换图片选择状态
      * @param {string} imageId - 图片ID
      * @param {Event} event - 事件对象
@@ -3501,6 +4052,9 @@
             if (item) item.classList.add('selected');
             if (checkbox) checkbox.checked = true;   // 显式设置复选框状态
         }
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3519,6 +4073,9 @@
                 if (checkbox) checkbox.checked = true;
             }
         });
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3537,6 +4094,9 @@
             }
         });
         selectedImages.clear();
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
     }
 
     /**
@@ -3580,7 +4140,10 @@
             
         // 重置选择状态
         selectedImages.clear();
-            
+        
+        // 更新保存按钮文字
+        updateSaveButtonText();
+        
         // 更新计数器
         updateImageCounter();
             
@@ -3630,6 +4193,9 @@
             // 从选中集合中移除
             selectedImages.delete(imageId);
             
+            // 更新保存按钮文字
+            updateSaveButtonText();
+            
             // 更新计数器
             updateImageCounter();
             
@@ -3668,20 +4234,13 @@
 
         const statusDiv = document.getElementById('batchStatus');
         
+        let overlay = null;
         try {
             if (operation === 'save') {
-                // 保存操作：调用单独的保存函数
                 await saveSingleImage(imageId);
             } else {
-                // 显示处理中遮罩
                 const item = document.querySelector(`[data-id="${imageId}"]`);
-                let overlay = null;
-                if (item) {
-                    overlay = document.createElement('div');
-                    overlay.className = 'processing-overlay';
-                    overlay.innerHTML = '<div class="loading"></div>';
-                    item.querySelector('.thumbnail-container').appendChild(overlay);
-                }
+                if (item) overlay = showProcessingOverlay(item);
 
                 await processSingleImage(imageData, operation);
 
@@ -3693,11 +4252,7 @@
             statusDiv.innerHTML = `❌ "${imageData.name}" 处理失败`;
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         } finally {
-            // 简化遮罩清理：直接移除overlay（如果存在）
-            if (operation !== 'save') {
-                const overlay = document.querySelector(`[data-id="${imageId}"] .processing-overlay`);
-                overlay?.remove();
-            }
+            overlay?.remove();
             isProcessing = false;
         }
     }
@@ -3885,6 +4440,198 @@
     }
 
     // =============================================
+    // 透明检测
+    // =============================================
+
+    /**
+     * 根据 Blob MIME 类型判断图片是否可能包含透明通道
+     * JPEG/BMP 格式不支持 alpha 通道
+     */
+    function blobMightHaveTransparency(type) {
+        return type === 'image/png' || type === 'image/webp';
+    }
+
+
+    // =============================================
+    // 背景颜色管理
+    // =============================================
+
+    /**
+     * 不透明格式的背景颜色（默认白色）
+     * @type {string} 十六进制颜色值
+     */
+    let opaqueBackgroundColor = '#ffffff';
+
+    /**
+     * 图片输出质量 (0.0–1.0)，影响 JPG/WebP 有损压缩
+     * @type {number}
+     */
+    let imageQuality = 1.0;
+    
+    /**
+     * iro.js 颜色选择器实例
+     * @type {Object|null}
+     */
+    let colorPickerInstance = null;
+    
+    /**
+     * 初始化 iro.js 颜色选择器
+     */
+    function initColorPicker() {
+        if (!useIroJs) return;
+        // 检查 iro.js 是否加载成功
+        if (!window.iro || typeof iro.ColorPicker !== 'function') {
+            console.warn('iro.js 未加载，颜色选择器不可用');
+            return;
+        }
+        
+        try {
+            // 创建颜色选择器实例 - Box & Hue Slider 布局
+            colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
+                width: 200,
+                layoutDirection: 'horizontal',
+                layout: [
+                    {
+                        component: iro.ui.Box,
+                        options: {}
+                    },
+                    {
+                        component: iro.ui.Slider,
+                        options: {
+                            sliderType: 'hue'
+                        }
+                    }
+                ],
+                color: opaqueBackgroundColor,
+                borderWidth: 1,
+                borderColor: '#ddd',
+                containerStyle: 'border-radius: 0;'
+            });
+            
+            // 监听颜色变化事件
+            colorPickerInstance.on('color:change', (color) => {
+                updateColorInputs(color);
+                updateColorPreview(color.hexString);
+                opaqueBackgroundColor = color.hexString;
+            });
+            // 初始化输入框
+            const initialColor = colorPickerInstance.color;
+            updateColorInputs(initialColor);
+            updateColorPreview(initialColor.hexString);
+            
+            console.log('✅ 颜色选择器初始化成功');
+
+            // 监听容器宽度：换行时切换为垂直布局（色条自动变为横向）
+            let isWrapped = false;
+            const pickerRow = document.getElementById('color-picker-box')?.parentElement;
+            if (pickerRow) {
+                const layout = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
+                new ResizeObserver(() => {
+                    const wrapped = pickerRow.clientHeight > 250;
+                    if (wrapped === isWrapped) return;
+                    isWrapped = wrapped;
+                    const currentColor = colorPickerInstance.color.hsv;
+                    document.getElementById('color-picker-box').innerHTML = '';
+                    colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
+                        width: 200, layoutDirection: wrapped ? 'vertical' : 'horizontal', layout,
+                        color: currentColor, borderWidth: 1, borderColor: '#ddd',
+                        containerStyle: 'border-radius: 0;'
+                    });
+                    colorPickerInstance.on('color:change', (color) => {
+                        updateColorInputs(color);
+                        updateColorPreview(color.hexString);
+                        opaqueBackgroundColor = color.hexString;
+                    });
+                    const c = colorPickerInstance.color;
+                    updateColorInputs(c);
+                    updateColorPreview(c.hexString);
+                }).observe(pickerRow);
+            }
+        } catch (error) {
+            console.error('颜色选择器初始化失败:', error);
+        }
+    }
+    
+    /**
+     * 更新颜色输入框的值
+     * @param {Object} color - iro.js 颜色对象
+     */
+    function updateColorInputs(color) {
+        const hexInput = document.getElementById('hex-input');
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
+        
+        const activeElement = document.activeElement;
+        
+        // 只更新非焦点的输入框
+        if (hexInput && activeElement !== hexInput) {
+            hexInput.value = color.hexString;
+        }
+        
+        if (activeElement !== rgbRInput && rgbRInput) {
+            rgbRInput.value = color.rgb.r;
+        }
+        if (activeElement !== rgbGInput && rgbGInput) {
+            rgbGInput.value = color.rgb.g;
+        }
+        if (activeElement !== rgbBInput && rgbBInput) {
+            rgbBInput.value = color.rgb.b;
+        }
+    }
+    
+    /**
+     * 更新颜色预览框
+     * @param {string} hexColor - 十六进制颜色值
+     */
+    function updateColorPreview(hexColor) {
+        const preview = document.getElementById('color-preview');
+        if (preview) {
+            preview.style.backgroundColor = hexColor;
+        }
+    }
+    
+    /**
+     * 从十六进制输入框更新颜色
+     * @param {string} hexValue - 十六进制颜色值
+     */
+    function updateColorFromHex(hexValue) {
+        if (!colorPickerInstance) return;
+        
+        // 验证十六进制格式
+        const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+        if (hexRegex.test(hexValue)) {
+            colorPickerInstance.color.set(hexValue);
+            opaqueBackgroundColor = hexValue;
+            updateColorPreview(hexValue);
+        }
+    }
+    
+    /**
+     * 从 RGB 输入框更新颜色
+     */
+    function updateColorFromRgb() {
+        if (!colorPickerInstance) return;
+        
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
+        
+        if (!rgbRInput || !rgbGInput || !rgbBInput) return;
+        
+        const r = parseInt(rgbRInput.value) || 0;
+        const g = parseInt(rgbGInput.value) || 0;
+        const b = parseInt(rgbBInput.value) || 0;
+        
+        // 验证范围
+        if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
+            colorPickerInstance.color.set({ r, g, b });
+            opaqueBackgroundColor = colorPickerInstance.color.hexString;
+            updateColorPreview(opaqueBackgroundColor);
+        }
+    }
+
+    // =============================================
     // 事件监听器设置
     // =============================================
 
@@ -3929,7 +4676,7 @@
      * 3. 实现完善的资源管理和错误处理
      * 4. 支持优雅降级到基础查看器
      * 
-     * 新增取消机制防止竞态条件：
+     * 取消机制防止竞态条件：
      * - 使用取消令牌避免多个预览实例同时存在
      * - 快速连续点击时自动取消前一个操作
      */
@@ -3954,7 +4701,13 @@
         const galleryContainer = await createImageGalleryContainer();
                 
         try {
-            // 4. 等待 Viewer 资源加载并初始化
+            // 4. 若关闭 Viewer.js 开关，直接使用基础查看器
+            if (!useViewerJs) {
+                await handleViewerInitializationFailure(galleryContainer, imageData);
+                return;
+            }
+
+            // 5. 等待 Viewer 资源加载并初始化
             await getViewerLoadPromise();
                 
             if (previewCanceled) {
@@ -3962,7 +4715,11 @@
                 return;
             }
                 
-            if (!window.Viewer) throw new Error('Viewer.js 不可用');
+            if (!window.Viewer) {
+                console.error('Viewer.js 不可用');
+                await handleViewerInitializationFailure(galleryContainer, imageData);
+                return;
+            }
                 
             await initializeViewerWithBestPractices(imageData, galleryContainer, imageId);
         } catch (error) {
@@ -3976,22 +4733,13 @@
      * 取消之前的预览操作
      * 防止多个预览实例同时存在造成内存泄漏
      */
-    function cancelPreviousPreview() {
-        // 设置取消标志
-        previewCanceled = true;
-        
-        // 清理已存在的viewer实例
-        cleanupExistingViewer();
-        
-        console.log('🔄 已取消之前的预览操作');
-    }
-    
     /**
      * 清理已存在的 viewer 实例
      */
     function cleanupExistingViewer() {
         if (viewerInstance) {
             try {
+                // @ts-ignore - Viewer.js 是动态加载的，destroy 方法在运行时存在
                 viewerInstance.destroy();
                 console.log('✅ 已销毁之前的 viewer 实例');
             } catch (error) {
@@ -4384,23 +5132,33 @@
     window.addEventListener('beforeunload', () => {
         // 清理所有Canvas池
         clearAllCanvasPools();
-                
+
         // 重置Viewer加载Promise状态
         window.viewerLoadPromise = null;
         console.log('页面卸载：已重置Viewer加载Promise');
-        
+
         // 清空像素缓冲区池
         pixelBufferPool.length = 0;
         console.log('页面卸载：已清空像素缓冲区池');
-        
+
         // 清理所有残留的处理遮罩层
         const cleanedOverlays = cleanupAllProcessingOverlays();
         if (cleanedOverlays > 0) {
             console.log(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
-        
-        // 清理所有图片的Blob URL资源
-        cleanupAllImageResources();
+
+        // 清理移动端缓存指示器的残留监听器
+        if (cacheIndicatorTouchListeners) {
+            document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
+            document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
+            cacheIndicatorTouchListeners = null;
+        }
+        if (mobileTooltipListener) {
+            document.removeEventListener('click', mobileTooltipListener);
+            mobileTooltipListener = null;
+        }
+
+        console.log('页面卸载：所有图片资源将由浏览器自动回收');
     });
     
     // 页面可见性变化处理
@@ -4504,15 +5262,7 @@
                 await new Promise(resolve => setTimeout(resolve, 10));
             }
             
-            // 显示最终结果
-            if (failureCount === 0) {
-                statusDiv.innerHTML = ` 缩略图刷新完成 (${successCount} 张)`;
-            } else if (successCount === 0) {
-                statusDiv.innerHTML = ` 缩略图刷新全部失败 (${failureCount} 张)`;
-            } else {
-                statusDiv.innerHTML = ` 成功刷新 ${successCount} 张， 失败 ${failureCount} 张`;
-            }
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showBatchStatus(successCount, failureCount, '刷新');
             
             console.log(`缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
@@ -4532,113 +5282,250 @@
     
     // 显示开源许可证信息（新标签页打开）
     function showLicenseInfo() {
-        const licenseContent = `
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>开源许可证 - 图片混淆工具</title>
-    <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: white; }
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
-        h1 { color: #333; text-align: center; margin-bottom: 30px; font-size: 2em; }
-        h2 { color: #0091ff; margin: 30px 0 15px 0; border-bottom: 2px solid #0091ff; padding-bottom: 5px; }
-        a { color: #0091ff; text-decoration: underline; }
-        .license-text { white-space: pre-wrap; font-family: 'Courier New', monospace; background: #f8f8f8; padding: 25px; border-radius: 4px; border-left: 4px solid #0091ff; margin-bottom: 30px; }
-        p { color: #666; font-style: italic; margin-bottom: 15px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>开源许可证</h1>
-        
-        <h2><a href="https://github.com/cnpxs1/Image-obfuscation-tool" target="_blank">Image-Obfuscation-Tool</a></h2>
-        <p>基于希尔伯特曲线的轻量化纯前端图像混淆/解混淆工具</p>
-        <div class="license-text">MIT License
+        const newTab = window.open('', '_blank');
+        if (!newTab) {
+            alert('请允许弹出窗口以查看许可证信息');
+            return;
+        }
 
-Copyright © 2026-present cnpxs1
+        const doc = newTab.document;
+        doc.title = '开源许可证 - 图片混淆工具';
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+        // 添加响应式字体样式
+        const style = doc.createElement('style');
+        /* 许可证页面全局样式定义 */
+        style.textContent = `
+            /* 页面基础样式：重置边距，设置字体和背景 */
+            body { 
+                margin: 0; 
+                padding: 20px; 
+                font-family: Arial, sans-serif; 
+                background: white; 
+            }
+            /* 内容容器：限制最大宽度并居中显示 */
+            .container { 
+                max-width: 900px; 
+                margin: 0 auto; 
+                padding: 20px 0;
+            }
+            /* 主标题样式：深灰色居中显示 */
+            .main-title { 
+                color: #333; 
+                text-align: center; 
+                margin-bottom: 30px; 
+                font-size: 2em; 
+            }
+            /* 副标题样式：蓝色带下划线分隔 */
+            .section-title { 
+                color: #0091ff; 
+                margin: 30px 0 15px 0; 
+                border-bottom: 2px solid #0091ff; 
+                padding-bottom: 5px; 
+            }
+            /* 链接样式：蓝色带下划线 */
+            a { 
+                color: #0091ff; 
+                text-decoration: underline; 
+            }
+            /* 描述文本样式：灰色斜体 */
+            .description { 
+                color: #666; 
+                font-style: italic; 
+                margin-bottom: 15px; 
+            }
+            /* 许可证内容样式：等宽字体，响应式字号，横向滚动 */
+            .license-content { 
+                white-space: pre; 
+                overflow-x: auto;
+                container-type: inline-size; 
+                font-size: clamp(0.01rem, calc(100cqw / 70), 1.1rem);
+                font-family: 'Courier New', monospace;
+                background: #f8f8f8;
+                padding: 25px;
+                border-radius: 4px;
+                border-left: 4px solid #0091ff;
+                margin-bottom: 30px;
+            }
+            /* 完整许可证链接样式 */
+            .license-link {
+                margin: 15px 0;
+            }
+            .license-link a {
+                color: #666;
+                font-size: 0.9em;
+            }
+            /* 长许可证可展开容器 */
+            #long-license {
+                min-height: 100px;
+                padding-bottom: 10px;
+            }
+            /* 长许可证完整文本（默认隐藏） */
+            #long-license-full {
+                display: none;
+                overflow-x: auto;
+                white-space: pre;
+            }
+            /* 许可证展开/收起按钮 */
+            .license-toggle-btn {
+                display: block;
+                background: transparent;
+                color: #666;
+                border: none;
+                padding: 15px 0 0;
+                cursor: pointer;
+                font-size: 1rem;
+            }
+            /* 完整许可证文本 */
+            .license-full-text {
+                white-space: pre;
+                margin: 0;
+                font-family: 'Courier New', monospace;
+            }
+        `;
+        doc.head.appendChild(style);
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+        /* 创建副标题 */
+        function createTitle(title, link) {
+            const h2 = doc.createElement('h2');
+            h2.className = 'section-title';
+            const a = doc.createElement('a');
+            a.href = link;
+            a.target = '_blank';
+            a.textContent = title;
+            h2.appendChild(a);
+            return h2;
+        }
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.</div>
-        
-        <h2><a href="https://github.com/fengyuanchen/viewerjs" target="_blank">Viewer.js</a></h2>
-        <p>JavaScript 图像查看器</p>
-        <div class="license-text">The MIT License (MIT)
+        /* 创建描述文本 */
+        function createDesc(text) {
+            const p = doc.createElement('p');
+            p.className = 'description';
+            p.textContent = text;
+            return p;
+        }
 
-Copyright 2015-present Chen Fengyuan
+        /* 创建许可证内容 */
+        function createLicense(text) {
+            const div = doc.createElement('div');
+            div.className = 'license-content';
+            div.textContent = text;
+            return div;
+        }
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+        /* 创建完整许可证链接 */
+        function createLicenseLink(url, text) {
+            const p = doc.createElement('p');
+            p.className = 'license-link';
+            const a = doc.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.textContent = text || '查看完整许可证';
+            p.appendChild(a);
+            return p;
+        }
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+        /* 创建可展开/收起的许可证内容 */
+        function createExpandableLicense(summaryText, licenseFetchUrl) {
+            const licenseContainer = doc.createElement('div');
+            licenseContainer.id = 'long-license';
+            licenseContainer.className = 'license-content';
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.</div>
-        
-        <h2><a href="https://github.com/101arrowz/fflate" target="_blank">fflate</a></h2>
-        <p>8kB 超小体积，实现高性能压缩与解压缩</p>
-        <div class="license-text">MIT License
+            const summaryDiv = doc.createElement('div');
+            summaryDiv.id = 'long-license-summary';
+            summaryDiv.textContent = summaryText;
+            licenseContainer.appendChild(summaryDiv);
 
-Copyright (c) 2023 Arjun Barrett
+            const fullDiv = doc.createElement('div');
+            fullDiv.id = 'long-license-full';
+            licenseContainer.appendChild(fullDiv);
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+            const toggleBtn = doc.createElement('button');
+            toggleBtn.id = 'toggle-long-license';
+            toggleBtn.className = 'license-toggle-btn';
+            toggleBtn.textContent = '展开';
+            licenseContainer.appendChild(toggleBtn);
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+            let isExpanded = false;
+            toggleBtn.addEventListener('click', async function() {
+                if (!isExpanded) {
+                    if (!fullDiv.textContent.trim()) {
+                        try {
+                            const response = await fetch(licenseFetchUrl);
+                            if (response.ok) {
+                                const licenseText = await response.text();
+                                const pre = doc.createElement('pre');
+                                pre.className = 'license-full-text';
+                                pre.textContent = licenseText;
+                                fullDiv.appendChild(pre);
+                            } else {
+                                console.error('加载LICENSE文件失败:', response.status);
+                                fullDiv.textContent = '许可证文件加载失败';
+                                fullDiv.style.color = 'red';
+                            }
+                        } catch (error) {
+                            console.error('加载LICENSE文件失败:', error);
+                            fullDiv.textContent = '许可证文件加载失败';
+                            fullDiv.style.color = 'red';
+                        }
+                    }
+                    summaryDiv.style.display = 'none';
+                    fullDiv.style.display = 'block';
+                    toggleBtn.textContent = '收起';
+                    isExpanded = true;
+                } else {
+                    summaryDiv.style.display = 'block';
+                    fullDiv.style.display = 'none';
+                    toggleBtn.textContent = '展开';
+                    isExpanded = false;
+                }
+            });
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.</div>
-    </div>
-</body>
-</html>`;
-        
-        // 在新标签页中打开
-        const blob = new Blob([licenseContent], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 100);
+            return licenseContainer;
+        }
+
+        const container = doc.createElement('div');
+        container.className = 'container';
+
+        const h1 = doc.createElement('h1');
+        h1.className = 'main-title';
+        h1.textContent = '开源许可证';
+        container.appendChild(h1);
+
+        /* Image-Obfuscation-Tool */
+        const section1 = doc.createElement('div');
+        section1.appendChild(createTitle('Image-Obfuscation-Tool', 'https://github.com/cnpxs1/Image-obfuscation-tool'));
+        section1.appendChild(createDesc('基于希尔伯特曲线的轻量化纯前端图像混淆/解混淆工具'));
+        section1.appendChild(createLicense(`MIT License\n\nCopyright \u00a9 2026-present cnpxs1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
+        container.appendChild(section1);
+
+        /* Viewer.js */
+        const section2 = doc.createElement('div');
+        section2.appendChild(createTitle('Viewer.js', 'https://github.com/fengyuanchen/viewerjs'));
+        section2.appendChild(createDesc('JavaScript 图像查看器'));
+        section2.appendChild(createLicense(`The MIT License (MIT)\n\nCopyright 2015-present Chen Fengyuan\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.`));
+        container.appendChild(section2);
+
+        /* fflate */
+        const section3 = doc.createElement('div');
+        section3.appendChild(createTitle('fflate', 'https://github.com/101arrowz/fflate'));
+        section3.appendChild(createDesc('8kB 超小体积，实现高性能压缩与解压缩'));
+        section3.appendChild(createLicense(`MIT License\n\nCopyright (c) 2023 Arjun Barrett\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
+        container.appendChild(section3);
+
+        // iro.js 特殊处理（带展开/收起功能）
+        const iroSection = doc.createElement('div');
+        iroSection.appendChild(createTitle('iro.js', 'https://github.com/jaames/iro.js'));
+        iroSection.appendChild(createDesc('模块化、注重设计的JavaScript色彩选择器小部件'));
+
+        // 使用统一的完整许可证链接函数
+        iroSection.appendChild(createLicenseLink('https://www.mozilla.org/en-US/MPL/2.0/', '完整MPL 2.0许可证'));
+
+        iroSection.appendChild(createExpandableLicense(
+            `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`,
+            '../assets/irojs/LICENSE'
+        ));
+        container.appendChild(iroSection);
+        doc.body.appendChild(container);
     }
     
     // 页面加载完成后绑定事件
@@ -4648,6 +5535,9 @@ SOFTWARE.</div>
             
         // 加载视图模式偏好
         loadViewModePreference();
+        
+        // 初始化保存按钮文字
+        updateSaveButtonText();
         
         // 绑定视图切换按钮事件
         const viewToggleBtn = document.getElementById('view-toggle-btn');
@@ -4690,6 +5580,308 @@ SOFTWARE.</div>
                 refreshAllThumbnails();
             });
         }
+        
+        // 设置按钮事件绑定
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsContainer = document.getElementById('settings-container');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        
+        if (settingsBtn && settingsContainer) {
+            // 点击设置按钮切换容器显示/隐藏
+            settingsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const isHidden = settingsContainer.style.display === 'none' || settingsContainer.style.display === '';
+                settingsContainer.style.display = isHidden ? 'block' : 'none';
+                
+                // 首次打开时初始化颜色选择器
+                if (isHidden && !colorPickerInstance) {
+                    // 延迟初始化以确保 DOM 完全渲染
+                    setTimeout(() => initColorPicker(), 100);
+                }
+            });
+            
+            // 点击关闭按钮隐藏容器
+            if (closeSettingsBtn) {
+                closeSettingsBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    settingsContainer.style.display = 'none';
+                });
+            }
+        }
+        
+        // 颜色输入框事件绑定
+        const hexInput = document.getElementById('hex-input');
+        const rgbRInput = document.getElementById('rgb-r-input');
+        const rgbGInput = document.getElementById('rgb-g-input');
+        const rgbBInput = document.getElementById('rgb-b-input');
+        
+        // 统一同步所有输入框的值
+        function syncAllInputs() {
+            requestAnimationFrame(() => {
+                if (colorPickerInstance && colorPickerInstance.color) {
+                    const hex = colorPickerInstance.color.hexString;
+                    const { r, g, b } = colorPickerInstance.color.rgb;
+                    
+                    // 只同步非焦点的输入框
+                    if (hexInput && document.activeElement !== hexInput) {
+                        hexInput.value = hex;
+                    }
+                    if (rgbRInput && document.activeElement !== rgbRInput) {
+                        rgbRInput.value = r;
+                    }
+                    if (rgbGInput && document.activeElement !== rgbGInput) {
+                        rgbGInput.value = g;
+                    }
+                    if (rgbBInput && document.activeElement !== rgbBInput) {
+                        rgbBInput.value = b;
+                    }
+                } else {
+                    // 降级处理：从全局背景色解析
+                    const hex = opaqueBackgroundColor || '#FFFFFF';
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    if (result) {
+                        const r = parseInt(result[1], 16);
+                        const g = parseInt(result[2], 16);
+                        const b = parseInt(result[3], 16);
+                        if (hexInput && document.activeElement !== hexInput) {
+                            hexInput.value = hex;
+                        }
+                        if (rgbRInput && document.activeElement !== rgbRInput) {
+                            rgbRInput.value = r;
+                        }
+                        if (rgbGInput && document.activeElement !== rgbGInput) {
+                            rgbGInput.value = g;
+                        }
+                        if (rgbBInput && document.activeElement !== rgbBInput) {
+                            rgbBInput.value = b;
+                        }
+                    }
+                }
+            });
+        }
+        
+        if (hexInput) {
+            let isProcessing = false;
+            let lastValidValue = '#FFFFFF'; // 记录最后有效的值
+            
+            hexInput.addEventListener('input', (e) => {
+                if (isProcessing) return;
+                isProcessing = true;
+                
+                let value = e.target.value.trim();
+                // 移除所有 # 号，然后统一添加一个 #
+                value = value.replace(/#/g, '');
+                // 只保留十六进制字符
+                value = '#' + value.replace(/[^0-9A-Fa-f]/g, '');
+                
+                // 检查是否超过FFFFFF
+                const hexPart = value.substring(1).toUpperCase();
+                if (hexPart.length > 6 || (hexPart.length === 6 && parseInt(hexPart, 16) > 0xFFFFFF)) {
+                    // 超过限制，恢复到最后有效值
+                    value = lastValidValue;
+                } else {
+                    // 更新最后有效值
+                    lastValidValue = value;
+                }
+                
+                requestAnimationFrame(() => {
+                    e.target.value = value;
+                    updateColorFromHex(value);
+                    isProcessing = false;
+                });
+            });
+            
+            // 防止删除 # 号
+            hexInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                    const cursorPos = hexInput.selectionStart;
+                    if (cursorPos <= 1) {
+                        e.preventDefault();
+                    }
+                }
+            });
+            
+            // 焦点进入时记录当前值
+            hexInput.addEventListener('focus', () => {
+                let value = hexInput.value.trim();
+                value = value.replace(/#/g, '');
+                value = '#' + value.replace(/[^0-9A-Fa-f]/g, '');
+                if (value.length > 7) {
+                    value = value.substring(0, 7);
+                }
+                lastValidValue = value;
+            });
+            
+            // 粘贴时自动处理十六进制格式
+            hexInput.addEventListener('paste', (e) => {
+                const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                // 匹配十六进制颜色格式：#FFF, #FFFFFF, FFF, FFFFFF
+                const hexRegex = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
+                
+                if (hexRegex.test(pasteText.trim())) {
+                    e.preventDefault();
+                    let value = pasteText.trim();
+                    // 移除所有 # 号
+                    value = value.replace(/#/g, '');
+                    // 统一添加 # 号
+                    value = '#' + value.toUpperCase();
+                    // 如果是3位，扩展为6位
+                    if (value.length === 4) {
+                        value = '#' + value[1] + value[1] + value[2] + value[2] + value[3] + value[3];
+                    }
+                    hexInput.value = value;
+                    updateColorFromHex(value);
+                    lastValidValue = value;
+                }
+            });
+            
+            // 失焦时同步所有输入框
+            hexInput.addEventListener('blur', syncAllInputs);
+        }
+        
+        // RGB粘贴检测函数
+        function normalizeRgb(input) {
+            const regex = /rgb\(\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*\)/;
+            const match = input.match(regex);
+            
+            if (!match) return null;
+            
+            const toInteger = (value) => {
+                if (value.endsWith('%')) {
+                    return Math.round(parseFloat(value) * 2.55);
+                }
+                return parseInt(value, 10);
+            };
+            
+            return {
+                r: toInteger(match[1]),
+                g: toInteger(match[2]),
+                b: toInteger(match[3])
+            };
+        }
+        
+        // 为所有RGB输入框添加粘贴事件监听
+        [rgbRInput, rgbGInput, rgbBInput].forEach(input => {
+            if (input) {
+                input.addEventListener('paste', (e) => {
+                    const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                    const rgb = normalizeRgb(pasteText);
+                    
+                    if (rgb && rgbRInput && rgbGInput && rgbBInput) {
+                        e.preventDefault();
+                        rgbRInput.value = rgb.r;
+                        rgbGInput.value = rgb.g;
+                        rgbBInput.value = rgb.b;
+                        updateColorFromRgb();
+                    }
+                });
+            }
+        });
+        
+        for (const input of [rgbRInput, rgbGInput, rgbBInput]) {
+            if (!input) continue;
+            input.addEventListener('input', () => {
+                validateRgbInput(input);
+                updateColorFromRgb();
+            });
+            input.addEventListener('blur', syncAllInputs);
+        }
+
+        function bindToggle(id, key, onChange) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                if (!localStorageEnabled) return;
+                saveSetting(key, el.checked);
+                if (onChange) onChange(el.checked);
+            });
+            const saved = loadSetting(key);
+            if (saved !== null) el.checked = saved === 'true';
+            if (onChange) onChange(el.checked);
+        }
+        function bindSelect(id, key) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                if (!localStorageEnabled) return;
+                saveSetting(key, el.value);
+            });
+            const saved = loadSetting(key);
+            if (saved) el.value = saved;
+        }
+
+        // 图片质量 slider 与 number input 双向同步
+        const qualitySlider = document.getElementById('quality-slider');
+        const qualityInput = document.getElementById('quality-input');
+
+        function syncQuality(source, value) {
+            const percent = Math.max(1, Math.min(100, parseInt(value) || 100));
+            imageQuality = percent / 100;
+            if (source !== 'slider' && qualitySlider) qualitySlider.value = percent;
+            if (source !== 'input' && qualityInput) qualityInput.value = percent;
+            if (localStorageEnabled) saveSetting('imageQuality', String(percent));
+        }
+
+        if (qualitySlider) {
+            qualitySlider.addEventListener('input', () => syncQuality('slider', qualitySlider.value));
+        }
+        if (qualityInput) {
+            qualityInput.addEventListener('input', () => syncQuality('input', qualityInput.value));
+            qualityInput.addEventListener('change', () => syncQuality('input', qualityInput.value));
+        }
+
+        // 初始化文字气泡（悬停+点击+边缘检测）
+        const webpTooltip = document.querySelector('.text-tooltip');
+        if (webpTooltip) initTextTooltip(webpTooltip);
+
+        // 本地存储开关（必须在所有 bindToggle 前初始化，确保 loadSetting 正确判断）
+        localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        const lsToggle = document.getElementById('localstorage-toggle');
+        if (lsToggle) {
+            lsToggle.checked = localStorageEnabled;
+            lsToggle.addEventListener('change', function() {
+                localStorageEnabled = this.checked;
+                localStorage.setItem('localStorageEnabled', this.checked);
+                // 关闭时清空其他键，仅保留 localStorageEnabled 自身
+                if (!this.checked) {
+                    for (let i = localStorage.length - 1; i >= 0; i--) {
+                        const key = localStorage.key(i);
+                        if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                    }
+                }
+            });
+        }
+
+        bindToggle('webp-lossless-toggle', 'webpLossless');
+        bindToggle('zip-download-toggle', 'zipDownload');
+        bindSelect('save-format-select', 'saveFormat');
+        bindToggle('debug-mode-toggle', 'debugMode', (v) => { debugMode = v; });
+        bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
+        bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+
+        // 清除 localStorage 按钮
+        document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
+            if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
+            localStorage.clear();
+            localStorageEnabled = true;
+            localStorage.setItem('localStorageEnabled', 'true');
+            const lsToggle = document.getElementById('localstorage-toggle');
+            if (lsToggle) lsToggle.checked = true;
+            console.log('🗑️ 已清除全部 localStorage 数据');
+            location.reload();
+        });
+
+        // 从 localStorage 恢复图片质量
+        (function loadQuality() {
+            const savedQuality = loadSetting('imageQuality');
+            if (savedQuality !== null) {
+                const percent = Math.max(1, Math.min(100, parseInt(savedQuality) || 100));
+                imageQuality = percent / 100;
+                if (qualitySlider) qualitySlider.value = percent;
+                if (qualityInput) qualityInput.value = percent;
+            }
+        })();
     });
 </script>
 <!-- 页面底部信息 -->
