@@ -766,8 +766,7 @@
                 padding-right: 0;
                 padding-bottom: 8px;
             }
-            .setting-controls > div:not(#color-picker-container) > div:not(#quality-row),
-            #color-input-panel > div {
+            .setting-controls > div:not(#color-picker-container) > div:not(#quality-row) {
                 justify-content: space-between;
                 width: 100%;
             }
@@ -1503,21 +1502,19 @@
                                     <input type="text" id="hex-input" placeholder="#FFFFFF"
                                         style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <div style="display: flex; gap: 4px; align-items: center;">
-                                        <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
-                                        <input type="text" id="rgb-r-input" placeholder="255"
-                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                            maxlength="3" />
-                                        <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
-                                        <input type="text" id="rgb-g-input" placeholder="255"
-                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                            maxlength="3" />
-                                        <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
-                                        <input type="text" id="rgb-b-input" placeholder="255"
-                                            style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                            maxlength="3" />
-                                    </div>
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
+                                    <input type="text" id="rgb-r-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
+                                    <input type="text" id="rgb-g-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
+                                    <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
+                                    <input type="text" id="rgb-b-input" placeholder="255"
+                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
+                                        maxlength="3" />
                                 </div>
                             </div>
                         </div>
