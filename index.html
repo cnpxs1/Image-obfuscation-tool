@@ -766,6 +766,11 @@
                 padding-right: 0;
                 padding-bottom: 8px;
             }
+            .setting-controls > div:not(#color-picker-container) > div:not(#quality-row),
+            #color-input-panel > div {
+                justify-content: space-between;
+                width: 100%;
+            }
         }
 
         /* 错误日志面板 */
@@ -1455,7 +1460,7 @@
                     </div>
                     <div class="setting-controls">
                         <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                            <div id="quality-row" style="display: flex; align-items: center; gap: 3px;">
                                 <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
                                 <input type="range" id="quality-slider" min="1" max="100" value="100"
                                     style="flex: 1; max-width: 200px; height: 6px;" />
@@ -1484,7 +1489,7 @@
                     </div>
                     <div class="setting-controls">
                         <!-- 颜色选择器容器 -->
-                        <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 15px;">
+                        <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 15px;">
                             <!-- 色盘+色条，允许换行 -->
                             <div style="display: flex; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
                                 <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
@@ -1492,7 +1497,7 @@
                             </div>
 
                             <!-- 颜色值输入框（宽度不足时换行） -->
-                            <div style="flex: 1; min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <div id="color-input-panel" style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
                                     <input type="text" id="hex-input" placeholder="#FFFFFF"
@@ -1528,7 +1533,7 @@
                         <p>日志输出、存储行为与图片查看器配置</p>
                     </div>
                     <div class="setting-controls">
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储配置</span>
                                 <label class="toggle-switch">
