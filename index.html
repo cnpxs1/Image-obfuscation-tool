@@ -5132,21 +5132,32 @@
     window.addEventListener('beforeunload', () => {
         // 清理所有Canvas池
         clearAllCanvasPools();
-                
+
         // 重置Viewer加载Promise状态
         window.viewerLoadPromise = null;
         console.log('页面卸载：已重置Viewer加载Promise');
-        
+
         // 清空像素缓冲区池
         pixelBufferPool.length = 0;
         console.log('页面卸载：已清空像素缓冲区池');
-        
+
         // 清理所有残留的处理遮罩层
         const cleanedOverlays = cleanupAllProcessingOverlays();
         if (cleanedOverlays > 0) {
             console.log(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
-        
+
+        // 清理移动端缓存指示器的残留监听器
+        if (cacheIndicatorTouchListeners) {
+            document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
+            document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
+            cacheIndicatorTouchListeners = null;
+        }
+        if (mobileTooltipListener) {
+            document.removeEventListener('click', mobileTooltipListener);
+            mobileTooltipListener = null;
+        }
+
         console.log('页面卸载：所有图片资源将由浏览器自动回收');
     });
     
