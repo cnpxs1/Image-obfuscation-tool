@@ -4696,10 +4696,22 @@
         
         // 2. 重置取消标志
         previewCanceled = false;
-        
-        // 3. 创建新容器
-        const galleryContainer = await createImageGalleryContainer();
-                
+
+        // 3. 创建新容器（声明在 try 外部，避免 catch 中访问 TDZ 变量）
+        let galleryContainer;
+        try {
+            galleryContainer = await createImageGalleryContainer();
+        } catch (createError) {
+            console.error('创建画廊容器失败:', createError);
+            // 容器创建失败，直接使用基础查看器作为兜底
+            const blob = await storage.get(`current_${imageData.id}`);
+            if (blob) {
+                const url = URL.createObjectURL(blob);
+                showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
+            }
+            return;
+        }
+
         try {
             // 4. 若关闭 Viewer.js 开关，直接使用基础查看器
             if (!useViewerJs) {
@@ -4709,18 +4721,18 @@
 
             // 5. 等待 Viewer 资源加载并初始化
             await getViewerLoadPromise();
-                
+
             if (previewCanceled) {
                 if (galleryContainer.parentNode) galleryContainer.parentNode.removeChild(galleryContainer);
                 return;
             }
-                
+
             if (!window.Viewer) {
                 console.error('Viewer.js 不可用');
                 await handleViewerInitializationFailure(galleryContainer, imageData);
                 return;
             }
-                
+
             await initializeViewerWithBestPractices(imageData, galleryContainer, imageId);
         } catch (error) {
             if (previewCanceled) return;
@@ -5066,11 +5078,6 @@
             if (blob) {
                 const url = URL.createObjectURL(blob);
                 showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
-                // 延迟释放 URL，确保图片加载完成
-                setTimeout(() => {
-                    URL.revokeObjectURL(url);
-                    console.log('🔓 已释放临时 Blob URL');
-                }, 1000);
             } else {
                 console.error('无法获取图片数据:', imageData.id);
             }
