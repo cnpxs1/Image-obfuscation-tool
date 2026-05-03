@@ -3256,21 +3256,32 @@
         
         // 大图使用Web Worker处理
         return new Promise((resolve, reject) => {
+            let blobUrl = null;
+            let worker = null;
+            let settled = false;
+            function finalize(err) {
+                if (settled) return;
+                settled = true;
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
+                if (worker) worker.terminate();
+                reject(err);
+            }
+
             try {
                 // 创建内联Worker处理大图
                 const workerCode = `
                     self.onmessage = function(e) {
                         const { width, height, imageData } = e.data;
-                        
+
                         // 预计算参数
                         const bytesPerPixel = 3;
                         const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4;
                         const rowSize = width * bytesPerPixel + rowPadding;
                         const pixelDataSize = rowSize * height;
                         const totalSize = 54 + pixelDataSize;
-                        
+
                         const result = new Uint8Array(totalSize);
-                        
+
                         // 文件头
                         result[0] = 0x42; result[1] = 0x4D;
                         result[2] = totalSize & 0xFF;
@@ -3279,20 +3290,20 @@
                         result[5] = (totalSize >> 24) & 0xFF;
                         result[10] = 54 & 0xFF;
                         result[11] = (54 >> 8) & 0xFF;
-                        
+
                         // 信息头
                         result[14] = 40;
                         result[18] = width & 0xFF;
                         result[19] = (width >> 8) & 0xFF;
                         result[20] = (width >> 16) & 0xFF;
                         result[21] = (width >> 24) & 0xFF;
-                        
+
                         const negativeHeight = -height;
                         result[22] = negativeHeight & 0xFF;
                         result[23] = (negativeHeight >> 8) & 0xFF;
                         result[24] = (negativeHeight >> 16) & 0xFF;
                         result[25] = (negativeHeight >> 24) & 0xFF;
-                        
+
                         result[26] = 1; result[28] = 24;
                         result[34] = pixelDataSize & 0xFF;
                         result[35] = (pixelDataSize >> 8) & 0xFF;
@@ -3300,11 +3311,11 @@
                         result[37] = (pixelDataSize >> 24) & 0xFF;
                         result[38] = 47; result[39] = 11;
                         result[42] = 47; result[43] = 11;
-                        
+
                         // 像素数据转换
                         let srcIndex = 0;
                         let dstIndex = 54;
-                        
+
                         for (let y = 0; y < height; y++) {
                             for (let x = 0; x < width; x++) {
                                 result[dstIndex++] = imageData[srcIndex + 2];
@@ -3314,53 +3325,44 @@
                             }
                             dstIndex += rowPadding;
                         }
-                        
+
                         self.postMessage(result.buffer, [result.buffer]);
                         self.close();
                     };
                 `;
-                
+
                 const blob = new Blob([workerCode], { type: 'application/javascript' });
-                const blobUrl = URL.createObjectURL(blob);
-                const worker = new Worker(blobUrl);
-                
-                let settled = false;
-                function finalize(err) {
-                    if (settled) return;
-                    settled = true;
-                    URL.revokeObjectURL(blobUrl);
-                    worker.terminate();
-                    reject(err);
-                }
-                
+                blobUrl = URL.createObjectURL(blob);
+                worker = new Worker(blobUrl);
+
                 worker.onmessage = function(e) {
                     if (settled) return;
                     settled = true;
                     URL.revokeObjectURL(blobUrl);
                     resolve(e.data);
                 };
-                
+
                 worker.onerror = function(error) {
                     finalize(new Error(`Web Worker处理失败: ${error.message}`));
                 };
-                
-                // 确保Worker终止时也能释放资源
+
                 worker.addEventListener('messageerror', function() {
                     finalize(new Error('Web Worker消息传输失败'));
                 });
-                
+
                 const ctx = canvas.getContext('2d');
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                
+
                 worker.postMessage({
                     width: canvas.width,
                     height: canvas.height,
                     imageData: imageData.data
                 }, [imageData.data.buffer]);
-                
+
             } catch (error) {
-                // Web Worker不可用时回退到同步处理
                 console.warn('Web Worker不可用，回退到同步处理:', error);
+                if (worker) worker.terminate();
+                if (blobUrl) URL.revokeObjectURL(blobUrl);
                 resolve(canvasToBMP(canvas));
             }
         });
@@ -3547,14 +3549,16 @@
         const container = item.querySelector('.thumbnail-container');
         if (!container) return;
 
+        let bitmap;
         try {
-            const bitmap = await createImageBitmap(blob);
+            bitmap = await createImageBitmap(blob);
             const size = getThumbnailSize(container, bitmap.width, bitmap.height);
             drawThumbnail(canvas, bitmap, size.width, size.height);
-            bitmap.close();
             updateImageInfo(imageId);
         } catch (e) {
             console.warn('更新缩略图失败', e);
+        } finally {
+            bitmap?.close();
         }
     }
 
@@ -4473,79 +4477,103 @@
      * @type {Object|null}
      */
     let colorPickerInstance = null;
-    
+
+    /**
+     * iro.js 颜色选择器 ResizeObserver 引用
+     * @type {ResizeObserver|null}
+     */
+    let colorPickerResizeObserver = null;
+
+    /**
+     * 颜色变更处理器（具名函数，便于重建时移除旧监听器）
+     */
+    function handleColorChange(color) {
+        updateColorInputs(color);
+        updateColorPreview(color.hexString);
+        opaqueBackgroundColor = color.hexString;
+    }
+
+    /**
+     * 创建颜色选择器实例并绑定事件
+     * @param {Object} options - iro.js ColorPicker 配置
+     * @returns {Object} ColorPicker 实例
+     */
+    function createColorPicker(options) {
+        const instance = new iro.ColorPicker('#color-picker-box', options);
+        instance.on('color:change', handleColorChange);
+        const c = instance.color;
+        updateColorInputs(c);
+        updateColorPreview(c.hexString);
+        return instance;
+    }
+
+    /**
+     * 销毁当前颜色选择器实例（不移除 ResizeObserver）
+     */
+    function disposeColorPicker() {
+        if (colorPickerInstance) {
+            colorPickerInstance.off('color:change', handleColorChange);
+            colorPickerInstance = null;
+        }
+    }
+
     /**
      * 初始化 iro.js 颜色选择器
      */
     function initColorPicker() {
         if (!useIroJs) return;
-        // 检查 iro.js 是否加载成功
         if (!window.iro || typeof iro.ColorPicker !== 'function') {
             console.warn('iro.js 未加载，颜色选择器不可用');
             return;
         }
-        
+
         try {
-            // 创建颜色选择器实例 - Box & Hue Slider 布局
-            colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
+            // 断开旧的 ResizeObserver 并清理实例
+            if (colorPickerResizeObserver) {
+                colorPickerResizeObserver.disconnect();
+                colorPickerResizeObserver = null;
+            }
+            disposeColorPicker();
+
+            colorPickerInstance = createColorPicker({
                 width: 200,
                 layoutDirection: 'horizontal',
                 layout: [
-                    {
-                        component: iro.ui.Box,
-                        options: {}
-                    },
-                    {
-                        component: iro.ui.Slider,
-                        options: {
-                            sliderType: 'hue'
-                        }
-                    }
+                    { component: iro.ui.Box, options: {} },
+                    { component: iro.ui.Slider, options: { sliderType: 'hue' } }
                 ],
                 color: opaqueBackgroundColor,
                 borderWidth: 1,
                 borderColor: '#ddd',
                 containerStyle: 'border-radius: 0;'
             });
-            
-            // 监听颜色变化事件
-            colorPickerInstance.on('color:change', (color) => {
-                updateColorInputs(color);
-                updateColorPreview(color.hexString);
-                opaqueBackgroundColor = color.hexString;
-            });
-            // 初始化输入框
-            const initialColor = colorPickerInstance.color;
-            updateColorInputs(initialColor);
-            updateColorPreview(initialColor.hexString);
-            
+
             console.log('✅ 颜色选择器初始化成功');
 
-            // 监听容器宽度：换行时切换为垂直布局（色条自动变为横向）
+            // 监听容器宽度：换行时切换为垂直布局
             let isWrapped = false;
             const pickerRow = document.getElementById('color-picker-box')?.parentElement;
             if (pickerRow) {
                 const layout = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
-                new ResizeObserver(() => {
+                colorPickerResizeObserver = new ResizeObserver(() => {
                     const wrapped = pickerRow.clientHeight > 250;
                     if (wrapped === isWrapped) return;
                     isWrapped = wrapped;
                     const currentColor = colorPickerInstance.color.hsv;
+                    // 只清理实例和 DOM，不断开 Observer
+                    disposeColorPicker();
                     document.getElementById('color-picker-box').innerHTML = '';
-                    colorPickerInstance = new iro.ColorPicker('#color-picker-box', {
-                        width: 200, layoutDirection: wrapped ? 'vertical' : 'horizontal', layout,
-                        color: currentColor, borderWidth: 1, borderColor: '#ddd',
+                    colorPickerInstance = createColorPicker({
+                        width: 200,
+                        layoutDirection: wrapped ? 'vertical' : 'horizontal',
+                        layout,
+                        color: currentColor,
+                        borderWidth: 1,
+                        borderColor: '#ddd',
                         containerStyle: 'border-radius: 0;'
                     });
-                    colorPickerInstance.on('color:change', (color) => {
-                        updateColorInputs(color);
-                        updateColorPreview(color.hexString);
-                        opaqueBackgroundColor = color.hexString;
-                    });
-                    const c = colorPickerInstance.color;
-                    updateColorInputs(c);
-                    updateColorPreview(c.hexString);
-                }).observe(pickerRow);
+                });
+                colorPickerResizeObserver.observe(pickerRow);
             }
         } catch (error) {
             console.error('颜色选择器初始化失败:', error);
