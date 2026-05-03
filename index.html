@@ -5165,6 +5165,12 @@
 
     // 页面卸载时清理Canvas池和Promise，释放内存
     window.addEventListener('beforeunload', () => {
+        // 清除窗口 resize 防抖定时器
+        if (resizeDebounceTimer) {
+            clearTimeout(resizeDebounceTimer);
+            resizeDebounceTimer = null;
+        }
+
         // 清理所有Canvas池
         clearAllCanvasPools();
 
