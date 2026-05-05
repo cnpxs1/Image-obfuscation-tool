@@ -4528,12 +4528,12 @@
      * @param {string} hexValue - 十六进制颜色值
      */
     function updateColorFromHex(hexValue) {
-        if (!colorPickerInstance) return;
-        
         // 验证十六进制格式
         const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
         if (hexRegex.test(hexValue)) {
-            colorPickerInstance.color.set(hexValue);
+            if (colorPickerInstance) {
+                colorPickerInstance.color.set(hexValue);
+            }
             opaqueBackgroundColor = hexValue;
             updateColorPreview(hexValue);
         }
@@ -4543,23 +4543,24 @@
      * 从 RGB 输入框更新颜色
      */
     function updateColorFromRgb() {
-        if (!colorPickerInstance) return;
-        
         const rgbRInput = document.getElementById('rgb-r-input');
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
-        
+
         if (!rgbRInput || !rgbGInput || !rgbBInput) return;
-        
+
         const r = parseInt(rgbRInput.value) || 0;
         const g = parseInt(rgbGInput.value) || 0;
         const b = parseInt(rgbBInput.value) || 0;
-        
+
         // 验证范围
         if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-            colorPickerInstance.color.set({ r, g, b });
-            opaqueBackgroundColor = colorPickerInstance.color.hexString;
-            updateColorPreview(opaqueBackgroundColor);
+            const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+            if (colorPickerInstance) {
+                colorPickerInstance.color.set({ r, g, b });
+            }
+            opaqueBackgroundColor = hex;
+            updateColorPreview(hex);
         }
     }
 
@@ -4619,9 +4620,16 @@
             return;
         }
         
-        // 1. 彻底清理所有残留预览容器和实例
+        // 1. 彻底清理所有残留预览容器和实例（含 Blob URL）
         const existingContainers = document.querySelectorAll('.image-gallery-container');
         existingContainers.forEach(container => {
+            const imgs = container.querySelectorAll('img');
+            imgs.forEach(img => {
+                const url = img.dataset.blobUrl;
+                if (url && url.startsWith('blob:')) {
+                    URL.revokeObjectURL(url);
+                }
+            });
             if (container.parentNode) container.parentNode.removeChild(container);
         });
         cleanupExistingViewer();
@@ -5540,6 +5548,8 @@
                 
                 // 首次打开时初始化颜色选择器
                 if (isHidden && !colorPickerInstance) {
+                    // 先填充输入框初始值（兜底 iro.js 不可用的情况）
+                    updateColorInputs(null);
                     // 延迟初始化以确保 DOM 完全渲染
                     setTimeout(() => initColorPicker(), 100);
                 }
