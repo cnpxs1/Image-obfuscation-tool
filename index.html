@@ -3658,6 +3658,9 @@
         if (!blob) throw new Error('图片数据不存在');
 
         const targetFormat = format.toLowerCase();
+        if (targetFormat === 'webp' && !(await isWebPSupported())) {
+            throw new Error('浏览器不支持 WebP');
+        }
         const outputBlob = await convertImageBlob(blob, targetFormat);
 
         const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
@@ -3774,6 +3777,7 @@
         checkbox.className = 'select-checkbox';
         checkbox.addEventListener('click', (event) => {
             event.stopPropagation();
+            event.preventDefault();
             toggleSelect(imageData.id, event);
         });
         item.appendChild(checkbox);
@@ -4663,7 +4667,7 @@
             await getViewerLoadPromise();
 
             if (previewCanceled) {
-                if (galleryContainer.parentNode) galleryContainer.parentNode.removeChild(galleryContainer);
+                cleanupViewerResources(galleryContainer);
                 return;
             }
 
@@ -4675,7 +4679,10 @@
 
             await initializeViewerWithBestPractices(imageData, galleryContainer, imageId);
         } catch (error) {
-            if (previewCanceled) return;
+            if (previewCanceled) {
+                cleanupViewerResources(galleryContainer);
+                return;
+            }
             console.error('Viewer 初始化失败:', error);
             await handleViewerInitializationFailure(galleryContainer, imageData);
         }
@@ -4813,10 +4820,7 @@
         // 最终检查取消状态
         if (previewCanceled) {
             console.log('⏭️ 预览操作已被取消，跳过 Viewer 实例创建');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
+            cleanupViewerResources(container);
             return;
         }
             
