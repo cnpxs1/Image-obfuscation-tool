@@ -48,16 +48,20 @@
     <script>
         window.iroResources = { loaded: false, loading: false, failed: false };
 
-        if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
-            loadScriptWithFallback(
-                'iro', window.iroResources,
-                'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
+        try {
+            if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
+                loadScriptWithFallback(
+                    'iro', window.iroResources,
+                    'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
                 [
                     'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
                     './assets/irojs/iro.js'
                 ],
                 function() { console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用'); }
             );
+            }
+        } catch (e) {
+            // localStorage 不可用时跳过 iro.js 按需加载
         }
     </script>
     <!-- fflate 库智能加载 - ZIP 压缩/解压 | 许可证：MIT License -->
@@ -2232,6 +2236,7 @@
 
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
+    let isSwitchingViewMode = false;
     
     /**
      * 显示错误日志
@@ -2559,58 +2564,64 @@
     }
     
     /**
-     * 切换视图模式（无锁，动态切换现有图片项的显示样式）
+     * 切换视图模式（带并发锁，防止快速连续点击导致状态混乱）
      */
     async function switchViewMode() {
-        // 切换模式
-        currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
-        saveViewModePreference();
-        updateViewModeButtonUI();
+        if (isSwitchingViewMode) return;
+        isSwitchingViewMode = true;
+        try {
+            // 切换模式
+            currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
+            saveViewModePreference();
+            updateViewModeButtonUI();
 
-        // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
-        const items = document.querySelectorAll('.image-item');
-        for (const item of items) {
-            const imageId = item.dataset.id;
-            const imageData = images.find(img => img.id === imageId);
-            if (!imageData) continue;
+            // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
+            const items = document.querySelectorAll('.image-item');
+            for (const item of items) {
+                const imageId = item.dataset.id;
+                const imageData = images.find(img => img.id === imageId);
+                if (!imageData) continue;
 
-            // 更新 item 的类名
-            if (currentViewMode === 'list') {
-                item.classList.add('list-view');
-            } else {
-                item.classList.remove('list-view');
+                // 更新 item 的类名
+                if (currentViewMode === 'list') {
+                    item.classList.add('list-view');
+                } else {
+                    item.classList.remove('list-view');
+                }
+
+                // 获取缩略图容器
+                const thumbnailContainer = item.querySelector('.thumbnail-container');
+                if (!thumbnailContainer) continue;
+
+                // 根据当前模式重新构建缩略图内容
+                if (currentViewMode === 'grid') {
+                    let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
+                    if (!canvas) {
+                        thumbnailContainer.innerHTML = '';
+                        canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
+                        thumbnailContainer.appendChild(canvas);
+                    }
+                } else {
+                    // 列表模式：显示占位符
+                    let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+                    if (!placeholder) {
+                        placeholder = document.createElement('div');
+                        placeholder.className = 'thumbnail-placeholder';
+                        placeholder.innerHTML = getPlaceholderSVG();
+                        placeholder.title = '点击预览图片';
+                        thumbnailContainer.innerHTML = '';
+                        thumbnailContainer.appendChild(placeholder);
+                    }
+                }
             }
 
-            // 获取缩略图容器
-            const thumbnailContainer = item.querySelector('.thumbnail-container');
-            if (!thumbnailContainer) continue;
-
-            // 根据当前模式重新构建缩略图内容
-            if (currentViewMode === 'grid') {
-                let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
-                if (!canvas) {
-                    thumbnailContainer.innerHTML = '';
-                    canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
-                    thumbnailContainer.appendChild(canvas);
-                }
-            } else {
-                // 列表模式：显示占位符
-                let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
-                if (!placeholder) {
-                    placeholder = document.createElement('div');
-                    placeholder.className = 'thumbnail-placeholder';
-                    placeholder.innerHTML = getPlaceholderSVG();
-                    placeholder.title = '点击预览图片';
-                    thumbnailContainer.innerHTML = '';
-                    thumbnailContainer.appendChild(placeholder);
-                }
-            }
+            // 显示提示信息
+            const statusDiv = document.getElementById('batchStatus');
+            statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
+            setTimeout(() => statusDiv.innerHTML = '', 2000);
+        } finally {
+            isSwitchingViewMode = false;
         }
-
-        // 显示提示信息
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
-        setTimeout(() => statusDiv.innerHTML = '', 2000);
     }
     
     // =============================================
@@ -4729,13 +4740,17 @@
             height: 0;
             overflow: hidden;
         `;
-        
+
+        // 存储所有超时 ID，以便取消预览时统一清除
+        const timeoutIds = [];
+        container._timeoutIds = timeoutIds;
+
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
         console.log(`📊 开始创建图片元素，共 ${images.length} 张`);
-        
+
         const loadPromises = images.map((imgData, index) => {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 storage.get(`current_${imgData.id}`).then(blob => {
                     if (!blob) throw new Error(`图片数据不存在：${imgData.name}`);
 
@@ -4758,6 +4773,7 @@
                         img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
                         resolve(img);
                     }, 5000);
+                    timeoutIds.push(timeoutId);
 
                     img.onload = () => {
                         clearTimeout(timeoutId);
@@ -5044,6 +5060,11 @@
             viewerInstance = null;
         }
         if (container && container.parentNode) {
+            // 清除所有图片加载超时定时器
+            if (container._timeoutIds) {
+                container._timeoutIds.forEach(id => clearTimeout(id));
+                container._timeoutIds = null;
+            }
             // 释放所有临时 blob URL
             const imgs = container.querySelectorAll('img');
             imgs.forEach(img => {
@@ -5750,19 +5771,27 @@
         if (webpTooltip) initTextTooltip(webpTooltip);
 
         // 本地存储开关（必须在所有 bindToggle 前初始化，确保 loadSetting 正确判断）
-        localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        try {
+            localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        } catch (e) {
+            localStorageEnabled = true;
+        }
         const lsToggle = document.getElementById('localstorage-toggle');
         if (lsToggle) {
             lsToggle.checked = localStorageEnabled;
             lsToggle.addEventListener('change', function() {
-                localStorageEnabled = this.checked;
-                localStorage.setItem('localStorageEnabled', this.checked);
-                // 关闭时清空其他键，仅保留 localStorageEnabled 自身
-                if (!this.checked) {
-                    for (let i = localStorage.length - 1; i >= 0; i--) {
-                        const key = localStorage.key(i);
-                        if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                try {
+                    localStorageEnabled = this.checked;
+                    localStorage.setItem('localStorageEnabled', this.checked);
+                    // 关闭时清空其他键，仅保留 localStorageEnabled 自身
+                    if (!this.checked) {
+                        for (let i = localStorage.length - 1; i >= 0; i--) {
+                            const key = localStorage.key(i);
+                            if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                        }
                     }
+                } catch (e2) {
+                    localStorageEnabled = true;
                 }
             });
         }
@@ -5777,9 +5806,11 @@
         // 清除 localStorage 按钮
         document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
             if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
-            localStorage.clear();
+            try {
+                localStorage.clear();
+                localStorage.setItem('localStorageEnabled', 'true');
+            } catch (e) { /* localStorage 不可用，跳过 */ }
             localStorageEnabled = true;
-            localStorage.setItem('localStorageEnabled', 'true');
             const lsToggle = document.getElementById('localstorage-toggle');
             if (lsToggle) lsToggle.checked = true;
             console.log('🗑️ 已清除全部 localStorage 数据');
