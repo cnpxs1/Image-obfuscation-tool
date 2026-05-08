@@ -8,115 +8,89 @@
     <!-- Viewer.js CSS 加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
     <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
+    <!-- 通用 CDN 回退加载函数 -->
+    <script>
+        function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, onAllFailed) {
+            function load(cdnUrl, index = 0) {
+                if (stateObj.loaded || stateObj.loading) return;
+                stateObj.loading = true;
+
+                const script = document.createElement('script');
+                script.src = cdnUrl;
+                script.onload = () => {
+                    if (window[globalName] !== undefined) {
+                        stateObj.loaded = true;
+                        stateObj.loading = false;
+                        console.log(globalName + ' 加载成功:', cdnUrl);
+                    } else {
+                        console.warn(globalName + ' 脚本加载但未定义，视为失败');
+                        stateObj.loading = false;
+                        script.onerror(new Error(globalName + ' is not defined'));
+                    }
+                };
+                script.onerror = () => {
+                    console.warn(globalName + ' 加载失败:', cdnUrl);
+                    stateObj.loading = false;
+                    if (index < fallbackUrls.length) {
+                        load(fallbackUrls[index], index + 1);
+                    } else {
+                        stateObj.failed = true;
+                        console.error(globalName + ' 所有源均加载失败');
+                        if (onAllFailed) onAllFailed();
+                    }
+                };
+                document.head.appendChild(script);
+            }
+            load(primaryUrl, 0);
+        }
+    </script>
     <!-- iro.js 颜色选择器库加载 | 许可证：MIT License -->
     <script>
-        // iro.js 资源加载状态
-        window.iroResources = {
-            loaded: false,
-            loading: false,
-            failed: false
-        };
-        
-        function loadIro(cdnUrl, fallbackUrls, index = 0) {
-            if (window.iroResources.loaded || window.iroResources.loading) return;
-            window.iroResources.loading = true;
-            
-            const script = document.createElement('script');
-            script.src = cdnUrl;
-            script.onload = () => {
-                if (typeof iro !== 'undefined') {
-                    window.iroResources.loaded = true;
-                    window.iroResources.loading = false;
-                    console.log('iro.js 加载成功:', cdnUrl);
-                } else {
-                    console.warn('iro.js 脚本加载但未定义，视为失败');
-                    window.iroResources.loading = false;
-                    script.onerror(new Error('iro is not defined'));
-                }
-            };
-            script.onerror = () => {
-                console.warn('iro.js 加载失败:', cdnUrl);
-                window.iroResources.loading = false;
-                if (index < fallbackUrls.length) {
-                    loadIro(fallbackUrls[index], fallbackUrls, index + 1);
-                } else {
-                    window.iroResources.failed = true;
-                    console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用');
-                }
-            };
-            document.head.appendChild(script);
-        }
+        window.iroResources = { loaded: false, loading: false, failed: false };
 
-        // localStorage 禁用时使用默认值（开启），否则按开关状态决定
-        if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
-            loadIro(
-                'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
+        try {
+            if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
+                loadScriptWithFallback(
+                    'iro', window.iroResources,
+                    'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
                 [
                     'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
                     './assets/irojs/iro.js'
-                ]
+                ],
+                function() { console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用'); }
             );
+            }
+        } catch (e) {
+            // localStorage 不可用时跳过 iro.js 按需加载
         }
     </script>
     <!-- fflate 库智能加载 - ZIP 压缩/解压 | 许可证：MIT License -->
     <script>
-        // fflate 资源加载状态
-        window.fflateResources = {
-            loaded: false,
-            loading: false,
-            failed: false
-        };
-        
-        function loadFflate(cdnUrl, fallbackUrls, index = 0) {
-            if (window.fflateResources.loaded || window.fflateResources.loading) return;
-            window.fflateResources.loading = true;
-            
-            const script = document.createElement('script');
-            script.src = cdnUrl;
-            script.onload = () => {
-                if (typeof fflate !== 'undefined') {
-                    window.fflateResources.loaded = true;
-                    window.fflateResources.loading = false;
-                    console.log('fflate 加载成功:', cdnUrl);
-                } else {
-                    console.warn('fflate 脚本加载但未定义，视为失败');
-                    window.fflateResources.loading = false;
-                    script.onerror(new Error('fflate is not defined'));
-                }
-            };
-            script.onerror = () => {
-                console.warn('fflate 加载失败:', cdnUrl);
-                window.fflateResources.loading = false;
-                if (index < fallbackUrls.length) {
-                    loadFflate(fallbackUrls[index], fallbackUrls, index + 1);
-                } else {
-                    window.fflateResources.failed = true;
-                    console.error('fflate 所有源均加载失败，ZIP 功能将不可用');
-                    // 禁用 ZIP 下载开关（延迟到 DOM 就绪）
-                    const disableZipToggle = () => {
-                        const zipToggle = document.getElementById('zip-download-toggle');
-                        if (zipToggle) {
-                            zipToggle.disabled = true;
-                            zipToggle.title = 'fflate 库加载失败，ZIP 功能不可用';
-                        }
-                    };
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', disableZipToggle);
-                    } else {
-                        disableZipToggle();
-                    }
-                }
-            };
-            document.head.appendChild(script);
+        window.fflateResources = { loaded: false, loading: false, failed: false };
+
+        function disableZipToggle() {
+            const zipToggle = document.getElementById('zip-download-toggle');
+            if (zipToggle) {
+                zipToggle.disabled = true;
+                zipToggle.title = 'fflate 库加载失败，ZIP 功能不可用';
+            }
         }
 
-        // 优先级：jsDelivr -> unpkg -> 本地
-        loadFflate(
+        loadScriptWithFallback(
+            'fflate', window.fflateResources,
             'https://fastly.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js',
             [
                 'https://unpkg.com/fflate@0.8.2/umd/index.js',
                 './assets/fflate/fflate.js'
-            ]
+            ],
+            function() {
+                console.error('fflate 所有源均加载失败，ZIP 功能将不可用');
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', disableZipToggle);
+                } else {
+                    disableZipToggle();
+                }
+            }
         );
     </script>
     <!--
@@ -373,7 +347,7 @@
             display: inline-flex;
             align-items: center;
             height: 2rem;
-            padding: 0 0;
+            padding: 0;
             margin: 0.3rem;
             border: 2px solid;
             border-radius: 6px;
@@ -652,10 +626,6 @@
             flex: 0 0 auto;
         }
 
-        .image-info-row span.separator {
-            margin: 0 0.3rem;
-            display: inline-block;
-        }
 
 
         /* 列表管理按钮容器 */
@@ -1117,10 +1087,20 @@
             }, 3000);
         }
         
-        // 加载本地 CSS 资源 | 许可证：MIT License（详见页面底部「开源许可证」入口）
+        function handleViewerResourceFailure(resourceName) {
+            console.error('本地 Viewer.js ' + resourceName + ' 加载失败');
+            window.viewerResources.localFallback = true;
+            console.warn('Viewer.js ' + resourceName + '资源完全不可用，启用基础图片查看器模式');
+            if (!window.viewerResources.promptShown) {
+                window.viewerResources.promptShown = true;
+                setTimeout(() => {
+                    alert('\u274C Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
+                }, 100);
+            }
+        }
+
         function loadLocalViewerCss() {
             if (window.viewerResources.localFallback) return;
-            
             console.warn('CDN 加载失败，尝试加载本地 Viewer.js CSS');
             const localCss = document.createElement('link');
             localCss.rel = 'stylesheet';
@@ -1130,59 +1110,29 @@
                 window.viewerResources.currentCDN = 'local';
                 console.log('本地 Viewer.js CSS 加载成功');
             };
-            localCss.onerror = () => {
-                console.error('本地 Viewer.js CSS 加载失败');
-                // CSS和JS都失败时，启用基础查看器模式
-                window.viewerResources.localFallback = true;
-                console.warn('Viewer.js CSS资源完全不可用，启用基础图片查看器模式');
-                
-                // 首次完全失败时显示提示
-                if (!window.viewerResources.promptShown) {
-                    window.viewerResources.promptShown = true;
-                    setTimeout(() => {
-                        alert('\u274C Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
-                    }, 100);
-                }
-            };
+            localCss.onerror = () => handleViewerResourceFailure('CSS');
             document.head.appendChild(localCss);
         }
-        
-        // 加载本地 JavaScript | 许可证：MIT License（详见页面底部「开源许可证」入口）
+
         function loadLocalViewerJs() {
             if (window.viewerResources.localFallback) return;
-            
             console.warn('CDN 加载失败，尝试加载本地 Viewer.js JS');
-            
             const localJs = document.createElement('script');
             localJs.src = './assets/viewerjs/viewer.min.js';
             localJs.onload = () => {
                 window.viewerResources.jsLoaded = true;
                 window.viewerResources.currentCDN = 'local';
                 console.log('本地 Viewer.js JS 加载成功');
-                // 清除JS超时定时器
                 if (window.viewerResources.jsTimeout) {
                     clearTimeout(window.viewerResources.jsTimeout);
                     window.viewerResources.jsTimeout = null;
                 }
             };
-            localJs.onerror = () => {
-                console.error('本地 Viewer.js JS 加载失败');
-                // JS失败时也启用基础查看器模式
-                window.viewerResources.localFallback = true;
-                console.warn('Viewer.js JS资源完全不可用，启用基础图片查看器模式');
-                
-                // 首次完全失败时显示提示
-                if (!window.viewerResources.promptShown) {
-                    window.viewerResources.promptShown = true;
-                    setTimeout(() => {
-                        alert('\u274C Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
-                    }, 100);
-                }
-            };
+            localJs.onerror = () => handleViewerResourceFailure('JS');
             document.head.appendChild(localJs);
         }
-        
-        // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
+
+                // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
         function showBasicImageViewer(imageData) {
             console.log('启动基础图片查看器');
             
@@ -1567,7 +1517,7 @@
         </div>
     </div>
 
-    <div class="controls-section" style="gap: 0;">
+    <div class="controls-section" >
         <!-- 设置按钮 ./img/icons/settings.svg -->
         <button id="settings-btn" class="icon-btn settings-btn">
             <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,75c13.75,0,25,11.25,25,25s-11.25,25-25,25-25-11.25-25-25,11.25-25,25-25M100,62.5c-20.625,0-37.5,16.875-37.5,37.5s16.875,37.5,37.5,37.5,37.5-16.875,37.5-37.5-16.875-37.5-37.5-37.5Z"/></svg>
@@ -1602,8 +1552,8 @@
         </div>
     </div>
 
-    <div class="controls-container" style="background: #fff; border-bottom: 1px solid #eee; padding: 0 0; position: sticky; top: 0; z-index: 100;">
-        <div class="controls-section" style="gap: 0;">
+    <div style="background: #fff; border-bottom: 1px solid #eee; padding: 0 0; position: sticky; top: 0; z-index: 100;">
+        <div class="controls-section">
             <button id="encrypt-btn" class="normal_button" style="background-color: #7928c1;color:#fff;min-width: 65px;">混 淆</button>
             <button id="decrypt-btn" class="normal_button" style="background-color: #eb3678;color:#fff;min-width: 65px;">解混淆</button>
             <button id="restore-btn" class="normal_button" style="background-color: #fb773c;color:#fff;min-width: 65px;">还 原</button>
@@ -2061,7 +2011,7 @@
 
                 // 生成文件名（使用 getStatusSuffix 基于 scrambleLevel）
                 const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
-                const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
+                const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
                 const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
 
                 // 读取为 Uint8Array 供 fflate 使用
@@ -2187,18 +2137,7 @@
                     document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
                 }
                 // 移动端滑动页面时关闭气泡
-                let startY = 0;
-                const closeOnScroll = (e) => {
-                    if (!indicator.classList.contains('tooltip-active')) return;
-                    if (e.type === 'touchstart') {
-                        startY = e.touches[0].clientY;
-                    } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
-                        indicator.classList.remove('tooltip-active');
-                    }
-                };
-                cacheIndicatorTouchListeners = closeOnScroll;
-                document.addEventListener('touchstart', closeOnScroll, { passive: true });
-                document.addEventListener('touchmove', closeOnScroll, { passive: true });
+                cacheIndicatorTouchListeners = addTouchScrollDismiss(indicator);
             }
         }
     }
@@ -2231,7 +2170,6 @@
         // 移动端点击行为
         if (window.innerWidth > 768) return;
         let listener = null;
-        let startY = 0;
 
         el.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -2257,16 +2195,7 @@
             }
         });
 
-        const closeOnScroll = (e) => {
-            if (!el.classList.contains('tooltip-active')) return;
-            if (e.type === 'touchstart') {
-                startY = e.touches[0].clientY;
-            } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
-                el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
-            }
-        };
-        document.addEventListener('touchstart', closeOnScroll, { passive: true });
-        document.addEventListener('touchmove', closeOnScroll, { passive: true });
+        addTouchScrollDismiss(el, true);
     }
 
     // =============================================
@@ -2307,6 +2236,7 @@
 
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
+    let isSwitchingViewMode = false;
     
     /**
      * 显示错误日志
@@ -2349,7 +2279,6 @@
         }
         
         // 限制最多显示 100 条错误日志，超出时自动移除最早的条目
-        const MAX_ERROR_LOGS = 100;
         const errorItems = errorLogContent.querySelectorAll('.error-log-item');
         if (errorItems.length > MAX_ERROR_LOGS) {
             // 移除最旧的条目（位于末尾）
@@ -2367,6 +2296,8 @@
         console.warn(`📝 错误已记录: ${fileName} - ${reason}`);
     }
     
+    /** 错误日志最大数量限制（UI和数据层共用） */
+    const MAX_ERROR_LOGS = 100;
     /** @type {Array<Object>} 错误日志数据存储 */
     let errorLogs = [];
     
@@ -2410,9 +2341,8 @@
             errorLogs.push(logEntry);
             
             // 限制最大的日志数量，防止内存泄漏
-            const MAX_LOGS = 100;
-            if (errorLogs.length > MAX_LOGS) {
-                const removedLogs = errorLogs.splice(0, errorLogs.length - MAX_LOGS);
+            if (errorLogs.length > MAX_ERROR_LOGS) {
+                const removedLogs = errorLogs.splice(0, errorLogs.length - MAX_ERROR_LOGS);
                 // 清理被移除日志的资源
                 this.cleanupLogs(removedLogs);
                 console.log(`🗑️ 已从数据层清理${removedLogs.length}条错误日志`);
@@ -2634,73 +2564,64 @@
     }
     
     /**
-     * 切换视图模式（无锁，动态切换现有图片项的显示样式）
+     * 切换视图模式（带并发锁，防止快速连续点击导致状态混乱）
      */
     async function switchViewMode() {
-        // 切换模式
-        currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
-        saveViewModePreference();
-        updateViewModeButtonUI();
+        if (isSwitchingViewMode) return;
+        isSwitchingViewMode = true;
+        try {
+            // 切换模式
+            currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
+            saveViewModePreference();
+            updateViewModeButtonUI();
 
-        // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
-        const items = document.querySelectorAll('.image-item');
-        for (const item of items) {
-            const imageId = item.dataset.id;
-            const imageData = images.find(img => img.id === imageId);
-            if (!imageData) continue;
+            // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
+            const items = document.querySelectorAll('.image-item');
+            for (const item of items) {
+                const imageId = item.dataset.id;
+                const imageData = images.find(img => img.id === imageId);
+                if (!imageData) continue;
 
-            // 更新 item 的类名
-            if (currentViewMode === 'list') {
-                item.classList.add('list-view');
-            } else {
-                item.classList.remove('list-view');
-            }
+                // 更新 item 的类名
+                if (currentViewMode === 'list') {
+                    item.classList.add('list-view');
+                } else {
+                    item.classList.remove('list-view');
+                }
 
-            // 获取缩略图容器
-            const thumbnailContainer = item.querySelector('.thumbnail-container');
-            if (!thumbnailContainer) continue;
+                // 获取缩略图容器
+                const thumbnailContainer = item.querySelector('.thumbnail-container');
+                if (!thumbnailContainer) continue;
 
-            // 根据当前模式重新构建缩略图内容
-            if (currentViewMode === 'grid') {
-                let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
-                if (!canvas) {
-                    canvas = document.createElement('canvas');
-                    canvas.className = 'thumbnail-canvas';
-                    canvas.style.display = 'block';
-                    canvas.style.maxWidth = '100%';
-                    canvas.style.maxHeight = '100%';
-                    thumbnailContainer.innerHTML = '';
-                    thumbnailContainer.appendChild(canvas);
-                    const blob = await storage.get(`current_${imageData.id}`);
-                    if (blob) {
-                        try {
-                            const bitmap = await createImageBitmap(blob);
-                            const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                            drawThumbnail(canvas, bitmap, size.width, size.height);
-                            bitmap.close();
-                        } catch (e) {
-                            console.warn('绘制缩略图失败', e);
-                        }
+                // 根据当前模式重新构建缩略图内容
+                if (currentViewMode === 'grid') {
+                    let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
+                    if (!canvas) {
+                        thumbnailContainer.innerHTML = '';
+                        canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
+                        thumbnailContainer.appendChild(canvas);
+                    }
+                } else {
+                    // 列表模式：显示占位符
+                    let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+                    if (!placeholder) {
+                        placeholder = document.createElement('div');
+                        placeholder.className = 'thumbnail-placeholder';
+                        placeholder.innerHTML = getPlaceholderSVG();
+                        placeholder.title = '点击预览图片';
+                        thumbnailContainer.innerHTML = '';
+                        thumbnailContainer.appendChild(placeholder);
                     }
                 }
-            } else {
-                // 列表模式：显示占位符
-                let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
-                if (!placeholder) {
-                    placeholder = document.createElement('div');
-                    placeholder.className = 'thumbnail-placeholder';
-                    placeholder.innerHTML = getPlaceholderSVG();
-                    placeholder.title = '点击预览图片';
-                    thumbnailContainer.innerHTML = '';
-                    thumbnailContainer.appendChild(placeholder);
-                }
             }
-        }
 
-        // 显示提示信息
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
-        setTimeout(() => statusDiv.innerHTML = '', 2000);
+            // 显示提示信息
+            const statusDiv = document.getElementById('batchStatus');
+            statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
+            setTimeout(() => statusDiv.innerHTML = '', 2000);
+        } finally {
+            isSwitchingViewMode = false;
+        }
     }
     
     // =============================================
@@ -2812,11 +2733,7 @@
         let oldestAccess = Infinity;
         let evictionKey = null;
         for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency < minFreq) {
-                minFreq = entry.frequency;
-                oldestAccess = entry.lastAccess;
-                evictionKey = key;
-            } else if (entry.frequency === minFreq && entry.lastAccess < oldestAccess) {
+            if (entry.frequency === minFreq && entry.lastAccess < oldestAccess) {
                 oldestAccess = entry.lastAccess;
                 evictionKey = key;
             }
@@ -3369,48 +3286,79 @@
     }
 
     // =============================================
-    // 状态辅助函数：根据 scrambleLevel 生成显示文本和CSS类名
+    // 状态辅助函数：根据 scrambleLevel 返回显示文本、CSS类名和文件名后缀
     // =============================================
-    
-    /**
-     * 根据混淆级别获取状态文本
-     * @param {number} level - 混淆级别（正数表示混淆次数，负数表示解混淆次数，0表示原始）
-     * @returns {string} 状态文本
-     */
-    function getStatusText(level) {
-        if (level === 0) return '原始图片';
+    function getStatusInfo(level) {
+        if (level === 0) return { text: '原始图片', className: 'status-original', suffix: 'original' };
         if (level > 0) {
-            return level === 1 ? '已混淆' : `已${level}次混淆`;
+            return {
+                text: level === 1 ? '已混淆' : `已${level}次混淆`,
+                className: 'status-encrypted',
+                suffix: level === 1 ? 'encrypted' : `encrypted_${level}`
+            };
         }
         const absLevel = Math.abs(level);
-        return absLevel === 1 ? '已解混淆' : `已${absLevel}次解混淆`;
+        return {
+            text: absLevel === 1 ? '已解混淆' : `已${absLevel}次解混淆`,
+            className: 'status-decrypted',
+            suffix: absLevel === 1 ? 'decrypted' : `decrypted_${absLevel}`
+        };
     }
     
-    /**
-     * 根据混淆级别获取状态徽章的CSS类名
-     * @param {number} level - 混淆级别
-     * @returns {string} CSS类名
-     */
-    function getStatusClass(level) {
-        if (level === 0) return 'status-original';
-        if (level > 0) return 'status-encrypted';
-        return 'status-decrypted';
+
+    // =============================================
+    // 共享工具函数
+    // =============================================
+
+    function addTouchScrollDismiss(element, removeEdgeClasses = false) {
+        let startY = 0;
+        const closeOnScroll = (e) => {
+            if (!element.classList.contains('tooltip-active')) return;
+            if (e.type === 'touchstart') {
+                startY = e.touches[0].clientY;
+            } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                if (removeEdgeClasses) {
+                    element.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+                } else {
+                    element.classList.remove('tooltip-active');
+                }
+            }
+        };
+        document.addEventListener('touchstart', closeOnScroll, { passive: true });
+        document.addEventListener('touchmove', closeOnScroll, { passive: true });
+        return closeOnScroll;
     }
-    
-    /**
-     * 根据混淆级别生成文件名后缀（用于保存图片时的文件名）
-     * @param {number} level - 混淆级别
-     * @returns {string} 后缀字符串
-     */
-    function getStatusSuffix(level) {
-        if (level === 0) return 'original';
-        if (level > 0) {
-            return level === 1 ? 'encrypted' : `encrypted_${level}`;
+
+    function cleanupImageFromUI(imageId) {
+        const item = document.querySelector(`[data-id="${imageId}"]`);
+        if (item) item.remove();
+        images = images.filter(img => img.id !== imageId);
+        selectedImages.delete(imageId);
+        updateSaveButtonText();
+        updateImageCounter();
+        if (images.length === 0) showEmptyState();
+    }
+
+    async function createAndDrawThumbnail(thumbnailContainer, imageData) {
+        const canvas = document.createElement('canvas');
+        canvas.className = 'thumbnail-canvas';
+        canvas.style.display = 'block';
+        canvas.style.maxWidth = '100%';
+        canvas.style.maxHeight = '100%';
+        const blob = await storage.get(`current_${imageData.id}`);
+        if (blob) {
+            try {
+                const bitmap = await createImageBitmap(blob);
+                const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                drawThumbnail(canvas, bitmap, size.width, size.height);
+                bitmap.close();
+            } catch (e) {
+                console.warn('缩略图绘制失败', e);
+            }
         }
-        const absLevel = Math.abs(level);
-        return absLevel === 1 ? 'decrypted' : `decrypted_${absLevel}`;
+        return canvas;
     }
-    
+
     // =============================================
     // 图片处理核心函数
     // =============================================
@@ -3721,10 +3669,13 @@
         if (!blob) throw new Error('图片数据不存在');
 
         const targetFormat = format.toLowerCase();
+        if (targetFormat === 'webp' && !(await isWebPSupported())) {
+            throw new Error('浏览器不支持 WebP');
+        }
         const outputBlob = await convertImageBlob(blob, targetFormat);
 
         const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
-        const statusSuffix = getStatusSuffix(imageData.scrambleLevel);
+        const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
         const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
         downloadBlob(outputBlob, fileName);
     }
@@ -3837,6 +3788,7 @@
         checkbox.className = 'select-checkbox';
         checkbox.addEventListener('click', (event) => {
             event.stopPropagation();
+            event.preventDefault();
             toggleSelect(imageData.id, event);
         });
         item.appendChild(checkbox);
@@ -3847,24 +3799,8 @@
         thumbnailContainer.onclick = () => showPreview(imageData.id);
         
         if (currentViewMode === 'grid') {
-            const canvas = document.createElement('canvas');
-            canvas.className = 'thumbnail-canvas';
-            canvas.style.display = 'block';
-            canvas.style.maxWidth = '100%';
-            canvas.style.maxHeight = '100%';
+            const canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
             thumbnailContainer.appendChild(canvas);
-
-            const blob = await storage.get(`current_${imageData.id}`);
-            if (blob) {
-                try {
-                    const bitmap = await createImageBitmap(blob);
-                    const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                    drawThumbnail(canvas, bitmap, size.width, size.height);
-                    bitmap.close();
-                } catch (e) {
-                    console.warn('缩略图绘制失败', e);
-                }
-            }
         } else {
             // 列表模式：显示占位符图标，不加载实际图片
             const placeholder = document.createElement('div');
@@ -3877,8 +3813,8 @@
         item.appendChild(thumbnailContainer);
         
         // 获取状态文本和样式
-        const statusText = getStatusText(imageData.scrambleLevel);
-        const statusClass = getStatusClass(imageData.scrambleLevel);
+        const statusText = getStatusInfo(imageData.scrambleLevel).text;
+        const statusClass = getStatusInfo(imageData.scrambleLevel).className;
         
         // 创建信息区域
         const infoDiv = document.createElement('div');
@@ -3978,8 +3914,8 @@
             
         // 更新状态徽章（基于 scrambleLevel）
         if (cache.statusBadge) {
-            const newStatusText = getStatusText(imageData.scrambleLevel);
-            const newStatusClass = getStatusClass(imageData.scrambleLevel);
+            const newStatusText = getStatusInfo(imageData.scrambleLevel).text;
+            const newStatusClass = getStatusInfo(imageData.scrambleLevel).className;
             cache.statusBadge.className = `status-badge ${newStatusClass}`;
             cache.statusBadge.textContent = newStatusText;
         }
@@ -4131,31 +4067,19 @@
             await storage.delete(`current_${id}`);
         }
             
-        // 从数组中移除选中的图片
-        images = images.filter(img => !selectedImages.has(img.id));
-            
         // 从 DOM 中移除选中的图片项
         idsToDelete.forEach(id => {
             const item = document.querySelector(`[data-id="${id}"]`);
-            if (item) {
-                item.remove();
-            }
+            if (item) item.remove();
         });
-            
+        // 从数组中移除选中的图片
+        images = images.filter(img => !selectedImages.has(img.id));
         // 重置选择状态
         selectedImages.clear();
-        
-        // 更新保存按钮文字
+        // 更新 UI
         updateSaveButtonText();
-        
-        // 更新计数器
         updateImageCounter();
-            
-        // 如果没有图片了，显示空状态
-        if (images.length === 0) {
-            showEmptyState();
-        }
-            
+        if (images.length === 0) showEmptyState();
         console.log(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
@@ -4184,30 +4108,7 @@
             await storage.delete(`original_${imageId}`);
             await storage.delete(`current_${imageId}`);
             console.log(`🗑️ 已删除存储数据：original_${imageId}, current_${imageId}`);
-                    
-            // 从 DOM 中移除图片项
-            const item = document.querySelector(`[data-id="${imageId}"]`);
-            if (item) {
-                item.remove();
-            }
-            
-            // 从数组中移除图片数据
-            images = images.filter(img => img.id !== imageId);
-            
-            // 从选中集合中移除
-            selectedImages.delete(imageId);
-            
-            // 更新保存按钮文字
-            updateSaveButtonText();
-            
-            // 更新计数器
-            updateImageCounter();
-            
-            // 如果没有图片了，显示空状态
-            if (images.length === 0) {
-                showEmptyState();
-            }
-            
+            cleanupImageFromUI(imageId);
             console.log('已删除图片:', imageData.name);
         } catch (error) {
             console.error('删除图片时出错:', error);
@@ -4518,6 +4419,16 @@
     }
 
     /**
+     * 断开颜色选择器的 ResizeObserver（面板关闭时调用）
+     */
+    function disconnectColorPickerObserver() {
+        if (colorPickerResizeObserver) {
+            colorPickerResizeObserver.disconnect();
+            colorPickerResizeObserver = null;
+        }
+    }
+
+    /**
      * 初始化 iro.js 颜色选择器
      */
     function initColorPicker() {
@@ -4589,22 +4500,40 @@
         const rgbRInput = document.getElementById('rgb-r-input');
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
-        
         const activeElement = document.activeElement;
-        
-        // 只更新非焦点的输入框
-        if (hexInput && activeElement !== hexInput) {
-            hexInput.value = color.hexString;
+
+        let hex, r, g, b;
+        if (color) {
+            hex = color.hexString;
+            r = color.rgb.r;
+            g = color.rgb.g;
+            b = color.rgb.b;
+        } else if (colorPickerInstance && colorPickerInstance.color) {
+            hex = colorPickerInstance.color.hexString;
+            r = colorPickerInstance.color.rgb.r;
+            g = colorPickerInstance.color.rgb.g;
+            b = colorPickerInstance.color.rgb.b;
+        } else {
+            hex = opaqueBackgroundColor || '#FFFFFF';
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            if (result) {
+                r = parseInt(result[1], 16);
+                g = parseInt(result[2], 16);
+                b = parseInt(result[3], 16);
+            }
         }
-        
-        if (activeElement !== rgbRInput && rgbRInput) {
-            rgbRInput.value = color.rgb.r;
+
+        if (hex !== undefined && hexInput && activeElement !== hexInput) {
+            hexInput.value = hex;
         }
-        if (activeElement !== rgbGInput && rgbGInput) {
-            rgbGInput.value = color.rgb.g;
+        if (r !== undefined && rgbRInput && activeElement !== rgbRInput) {
+            rgbRInput.value = r;
         }
-        if (activeElement !== rgbBInput && rgbBInput) {
-            rgbBInput.value = color.rgb.b;
+        if (g !== undefined && rgbGInput && activeElement !== rgbGInput) {
+            rgbGInput.value = g;
+        }
+        if (b !== undefined && rgbBInput && activeElement !== rgbBInput) {
+            rgbBInput.value = b;
         }
     }
     
@@ -4624,12 +4553,12 @@
      * @param {string} hexValue - 十六进制颜色值
      */
     function updateColorFromHex(hexValue) {
-        if (!colorPickerInstance) return;
-        
         // 验证十六进制格式
         const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
         if (hexRegex.test(hexValue)) {
-            colorPickerInstance.color.set(hexValue);
+            if (colorPickerInstance) {
+                colorPickerInstance.color.set(hexValue);
+            }
             opaqueBackgroundColor = hexValue;
             updateColorPreview(hexValue);
         }
@@ -4639,23 +4568,24 @@
      * 从 RGB 输入框更新颜色
      */
     function updateColorFromRgb() {
-        if (!colorPickerInstance) return;
-        
         const rgbRInput = document.getElementById('rgb-r-input');
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
-        
+
         if (!rgbRInput || !rgbGInput || !rgbBInput) return;
-        
+
         const r = parseInt(rgbRInput.value) || 0;
         const g = parseInt(rgbGInput.value) || 0;
         const b = parseInt(rgbBInput.value) || 0;
-        
+
         // 验证范围
         if (r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255) {
-            colorPickerInstance.color.set({ r, g, b });
-            opaqueBackgroundColor = colorPickerInstance.color.hexString;
-            updateColorPreview(opaqueBackgroundColor);
+            const hex = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+            if (colorPickerInstance) {
+                colorPickerInstance.color.set({ r, g, b });
+            }
+            opaqueBackgroundColor = hex;
+            updateColorPreview(hex);
         }
     }
 
@@ -4715,9 +4645,16 @@
             return;
         }
         
-        // 1. 彻底清理所有残留预览容器和实例
+        // 1. 彻底清理所有残留预览容器和实例（含 Blob URL）
         const existingContainers = document.querySelectorAll('.image-gallery-container');
         existingContainers.forEach(container => {
+            const imgs = container.querySelectorAll('img');
+            imgs.forEach(img => {
+                const url = img.dataset.blobUrl;
+                if (url && url.startsWith('blob:')) {
+                    URL.revokeObjectURL(url);
+                }
+            });
             if (container.parentNode) container.parentNode.removeChild(container);
         });
         cleanupExistingViewer();
@@ -4751,7 +4688,7 @@
             await getViewerLoadPromise();
 
             if (previewCanceled) {
-                if (galleryContainer.parentNode) galleryContainer.parentNode.removeChild(galleryContainer);
+                cleanupViewerResources(galleryContainer);
                 return;
             }
 
@@ -4763,7 +4700,10 @@
 
             await initializeViewerWithBestPractices(imageData, galleryContainer, imageId);
         } catch (error) {
-            if (previewCanceled) return;
+            if (previewCanceled) {
+                cleanupViewerResources(galleryContainer);
+                return;
+            }
             console.error('Viewer 初始化失败:', error);
             await handleViewerInitializationFailure(galleryContainer, imageData);
         }
@@ -4810,13 +4750,17 @@
             height: 0;
             overflow: hidden;
         `;
-        
+
+        // 存储所有超时 ID，以便取消预览时统一清除
+        const timeoutIds = [];
+        container._timeoutIds = timeoutIds;
+
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
         console.log(`📊 开始创建图片元素，共 ${images.length} 张`);
-        
+
         const loadPromises = images.map((imgData, index) => {
-            return new Promise((resolve, reject) => {
+            return new Promise((resolve) => {
                 storage.get(`current_${imgData.id}`).then(blob => {
                     if (!blob) throw new Error(`图片数据不存在：${imgData.name}`);
 
@@ -4839,6 +4783,7 @@
                         img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
                         resolve(img);
                     }, 5000);
+                    timeoutIds.push(timeoutId);
 
                     img.onload = () => {
                         clearTimeout(timeoutId);
@@ -4901,10 +4846,7 @@
         // 最终检查取消状态
         if (previewCanceled) {
             console.log('⏭️ 预览操作已被取消，跳过 Viewer 实例创建');
-            // 清理容器
-            if (container && container.parentNode) {
-                container.parentNode.removeChild(container);
-            }
+            cleanupViewerResources(container);
             return;
         }
             
@@ -5128,6 +5070,11 @@
             viewerInstance = null;
         }
         if (container && container.parentNode) {
+            // 清除所有图片加载超时定时器
+            if (container._timeoutIds) {
+                container._timeoutIds.forEach(id => clearTimeout(id));
+                container._timeoutIds = null;
+            }
             // 释放所有临时 blob URL
             const imgs = container.querySelectorAll('img');
             imgs.forEach(img => {
@@ -5563,7 +5510,7 @@
 
         iroSection.appendChild(createExpandableLicense(
             `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`,
-            '../assets/irojs/LICENSE'
+            './assets/irojs/LICENSE'
         ));
         container.appendChild(iroSection);
         doc.body.appendChild(container);
@@ -5633,11 +5580,18 @@
                 e.preventDefault();
                 const isHidden = settingsContainer.style.display === 'none' || settingsContainer.style.display === '';
                 settingsContainer.style.display = isHidden ? 'block' : 'none';
-                
-                // 首次打开时初始化颜色选择器
-                if (isHidden && !colorPickerInstance) {
-                    // 延迟初始化以确保 DOM 完全渲染
-                    setTimeout(() => initColorPicker(), 100);
+
+                if (isHidden) {
+                    // 首次打开时初始化颜色选择器
+                    if (!colorPickerInstance) {
+                        // 先填充输入框初始值（兜底 iro.js 不可用的情况）
+                        updateColorInputs(null);
+                        // 延迟初始化以确保 DOM 完全渲染
+                        setTimeout(() => initColorPicker(), 100);
+                    }
+                } else {
+                    // 关闭时断开 ResizeObserver，避免不可见时持续响应 resize
+                    disconnectColorPickerObserver();
                 }
             });
             
@@ -5647,6 +5601,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     settingsContainer.style.display = 'none';
+                    disconnectColorPickerObserver();
                 });
             }
         }
@@ -5656,59 +5611,14 @@
         const rgbRInput = document.getElementById('rgb-r-input');
         const rgbGInput = document.getElementById('rgb-g-input');
         const rgbBInput = document.getElementById('rgb-b-input');
-        
-        // 统一同步所有输入框的值
-        function syncAllInputs() {
-            requestAnimationFrame(() => {
-                if (colorPickerInstance && colorPickerInstance.color) {
-                    const hex = colorPickerInstance.color.hexString;
-                    const { r, g, b } = colorPickerInstance.color.rgb;
-                    
-                    // 只同步非焦点的输入框
-                    if (hexInput && document.activeElement !== hexInput) {
-                        hexInput.value = hex;
-                    }
-                    if (rgbRInput && document.activeElement !== rgbRInput) {
-                        rgbRInput.value = r;
-                    }
-                    if (rgbGInput && document.activeElement !== rgbGInput) {
-                        rgbGInput.value = g;
-                    }
-                    if (rgbBInput && document.activeElement !== rgbBInput) {
-                        rgbBInput.value = b;
-                    }
-                } else {
-                    // 降级处理：从全局背景色解析
-                    const hex = opaqueBackgroundColor || '#FFFFFF';
-                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                    if (result) {
-                        const r = parseInt(result[1], 16);
-                        const g = parseInt(result[2], 16);
-                        const b = parseInt(result[3], 16);
-                        if (hexInput && document.activeElement !== hexInput) {
-                            hexInput.value = hex;
-                        }
-                        if (rgbRInput && document.activeElement !== rgbRInput) {
-                            rgbRInput.value = r;
-                        }
-                        if (rgbGInput && document.activeElement !== rgbGInput) {
-                            rgbGInput.value = g;
-                        }
-                        if (rgbBInput && document.activeElement !== rgbBInput) {
-                            rgbBInput.value = b;
-                        }
-                    }
-                }
-            });
-        }
-        
+
         if (hexInput) {
-            let isProcessing = false;
-            let lastValidValue = '#FFFFFF'; // 记录最后有效的值
-            
+            let isHexInputBusy = false;
+            let lastValidValue = '#FFFFFF';
+
             hexInput.addEventListener('input', (e) => {
-                if (isProcessing) return;
-                isProcessing = true;
+                if (isHexInputBusy) return;
+                isHexInputBusy = true;
                 
                 let value = e.target.value.trim();
                 // 移除所有 # 号，然后统一添加一个 #
@@ -5729,7 +5639,7 @@
                 requestAnimationFrame(() => {
                     e.target.value = value;
                     updateColorFromHex(value);
-                    isProcessing = false;
+                    isHexInputBusy = false;
                 });
             });
             
@@ -5778,7 +5688,7 @@
             });
             
             // 失焦时同步所有输入框
-            hexInput.addEventListener('blur', syncAllInputs);
+            hexInput.addEventListener('blur', updateColorInputs);
         }
         
         // RGB粘贴检测函数
@@ -5826,7 +5736,7 @@
                 validateRgbInput(input);
                 updateColorFromRgb();
             });
-            input.addEventListener('blur', syncAllInputs);
+            input.addEventListener('blur', updateColorInputs);
         }
 
         function bindToggle(id, key, onChange) {
@@ -5877,19 +5787,27 @@
         if (webpTooltip) initTextTooltip(webpTooltip);
 
         // 本地存储开关（必须在所有 bindToggle 前初始化，确保 loadSetting 正确判断）
-        localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        try {
+            localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        } catch (e) {
+            localStorageEnabled = true;
+        }
         const lsToggle = document.getElementById('localstorage-toggle');
         if (lsToggle) {
             lsToggle.checked = localStorageEnabled;
             lsToggle.addEventListener('change', function() {
-                localStorageEnabled = this.checked;
-                localStorage.setItem('localStorageEnabled', this.checked);
-                // 关闭时清空其他键，仅保留 localStorageEnabled 自身
-                if (!this.checked) {
-                    for (let i = localStorage.length - 1; i >= 0; i--) {
-                        const key = localStorage.key(i);
-                        if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                try {
+                    localStorageEnabled = this.checked;
+                    localStorage.setItem('localStorageEnabled', this.checked);
+                    // 关闭时清空其他键，仅保留 localStorageEnabled 自身
+                    if (!this.checked) {
+                        for (let i = localStorage.length - 1; i >= 0; i--) {
+                            const key = localStorage.key(i);
+                            if (key !== 'localStorageEnabled') localStorage.removeItem(key);
+                        }
                     }
+                } catch (e2) {
+                    localStorageEnabled = true;
                 }
             });
         }
@@ -5904,9 +5822,11 @@
         // 清除 localStorage 按钮
         document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
             if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
-            localStorage.clear();
+            try {
+                localStorage.clear();
+                localStorage.setItem('localStorageEnabled', 'true');
+            } catch (e) { /* localStorage 不可用，跳过 */ }
             localStorageEnabled = true;
-            localStorage.setItem('localStorageEnabled', 'true');
             const lsToggle = document.getElementById('localstorage-toggle');
             if (lsToggle) lsToggle.checked = true;
             console.log('🗑️ 已清除全部 localStorage 数据');
@@ -5926,7 +5846,7 @@
     });
 </script>
 <!-- 页面底部信息 -->
-<div class="footer" style="display: flex; justify-content: space-between; align-items: center; margin: auto 0 0; padding: 10px 20px; color: #666; font-size: 0.9em; max-width: 100%; border-top: 1px solid #eee;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin: auto 0 0; padding: 10px 20px; color: #666; font-size: 0.9em; max-width: 100%; border-top: 1px solid #eee;">
     <span>仅供技术交流使用</span>
     <a href="#" onclick="showLicenseInfo(); return false;" style="color: #666; text-decoration: underline; cursor: pointer;">开源许可证</a>
 </div>
