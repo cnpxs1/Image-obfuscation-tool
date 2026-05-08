@@ -5279,53 +5279,59 @@
         const doc = newTab.document;
         doc.title = '开源许可证 - 图片混淆工具';
 
+        // 添加 viewport meta 标签以支持移动端响应式
+        const meta = doc.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1.0';
+        doc.head.appendChild(meta);
+
         // 添加响应式字体样式
         const style = doc.createElement('style');
         /* 许可证页面全局样式定义 */
         style.textContent = `
             /* 页面基础样式：重置边距，设置字体和背景 */
-            body { 
-                margin: 0; 
-                padding: 20px; 
-                font-family: Arial, sans-serif; 
-                background: white; 
+            body {
+                margin: 0;
+                padding: 20px;
+                font-family: Arial, sans-serif;
+                background: white;
             }
             /* 内容容器：限制最大宽度并居中显示 */
-            .container { 
-                max-width: 900px; 
-                margin: 0 auto; 
+            .container {
+                max-width: 900px;
+                margin: 0 auto;
                 padding: 20px 0;
             }
             /* 主标题样式：深灰色居中显示 */
-            .main-title { 
-                color: #333; 
-                text-align: center; 
-                margin-bottom: 30px; 
-                font-size: 2em; 
+            .main-title {
+                color: #333;
+                text-align: center;
+                margin-bottom: 30px;
+                font-size: 2em;
             }
             /* 副标题样式：蓝色带下划线分隔 */
-            .section-title { 
-                color: #0091ff; 
-                margin: 30px 0 15px 0; 
-                border-bottom: 2px solid #0091ff; 
-                padding-bottom: 5px; 
+            .section-title {
+                color: #0091ff;
+                margin: 30px 0 15px 0;
+                border-bottom: 2px solid #0091ff;
+                padding-bottom: 5px;
             }
             /* 链接样式：蓝色带下划线 */
-            a { 
-                color: #0091ff; 
-                text-decoration: underline; 
+            a {
+                color: #0091ff;
+                text-decoration: underline;
             }
             /* 描述文本样式：灰色斜体 */
-            .description { 
-                color: #666; 
-                font-style: italic; 
-                margin-bottom: 15px; 
+            .description {
+                color: #666;
+                font-style: italic;
+                margin-bottom: 15px;
             }
             /* 许可证内容样式：等宽字体，响应式字号，横向滚动 */
-            .license-content { 
-                white-space: pre; 
+            .license-content {
+                white-space: pre;
                 overflow-x: auto;
-                container-type: inline-size; 
+                container-type: inline-size;
                 font-size: clamp(0.01rem, calc(100cqw / 70), 1.1rem);
                 font-family: 'Courier New', monospace;
                 background: #f8f8f8;
@@ -5368,6 +5374,47 @@
                 white-space: pre;
                 margin: 0;
                 font-family: 'Courier New', monospace;
+            }
+            /* ===== 移动端适配（≤768px） ===== */
+            @media (max-width: 768px) {
+                body {
+                    padding: 12px;
+                }
+                .container {
+                    padding: 10px 0;
+                }
+                .main-title {
+                    font-size: 1.4em;
+                    margin-bottom: 20px;
+                }
+                .section-title {
+                    font-size: 1.1em;
+                    margin: 20px 0 10px 0;
+                }
+                .description {
+                    font-size: 0.85em;
+                }
+                .license-content {
+                    padding: 12px;
+                    font-size: clamp(0.6rem, 3.5vw, 0.85rem);
+                    white-space: pre-wrap;
+                    word-break: break-all;
+                }
+                #long-license-full {
+                    white-space: pre-wrap;
+                }
+                .license-toggle-btn {
+                    padding: 12px 0 0;
+                    font-size: 0.9rem;
+                    min-height: 44px;
+                }
+                .license-full-text {
+                    white-space: pre-wrap;
+                    font-size: 0.75rem;
+                }
+                .license-link a {
+                    font-size: 0.8em;
+                }
             }
         `;
         doc.head.appendChild(style);
