@@ -4419,6 +4419,16 @@
     }
 
     /**
+     * 断开颜色选择器的 ResizeObserver（面板关闭时调用）
+     */
+    function disconnectColorPickerObserver() {
+        if (colorPickerResizeObserver) {
+            colorPickerResizeObserver.disconnect();
+            colorPickerResizeObserver = null;
+        }
+    }
+
+    /**
      * 初始化 iro.js 颜色选择器
      */
     function initColorPicker() {
@@ -5500,7 +5510,7 @@
 
         iroSection.appendChild(createExpandableLicense(
             `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`,
-            '../assets/irojs/LICENSE'
+            './assets/irojs/LICENSE'
         ));
         container.appendChild(iroSection);
         doc.body.appendChild(container);
@@ -5570,13 +5580,18 @@
                 e.preventDefault();
                 const isHidden = settingsContainer.style.display === 'none' || settingsContainer.style.display === '';
                 settingsContainer.style.display = isHidden ? 'block' : 'none';
-                
-                // 首次打开时初始化颜色选择器
-                if (isHidden && !colorPickerInstance) {
-                    // 先填充输入框初始值（兜底 iro.js 不可用的情况）
-                    updateColorInputs(null);
-                    // 延迟初始化以确保 DOM 完全渲染
-                    setTimeout(() => initColorPicker(), 100);
+
+                if (isHidden) {
+                    // 首次打开时初始化颜色选择器
+                    if (!colorPickerInstance) {
+                        // 先填充输入框初始值（兜底 iro.js 不可用的情况）
+                        updateColorInputs(null);
+                        // 延迟初始化以确保 DOM 完全渲染
+                        setTimeout(() => initColorPicker(), 100);
+                    }
+                } else {
+                    // 关闭时断开 ResizeObserver，避免不可见时持续响应 resize
+                    disconnectColorPickerObserver();
                 }
             });
             
@@ -5586,6 +5601,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     settingsContainer.style.display = 'none';
+                    disconnectColorPickerObserver();
                 });
             }
         }
