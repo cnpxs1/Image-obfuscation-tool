@@ -1395,7 +1395,7 @@
     <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
         <!-- 关闭按钮./img/icons/close.svg -->
         <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 200 200"><path fill="#333" d="M121.4286,100L195.7143,25.7143c5.7143-5.7143,5.7143-15.7143,0-21.4286-5.7143-5.7143-15.7143-5.7143-21.4286,0l-74.2857,74.2857L25.7143,4.2857C20-1.4286,10-1.4286,4.2857,4.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286l74.2857,74.2857L4.2857,174.2857c-5.7143,5.7143-5.7143,15.7143,0,21.4286,5.7143,5.7143,15.7143,5.7143,21.4286,0l74.2857-74.2857,74.2857,74.2857c5.7143,5.7143,15.7143,5.7143,21.4286,0,5.7143-5.7143,5.7143-15.7143,0-21.4286l-74.2857-74.2857Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
         </button>
         <!-- 设置内容 -->
         <div style="padding: 10px;">
@@ -1579,16 +1579,25 @@
         <button id="view-toggle-btn" class="icon-btn refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
             <!-- 网格视图图标 ./img/icons/grid.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer;" id="grid-view-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                    <path class="view-icon-path" fill="#333" d="M164.375,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.875c9.375,0,16.875-7.5,16.875-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,107.5h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,166.25c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM77.5,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM81.875,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875ZM165,20h-41.875c-9.375,0-16.875,7.5-16.875,16.875v41.875c0,9.375,7.5,16.875,16.875,16.875h41.25c9.375,0,16.875-7.5,17.5-16.875v-41.875c0-9.375-7.5-16.875-16.875-16.875ZM169.375,78.75c0,2.5-1.875,4.375-4.375,4.375h-41.875c-2.5,0-4.375-1.875-4.375-4.375v-41.875c0-2.5,1.875-4.375,4.375-4.375h41.875c2.5,0,4.375,1.875,4.375,4.375v41.875Z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
+                    <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65">
+                        <rect x="129" y="129" width="317" height="317" rx="51"/>
+                        <rect x="578" y="129" width="317" height="317" rx="51"/>
+                        <rect x="129" y="578" width="317" height="317" rx="51"/>
+                        <rect x="578" y="578" width="317" height="317" rx="51"/>
+                    </g>
                 </svg>
             </span>
             <!-- 分隔线 -->
             <span class="divider"></span>
             <!-- 列表视图图标 ./img/icons/list.svg -->
             <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer; opacity: 0.4;" id="list-view-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 100%; height: 100%;">
-                    <path class="view-icon-path" fill="#333" d="M175.0042,49.9916h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249.0336,3.4604-2.7549,6.249-6.2154,6.249ZM175.0042,81.2364h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,131.2616h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM175.0042,162.5063h-56.2741c-3.4604,0-6.249-2.7885-6.249-6.249s2.7885-6.249,6.249-6.249h56.2405c3.4604,0,6.249,2.7885,6.249,6.249s-2.7549,6.249-6.2154,6.249ZM74.9874,93.7343h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.4937c0-10.3477,8.3991-18.7468,18.7468-18.7468h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7468v37.4937c0,10.3477-8.3991,18.7469-18.7469,18.7469ZM37.4937,31.2448c-3.4268,0-6.249,2.8221-6.249,6.249v37.4937c0,3.4268,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.8221,6.249-6.249v-37.4937c0-3.4268-2.8221-6.249-6.249-6.249h-37.4937ZM74.9874,181.2531h-37.4937c-10.3477,0-18.7468-8.3991-18.7468-18.7469v-37.5273c0-10.3477,8.3991-18.7469,18.7468-18.7469h37.4937c10.3477,0,18.7469,8.3991,18.7469,18.7469v37.4937c0,10.3477-8.3991,18.7804-18.7469,18.7804ZM37.4937,118.7301c-3.4268,0-6.249,2.7885-6.249,6.249v37.4937c0,3.4604,2.8221,6.249,6.249,6.249h37.4937c3.4268,0,6.249-2.7885,6.249-6.249v-37.4937c0-3.4604-2.8221-6.249-6.249-6.249h-37.4937Z"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
+                    <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65" stroke-linecap="round">
+                        <rect x="130" y="125" width="324" height="324" rx="65"/>
+                        <rect x="130" y="575" width="324" height="324" rx="65"/>
+                        <path d="M606 220L894 220M606 380L894 380M606 640L894 640M606 800L894 800"/>
+                    </g>
                 </svg>
             </span>
         </button>
@@ -2544,13 +2553,13 @@
         if (currentViewMode === 'grid') {
             gridIcon.style.opacity = '1';
             listIcon.style.opacity = '0.4';
-            if (gridPath) gridPath.setAttribute('fill', '#333');
-            if (listPath) listPath.setAttribute('fill', '#999');
+            if (gridPath) gridPath.setAttribute('stroke', '#333');
+            if (listPath) listPath.setAttribute('stroke', '#999');
         } else {
             gridIcon.style.opacity = '0.4';
             listIcon.style.opacity = '1';
-            if (gridPath) gridPath.setAttribute('fill', '#999');
-            if (listPath) listPath.setAttribute('fill', '#333');
+            if (gridPath) gridPath.setAttribute('stroke', '#999');
+            if (listPath) listPath.setAttribute('stroke', '#333');
         }
     }
     
