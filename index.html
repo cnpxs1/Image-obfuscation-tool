@@ -23,19 +23,19 @@
                         stateObj.loading = false;
                         console.log(globalName + ' 加载成功:', cdnUrl);
                     } else {
-                        console.warn(globalName + ' 脚本加载但未定义，视为失败');
+                        logWarn(globalName, '脚本加载但未定义，视为失败');
                         stateObj.loading = false;
                         script.onerror(new Error(globalName + ' is not defined'));
                     }
                 };
                 script.onerror = () => {
-                    console.warn(globalName + ' 加载失败:', cdnUrl);
+                    logWarn(globalName, '加载失败: ' + cdnUrl);
                     stateObj.loading = false;
                     if (index < fallbackUrls.length) {
                         load(fallbackUrls[index], index + 1);
                     } else {
                         stateObj.failed = true;
-                        console.error(globalName + ' 所有源均加载失败');
+                        logError(globalName, '所有源均加载失败');
                         if (onAllFailed) onAllFailed();
                     }
                 };
@@ -57,7 +57,7 @@
                     'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
                     './assets/irojs/iro.js'
                 ],
-                function() { console.error('iro.js 所有源均加载失败，颜色选择器功能将不可用'); }
+                function() { logError('iro.js', '所有源均加载失败，颜色选择器功能将不可用'); }
             );
             }
         } catch (e) {
@@ -84,7 +84,7 @@
                 './assets/fflate/fflate.js'
             ],
             function() {
-                console.error('fflate 所有源均加载失败，ZIP 功能将不可用');
+                logError('fflate', '所有源均加载失败，ZIP 功能将不可用');
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', disableZipToggle);
                 } else {
@@ -1096,11 +1096,11 @@
                             return true;
                         } else {
                             undefinedViewerCount++;
-                            console.warn(`资源标记为已加载但 Viewer 构造函数不可用 (${undefinedViewerCount}/${MAX_UNDEFINED_ATTEMPTS})`);
+                            logWarn('Viewer.js', `资源标记为已加载但 Viewer 构造函数不可用 (${undefinedViewerCount}/${MAX_UNDEFINED_ATTEMPTS})`);
                             
                             // 如果连续多次未定义，主动reject
                             if (undefinedViewerCount >= MAX_UNDEFINED_ATTEMPTS) {
-                                console.error('Viewer 构造函数连续未定义，主动终止加载');
+                                logError('Viewer.js', '构造函数连续未定义，主动终止加载');
                                 reject(new Error('Viewer 构造函数无法加载'));
                                 return true;
                             }
@@ -1123,7 +1123,7 @@
                 setTimeout(() => {
                     clearInterval(interval);
                     if (!window.viewerResources.jsLoaded || !window.viewerResources.cssLoaded) {
-                        console.error('Viewer.js 加载超时');
+                        logError('Viewer.js', '加载超时');
                         reject(new Error('Viewer.js 加载超时'));
                     }
                 }, 5000); // 缩短至5秒
@@ -1134,7 +1134,7 @@
         
         // CDN降级加载函数
         function loadCDNFallback(resourceType, failedCDN) {
-            console.warn(`${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
+            logWarn('Viewer.js', `${failedCDN} ${resourceType} 加载失败，尝试降级到下一个CDN`);
             
             if (resourceType === 'css') {
                 // 清除CSS超时定时器
@@ -1158,7 +1158,7 @@
                         }
                     };
                     cdnjsCss.onerror = () => {
-                        console.warn('cdnjs CSS 加载失败，尝试本地资源');
+                        logWarn('Viewer.js', 'cdnjs CSS 加载失败，尝试本地资源');
                         loadLocalViewerCss();
                     };
                     document.head.appendChild(cdnjsCss);
@@ -1166,7 +1166,7 @@
                     // 设置超时检测
                     window.viewerResources.cssTimeout = setTimeout(() => {
                         if (!window.viewerResources.cssLoaded) {
-                            console.warn('cdnjs CSS 加载超时，尝试本地资源');
+                            logWarn('Viewer.js', 'cdnjs CSS 加载超时，尝试本地资源');
                             loadLocalViewerCss();
                         }
                     }, 3000);
@@ -1210,7 +1210,7 @@
                 }
             };
             cdnjsScript.onerror = () => {
-                console.warn('cdnjs Viewer.js JS 加载失败');
+                logWarn('Viewer.js', 'cdnjs Viewer.js JS 加载失败');
                 loadLocalViewerJs();
             };
             document.head.appendChild(cdnjsScript);
@@ -1218,16 +1218,16 @@
             // 设置超时检测
             window.viewerResources.jsTimeout = setTimeout(() => {
                 if (!window.viewerResources.jsLoaded) {
-                    console.warn('cdnjs JS 加载超时，尝试本地资源');
+                    logWarn('Viewer.js', 'cdnjs JS 加载超时，尝试本地资源');
                     loadLocalViewerJs();
                 }
             }, 3000);
         }
         
         function handleViewerResourceFailure(resourceName) {
-            console.error('本地 Viewer.js ' + resourceName + ' 加载失败');
+            logError('Viewer.js', '本地 ' + resourceName + ' 加载失败');
             window.viewerResources.localFallback = true;
-            console.warn('Viewer.js ' + resourceName + '资源完全不可用，启用基础图片查看器模式');
+            logWarn('Viewer.js', resourceName + ' 资源完全不可用，启用基础图片查看器模式');
             if (!window.viewerResources.promptShown) {
                 window.viewerResources.promptShown = true;
                 setTimeout(() => {
@@ -1238,7 +1238,7 @@
 
         function loadLocalViewerCss() {
             if (window.viewerResources.localFallback) return;
-            console.warn('CDN 加载失败，尝试加载本地 Viewer.js CSS');
+            logWarn('Viewer.js', 'CDN 加载失败，尝试加载本地 Viewer.js CSS');
             const localCss = document.createElement('link');
             localCss.rel = 'stylesheet';
             localCss.href = './assets/viewerjs/viewer.min.css';
@@ -1253,7 +1253,7 @@
 
         function loadLocalViewerJs() {
             if (window.viewerResources.localFallback) return;
-            console.warn('CDN 加载失败，尝试加载本地 Viewer.js JS');
+            logWarn('Viewer.js', 'CDN 加载失败，尝试加载本地 Viewer.js JS');
             const localJs = document.createElement('script');
             localJs.src = './assets/viewerjs/viewer.min.js';
             localJs.onload = () => {
@@ -1398,7 +1398,7 @@
             img.onerror = () => {
                 loadingIndicator.textContent = '图片加载失败';
                 loadingIndicator.style.color = '#ff6b6b';
-                console.error('基础查看器：图片加载失败');
+                logError('基础图片查看器', '图片加载失败');
             };
             
             // 关闭查看器的函数
@@ -1428,7 +1428,7 @@
                             URL.revokeObjectURL(img.src);
                             console.log('🔓 已释放基础查看器的 Blob URL');
                         } catch (error) {
-                            console.warn('释放 Blob URL 失败:', error);
+                            logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
                         }
                     }
                 }
@@ -1826,7 +1826,7 @@
                     resolve(supported);
                 }, 'image/webp');
             } catch (e) {
-                console.warn('WebP 支持检测失败:', e);
+                logWarn('浏览器检测', `WebP 支持检测失败: ${e.message || e}`);
                 resolve(false);
             }
         });
@@ -1857,7 +1857,7 @@
             
             return cleanedCount;
         } catch (error) {
-            console.error('全局遮罩层清理失败:', error);
+            logError('遮罩层清理', `全局遮罩层清理失败: ${error.message || error}`);
             return 0;
         }
     }
@@ -1896,7 +1896,7 @@
                     setTimeout(() => updateCacheIndicator('Cache API'), 100);
                     return;
                 } catch (e) {
-                    console.warn('Cache API 不可用，降级到 IndexedDB', e);
+                    logWarn('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
                 }
             }
             // 降级到 IndexedDB
@@ -2010,7 +2010,6 @@
                 if (typeof fflate !== 'undefined') break;
             }
             if (typeof fflate === 'undefined') {
-                console.error('fflate 库未加载，无法解压 ZIP');
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
                 return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
             }
@@ -2098,7 +2097,6 @@
             return { added, errors };
 
         } catch (error) {
-            console.error('ZIP 解压失败:', error);
             statusDiv.innerHTML = `❌ ZIP 解压失败: ${error.message}`;
             setTimeout(() => statusDiv.innerHTML = '', 3000);
             logError(zipFile.name, `ZIP 解压失败: ${error.message}`);
@@ -2114,7 +2112,7 @@
     async function saveImagesAsZip(format) {
         // 防御性检测：检查 fflate 是否可用
         if (typeof fflate === 'undefined') {
-            console.error('fflate 未加载，ZIP 打包功能不可用');
+            logError('fflate', 'fflate 未加载，ZIP 打包功能不可用');
             const statusDiv = document.getElementById('batchStatus');
             statusDiv.innerHTML = '❌ ZIP 打包功能不可用（fflate 库未加载）';
             setTimeout(() => statusDiv.innerHTML = '', 3000);
@@ -2187,7 +2185,6 @@
                 await new Promise(resolve => setTimeout(resolve, 0));
 
             } catch (error) {
-                console.error(`打包图片失败: ${imageData.name}`, error);
                 failureCount++;
                 logError(imageData.name, `打包失败: ${error.message || '未知错误'}`);
             }
@@ -2227,7 +2224,6 @@
             setTimeout(() => statusDiv.innerHTML = '', 3000);
 
         } catch (error) {
-            console.error('ZIP 创建失败:', error);
             statusDiv.innerHTML = `❌ ZIP 创建失败: ${error.message}`;
             setTimeout(() => statusDiv.innerHTML = '', 3000);
             logError('ZIP打包', `创建失败: ${error.message}`);
@@ -2382,13 +2378,16 @@
     /** @type {boolean} 使用 iro.js 颜色选择器 */
     let useIroJs = true;
 
+    // 保存原始 console 方法（在 console.log 被覆盖前）
+    const _origConsoleLog = console.log.bind(console);
+    const _origConsoleWarn = console.warn.bind(console);
+
     // 覆盖 console.log：调试模式关闭时仅输出缓存方法相关日志
     (function setupConsoleLog() {
-        const _origLog = console.log.bind(console);
         const cacheKeywords = ['✅ 使用 Cache API', '✅ 使用 IndexedDB'];
         console.log = function(...args) {
             if (debugMode || cacheKeywords.some(k => args.some(a => typeof a === 'string' && a.includes(k)))) {
-                _origLog(...args);
+                _origConsoleLog(...args);
             }
         };
     })();
@@ -2484,22 +2483,25 @@
         }
     };
 
-    // ---- 日志 API ----
+    // ---- 日志 API（同步 UI 面板 + 控制台）----
 
     function logError(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'error', metadata);
+        _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logWarn(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'warn', metadata);
+        _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logInfo(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'info', metadata);
+        _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
@@ -3598,7 +3600,7 @@
                 }, [imageData.data.buffer]);
 
             } catch (error) {
-                console.warn('Web Worker不可用，回退到同步处理:', error);
+                logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
                 if (worker) worker.terminate();
                 if (blobUrl) URL.revokeObjectURL(blobUrl);
                 resolve(canvasToBMP(canvas));
@@ -3674,7 +3676,7 @@
                 drawThumbnail(canvas, bitmap, size.width, size.height);
                 bitmap.close();
             } catch (e) {
-                console.warn('缩略图绘制失败', e);
+                logWarn('图片处理', `缩略图绘制失败: ${e.message || e}`);
             }
         }
         return canvas;
@@ -3825,7 +3827,7 @@
             drawThumbnail(canvas, bitmap, size.width, size.height);
             updateImageInfo(imageId);
         } catch (e) {
-            console.warn('更新缩略图失败', e);
+            logWarn('图片处理', `更新缩略图失败: ${e.message || e}`);
         } finally {
             bitmap?.close();
         }
@@ -3877,7 +3879,6 @@
                         await processSingleImage(imageData, operation);
                         successCount++;
                     } catch (error) {
-                        console.error(`处理图片失败: ${imageData.name}`, error);
                         failureCount++;
                         logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
                     } finally {
@@ -3900,7 +3901,7 @@
 
             showBatchStatus(successCount, failureCount, '处理');
         } catch (error) {
-            console.error('批量处理失败:', error);
+            logError('批量处理', `批量处理失败: ${error.message || error}`);
             statusDiv.innerHTML = '❌ 处理失败';
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         } finally {
@@ -3962,7 +3963,6 @@
                         await saveImageInFormat(imageData, format);
                         successCount++;
                     } catch (error) {
-                        console.error(`保存图片失败: ${imageData.name}`, error);
                         failureCount++;
                         logError(imageData.name, `保存失败: ${error.message || '未知错误'}`);
                     }
@@ -3975,7 +3975,7 @@
 
                 showBatchStatus(successCount, failureCount, '保存');
             } catch (error) {
-                console.error('保存失败:', error);
+                logError('批量保存', `保存失败: ${error.message || error}`);
                 statusDiv.innerHTML = '❌ 保存失败';
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
@@ -4019,7 +4019,7 @@
             const buffer = await file.arrayBuffer();
             blob = new Blob([buffer], { type: file.type });
         } catch (firstError) {
-            console.warn(`arrayBuffer 读取失败，尝试 FileReader: ${file.name}`, firstError);
+            logWarn(file.name, `arrayBuffer 读取失败，尝试 FileReader: ${firstError.message || firstError}`);
             try {
                 // 回退到 FileReader
                 const buffer = await new Promise((resolve, reject) => {
@@ -4030,7 +4030,7 @@
                 });
                 blob = new Blob([buffer], { type: file.type });
             } catch (secondError) {
-                console.warn(`FileReader 读取也失败，尝试 createImageBitmap 直接获取图像：${file.name}`, secondError);
+                logWarn(file.name, `FileReader 读取也失败，尝试 createImageBitmap 直接获取图像: ${secondError.message || secondError}`);
                 try {
                     // 最终回退：尝试直接使用 createImageBitmap 获取图像数据（绕过文件读取）
                     const bitmap = await createImageBitmap(file);
@@ -4044,9 +4044,9 @@
                     blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                     releaseCanvasToPool(canvas);
                     originalFormat = 'PNG'; // 强制格式为 PNG
-                    console.warn(`已将图片 ${file.name} 转换为 PNG 格式存储（回退方案）`);
+                    logWarn(file.name, '已将图片转换为 PNG 格式存储（回退方案）');
                 } catch (thirdError) {
-                    console.error(`所有读取方式均失败：${file.name}`, thirdError);
+                    logError(file.name, `所有读取方式均失败: ${thirdError.message || thirdError}`);
                     throw thirdError; // 彻底失败
                 }
             }
@@ -4418,7 +4418,7 @@
         
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
-            console.warn('未找到要删除的图片:', imageId);
+            logWarn('图片删除', `未找到要删除的图片: ${imageId}`);
             return;
         }
         
@@ -4432,7 +4432,7 @@
             cleanupImageFromUI(imageId);
             console.log('已删除图片:', imageData.name);
         } catch (error) {
-            console.error('删除图片时出错:', error);
+            logError('图片删除', `删除图片时出错: ${error.message || error}`);
             alert('删除图片失败: ' + (error.message || '未知错误'));
         }
     }
@@ -4474,7 +4474,7 @@
                 setTimeout(() => statusDiv.innerHTML = '', 2000);
             }
         } catch (error) {
-            console.error('处理失败:', error);
+            logError(imageData.name, `处理失败: ${error.message || error}`);
             statusDiv.innerHTML = `❌ "${imageData.name}" 处理失败`;
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         } finally {
@@ -4492,7 +4492,7 @@
     async function saveSingleImage(imageId) {
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
-            console.error('未找到指定图片:', imageId);
+            logError('图片管理', `未找到指定图片: ${imageId}`);
             return;
         }
 
@@ -4508,7 +4508,7 @@
             statusDiv.innerHTML = `✅ "${imageData.name}" 保存完成`;
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         } catch (error) {
-            console.error('保存失败:', error);
+            logError(imageData.name, `保存失败: ${error.message || error}`);
             statusDiv.innerHTML = `❌ "${imageData.name}" 保存失败`;
             setTimeout(() => statusDiv.innerHTML = '', 2000);
         }
@@ -4580,7 +4580,7 @@
             
             // 原有图片处理逻辑
             if (!isValidImageFile(file)) {
-                logError(file.name, '不是有效的图片文件');
+                logWarn(file.name, '不是支持/有效的图片文件');
                 errorCount++;
                 continue;
             }
@@ -4589,7 +4589,6 @@
                 await addImage(file);
                 addedCount++;
             } catch (error) {
-                console.error(`添加图片失败：${file.name}`, error);
                 logError(file.name, `添加失败: ${error.message || '未知错误'}`);
                 errorCount++;
             }
@@ -4736,7 +4735,7 @@
     function initColorPicker() {
         if (!useIroJs) return;
         if (!window.iro || typeof iro.ColorPicker !== 'function') {
-            console.warn('iro.js 未加载，颜色选择器不可用');
+            logWarn('颜色选择器', 'iro.js 未加载，颜色选择器不可用');
             return;
         }
 
@@ -4789,7 +4788,7 @@
                 colorPickerResizeObserver.observe(pickerRow);
             }
         } catch (error) {
-            console.error('颜色选择器初始化失败:', error);
+            logError('颜色选择器', `初始化失败: ${error.message || error}`);
         }
     }
     
@@ -4941,7 +4940,7 @@
     async function showPreview(imageId) {
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
-            console.warn('未找到指定图片:', imageId);
+            logWarn('Viewer.js', `未找到指定图片: ${imageId}`);
             return;
         }
         
@@ -4967,7 +4966,7 @@
         try {
             galleryContainer = await createImageGalleryContainer();
         } catch (createError) {
-            console.error('创建画廊容器失败:', createError);
+            logError('Viewer.js', `创建画廊容器失败: ${createError.message || createError}`);
             // 容器创建失败，直接使用基础查看器作为兜底
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob) {
@@ -4993,7 +4992,7 @@
             }
 
             if (!window.Viewer) {
-                console.error('Viewer.js 不可用');
+                logError('Viewer.js', 'Viewer.js 不可用');
                 await handleViewerInitializationFailure(galleryContainer, imageData);
                 return;
             }
@@ -5004,7 +5003,7 @@
                 cleanupViewerResources(galleryContainer);
                 return;
             }
-            console.error('Viewer 初始化失败:', error);
+            logError('Viewer.js', `初始化失败: ${error.message || error}`);
             await handleViewerInitializationFailure(galleryContainer, imageData);
         }
     }
@@ -5023,7 +5022,7 @@
                 viewerInstance.destroy();
                 console.log('✅ 已销毁之前的 viewer 实例');
             } catch (error) {
-                console.warn('⚠️ 销毁 viewer 实例时出错:', error);
+                logWarn('Viewer.js', `销毁 viewer 实例时出错: ${error.message || error}`);
             } finally {
                 viewerInstance = null;
             }
@@ -5078,7 +5077,7 @@
                     console.log(`✅ [索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
-                        console.warn(`⏰ 图片 ${imgData.name} 加载超时，使用占位图`);
+                        logWarn(imgData.name, '图片加载超时，使用占位图');
                         // 创建占位图并 resolve，确保数组完整
                         img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
                         resolve(img);
@@ -5093,13 +5092,13 @@
 
                     img.onerror = () => {
                         clearTimeout(timeoutId);
-                        console.error(`❌ 图片 ${imgData.name} 加载失败`);
+                        logError(imgData.name, '图片加载失败');
                         // 显示占位图并继续
                         img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
                         resolve(img); // 即使失败也继续
                     };
                 }).catch(error => {
-                    console.error(`图片 ${imgData.name} 加载异常:`, error);
+                    logError(imgData.name, `图片加载异常: ${error.message || error}`);
                     // 创建占位图并 resolve，确保数组完整
                     const placeholderImg = document.createElement('img');
                     placeholderImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRXJyb3I8L3RleHQ+PC9zdmc+';
@@ -5122,7 +5121,7 @@
             if (img) {
                 container.appendChild(img);
             } else {
-                console.warn(`⚠️ 图片索引 ${index} 对应的元素未创建成功`);
+                logWarn('Viewer.js', `图片索引 ${index} 对应的元素未创建成功`);
             }
         });
         
@@ -5236,7 +5235,7 @@
                                     
                     // 每次切换图片时检查加载状态
                     if (!currentImage.complete || currentImage.naturalWidth === 0) {
-                        console.warn('⚠️ 当前图片尚未加载完成');
+                        logWarn('Viewer.js', '当前图片尚未加载完成');
                     }
                 },
                 
@@ -5269,7 +5268,7 @@
                 viewerInstance.view(domIndex);
             } else {
                 // 详细调试信息
-                console.error(`❌ 未在 DOM 中找到目标图片：${targetImageId}`);
+                logError('Viewer.js', `未在 DOM 中找到目标图片：${targetImageId}`);
                 console.log(`📊 容器中的图片元素:`);
                 Array.from(container.children).forEach((img, idx) => {
                     const imageId = img.dataset?.imageId || '无 ID';
@@ -5294,7 +5293,7 @@
             }
             
         } catch (error) {
-            console.error('❌ Viewer.js 初始化过程中发生错误:', error);
+            logError('Viewer.js', `初始化过程中发生错误: ${error.message || error}`);
             await handleViewerInitializationFailure(container, imageData);
         }
     }
@@ -5349,10 +5348,10 @@
                 const url = URL.createObjectURL(blob);
                 showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
             } else {
-                console.error('无法获取图片数据:', imageData.id);
+                logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
             }
         } catch (error) {
-            console.error('获取图片 Blob 失败:', error);
+            logError('Viewer.js', `获取图片 Blob 失败: ${error.message || error}`);
         }
     }
 
@@ -5365,7 +5364,7 @@
             try {
                 viewerInstance.destroy();
             } catch (e) {
-                console.warn('销毁 Viewer 实例出错:', e);
+                logWarn('Viewer.js', `销毁 Viewer 实例出错: ${e.message || e}`);
             }
             viewerInstance = null;
         }
@@ -5533,11 +5532,10 @@
                         await updateThumbnail(imageData.id, blob);
                         successCount++;
                     } else {
-                        console.warn(`图片 ${imageData.name} 的 Blob 数据不存在`);
+                        logWarn(imageData.name, 'Blob 数据不存在');
                         failureCount++;
                     }
                 } catch (error) {
-                    console.error(`刷新缩略图失败: ${imageData.name}`, error);
                     failureCount++;
                     logError(imageData.name, `刷新缩略图失败: ${error.message || '未知错误'}`);
                 }
@@ -5554,7 +5552,7 @@
             
             console.log(`缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
-            console.error('刷新缩略图过程出错:', error);
+            logError('缩略图刷新', `刷新缩略图过程出错: ${error.message || error}`);
             statusDiv.innerHTML = ' 刷新缩略图失败';
             setTimeout(() => statusDiv.innerHTML = '', 3000);
         } finally {
@@ -5793,12 +5791,12 @@
                                 pre.textContent = licenseText;
                                 fullDiv.appendChild(pre);
                             } else {
-                                console.error('加载LICENSE文件失败:', response.status);
+                                logError('LICENSE', `加载LICENSE文件失败: HTTP ${response.status}`);
                                 fullDiv.textContent = '许可证文件加载失败';
                                 fullDiv.style.color = 'red';
                             }
                         } catch (error) {
-                            console.error('加载LICENSE文件失败:', error);
+                            logError('LICENSE', `加载LICENSE文件失败: ${error.message || error}`);
                             fullDiv.textContent = '许可证文件加载失败';
                             fullDiv.style.color = 'red';
                         }
