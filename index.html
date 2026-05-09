@@ -1426,7 +1426,7 @@
                     if (img.src && img.src.startsWith('blob:')) {
                         try {
                             URL.revokeObjectURL(img.src);
-                            console.log('🔓 已释放基础查看器的 Blob URL');
+                            console.log('已释放基础查看器的 Blob URL');
                         } catch (error) {
                             logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
                         }
@@ -1891,18 +1891,18 @@
                     await caches.open(this.cacheName);
                     this.isCacheApi = true;
                     this.backend = await caches.open(this.cacheName);
-                    console.log('✅ 使用 Cache API');
+                    console.log('使用 Cache API');
                     // 更新 UI 指示器
                     setTimeout(() => updateCacheIndicator('Cache API'), 100);
                     return;
                 } catch (e) {
-                    logWarn('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
+                    logInfo('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
                 }
             }
             // 降级到 IndexedDB
             this.isCacheApi = false;
             await this._initIndexedDB();
-            console.log('✅ 使用 IndexedDB');
+            console.log('使用 IndexedDB');
             // 更新 UI 指示器
             setTimeout(() => updateCacheIndicator('IndexedDB'), 100);
         }
@@ -2982,7 +2982,7 @@
         const freqs = [...curveCache.values()].map(e => e.frequency);
         const minF = freqs.length ? Math.min(...freqs) : 0;
         const maxF = freqs.length ? Math.max(...freqs) : 0;
-        console.log(`📊 曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+        console.log(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
     function avgCacheFrequency() {
@@ -4107,9 +4107,8 @@
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'select-checkbox';
-        checkbox.addEventListener('click', (event) => {
+        checkbox.addEventListener('change', (event) => {
             event.stopPropagation();
-            event.preventDefault();
             toggleSelect(imageData.id, event);
         });
         item.appendChild(checkbox);
@@ -4299,22 +4298,19 @@
      * 切换单张图片的选择状态，更新UI显示
      */
     function toggleSelect(imageId, event) {
-        event.stopPropagation();  // 阻止事件冒泡
+        event.stopPropagation();
 
+        const checked = event.target.checked;
         const item = document.querySelector(`[data-id="${imageId}"]`);
-        const checkbox = item ? item.querySelector('.select-checkbox') : null;
-        
-        if (selectedImages.has(imageId)) {
-            selectedImages.delete(imageId);
-            if (item) item.classList.remove('selected');
-            if (checkbox) checkbox.checked = false;  // 显式设置复选框状态
-        } else {
+
+        if (checked) {
             selectedImages.add(imageId);
             if (item) item.classList.add('selected');
-            if (checkbox) checkbox.checked = true;   // 显式设置复选框状态
+        } else {
+            selectedImages.delete(imageId);
+            if (item) item.classList.remove('selected');
         }
-        
-        // 更新保存按钮文字
+
         updateSaveButtonText();
     }
 
@@ -4428,7 +4424,7 @@
             // ✅ 清理存储：删除原始图片和当前图片
             await storage.delete(`original_${imageId}`);
             await storage.delete(`current_${imageId}`);
-            console.log(`🗑️ 已删除存储数据：original_${imageId}, current_${imageId}`);
+            console.log(`已删除存储数据：original_${imageId}, current_${imageId}`);
             cleanupImageFromUI(imageId);
             console.log('已删除图片:', imageData.name);
         } catch (error) {
@@ -4760,7 +4756,7 @@
                 containerStyle: 'border-radius: 0;'
             });
 
-            console.log('✅ 颜色选择器初始化成功');
+            console.log('颜色选择器初始化成功');
 
             // 监听容器宽度：换行时切换为垂直布局
             let isWrapped = false;
@@ -5020,7 +5016,7 @@
             try {
                 // @ts-ignore - Viewer.js 是动态加载的，destroy 方法在运行时存在
                 viewerInstance.destroy();
-                console.log('✅ 已销毁之前的 viewer 实例');
+                console.log('已销毁之前的 viewer 实例');
             } catch (error) {
                 logWarn('Viewer.js', `销毁 viewer 实例时出错: ${error.message || error}`);
             } finally {
@@ -5056,7 +5052,7 @@
 
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
-        console.log(`📊 开始创建图片元素，共 ${images.length} 张`);
+        console.log(`开始创建图片元素，共 ${images.length} 张`);
 
         const loadPromises = images.map((imgData, index) => {
             return new Promise((resolve) => {
@@ -5074,7 +5070,7 @@
 
                     // 保存引用到数组（保持顺序）- 在创建 img 后立即同步赋值
                     imgElements[index] = img;
-                    console.log(`✅ [索引${index}] 已创建图片元素：${imgData.name}`);
+                    console.log(`[索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
                         logWarn(imgData.name, '图片加载超时，使用占位图');
@@ -5086,7 +5082,7 @@
 
                     img.onload = () => {
                         clearTimeout(timeoutId);
-                        console.log(`✅ 图片 ${img.alt} 加载完成 (${img.naturalWidth}x${img.naturalHeight})`);
+                        console.log(`图片 ${img.alt} 加载完成 (${img.naturalWidth}x${img.naturalHeight})`);
                         resolve(img);
                     };
 
@@ -5114,7 +5110,7 @@
         // 等待所有图片元素创建完成后再添加到 DOM
         await Promise.allSettled(loadPromises);
         
-        console.log(`📊 Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
+        console.log(`Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
         
         // 按顺序将所有图片添加到容器（保证 DOM 顺序与 images 数组一致）
         imgElements.forEach((img, index) => {
@@ -5125,10 +5121,10 @@
             }
         });
         
-        console.log(`📊 共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
+        console.log(`共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
         
-        // 存储加载 Promise 到容器（已经完成了）
-        container._loadPromises = Promise.resolve();
+        // 存储加载 Promise 到容器
+        container._loadPromises = Promise.allSettled(loadPromises);
         
         document.body.appendChild(container);
         return container;
@@ -5144,7 +5140,7 @@
     async function initializeViewerWithBestPractices(imageData, container, targetImageId) {
         // 最终检查取消状态
         if (previewCanceled) {
-            console.log('⏭️ 预览操作已被取消，跳过 Viewer 实例创建');
+            console.log('预览操作已被取消，跳过 Viewer 实例创建');
             cleanupViewerResources(container);
             return;
         }
@@ -5152,9 +5148,9 @@
         try {
             // 等待所有图片至少尝试加载完成
             if (container._loadPromises) {
-                console.log('⏳ 等待图片加载完成...');
+                console.log('等待图片加载完成...');
                 await container._loadPromises;
-                console.log('✅ 所有图片加载尝试完成');
+                console.log('所有图片加载尝试完成');
             }
                 
             // 额外等待一小段时间，确保 DOM 渲染完成
@@ -5197,13 +5193,13 @@
                     }
                     // 对于未完成加载的图片，也允许 Viewer.js 加载
                     // Viewer.js 会在内部等待图片加载完成
-                    console.log(`🔄 图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
+                    console.log(`图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
                     return true;
                 },
                 
                 // 生命周期事件
                 ready() {
-                    console.log('✅ Viewer.js 已准备就绪');
+                    console.log('Viewer.js 已准备就绪');
                 },
                                 
                 shown() {
@@ -5221,9 +5217,9 @@
                     });
                     
                     if (failedImages.length === 0) {
-                        console.log(`✅ 已加载${loadedCount}张图片`);
+                        console.log(`已加载${loadedCount}张图片`);
                     } else {
-                        console.log(`✅ 已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
+                        console.log(`已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
                     }
                 },
                                 
@@ -5231,7 +5227,7 @@
                     const { detail } = event;
                     const currentImage = detail.image;
                     const currentIndex = detail.index;
-                    console.log(`✅ 当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
+                    console.log(`当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
                                     
                     // 每次切换图片时检查加载状态
                     if (!currentImage.complete || currentImage.naturalWidth === 0) {
@@ -5240,16 +5236,16 @@
                 },
                 
                 hide() {
-                    console.log('ℹ️ Viewer.js 开始隐藏');
+                    console.log('Viewer.js 开始隐藏');
                 },
                 
                 hidden() {
-                    console.log('✅ Viewer.js 已隐藏');
+                    console.log('Viewer.js 已隐藏');
                     cleanupViewerResources(container);
                 },
                 
                 play() {
-                    console.log('▶️ 全屏');
+                    console.log('全屏');
                 }
             });
             
@@ -5263,30 +5259,30 @@
             const targetImg = container.querySelector(`img[data-image-id="${targetImageId}"]`);
             if (targetImg) {
                 const domIndex = Array.from(container.children).indexOf(targetImg);
-                console.log(`🔍 容器中共有 ${container.children.length} 张图片`);
-                console.log(`🎯 找到目标图片，DOM 索引：${domIndex}`);
+                console.log(`容器中共有 ${container.children.length} 张图片`);
+                console.log(`找到目标图片，DOM 索引：${domIndex}`);
                 viewerInstance.view(domIndex);
             } else {
                 // 详细调试信息
                 logError('Viewer.js', `未在 DOM 中找到目标图片：${targetImageId}`);
-                console.log(`📊 容器中的图片元素:`);
+                console.log(`容器中的图片元素:`);
                 Array.from(container.children).forEach((img, idx) => {
                     const imageId = img.dataset?.imageId || '无 ID';
-                    console.log(`  [${idx}] ID: ${imageId}, Alt: ${img.alt}`);
+                    console.log(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                 });
                                 
                 // 尝试使用 Viewer.js 的 images 数组访问（Viewer.js 1.x 使用 images 而非 list）
                 if (viewerInstance && viewerInstance.images) {
-                    console.log(`📋 Viewer.js images 中有 ${viewerInstance.images.length} 张图片`);
+                    console.log(`Viewer.js images 中有 ${viewerInstance.images.length} 张图片`);
                     viewerInstance.images.forEach((img, idx) => {
                         const imageId = img.dataset?.imageId || '无 ID';
-                        console.log(`  [${idx}] ID: ${imageId}, Alt: ${img.alt}`);
+                        console.log(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                     });
                                     
                     // 尝试在 Viewer.js 的 images 中查找
                     const foundIndex = viewerInstance.images.findIndex(img => img.dataset?.imageId === targetImageId);
                     if (foundIndex >= 0) {
-                        console.log(`✅ 在 Viewer.js images 中找到目标图片，索引：${foundIndex}`);
+                        console.log(`在 Viewer.js images 中找到目标图片，索引：${foundIndex}`);
                         viewerInstance.view(foundIndex);
                     }
                 }
@@ -5330,7 +5326,7 @@
     async function handleViewerInitializationFailure(container, imageData) {
         // 检查是否因取消而失败
         if (previewCanceled) {
-            console.log('⏭️ 预览操作已被取消，跳过失败处理');
+            console.log('预览操作已被取消，跳过失败处理');
             cleanupViewerResources(container);
             return;
         }
@@ -5339,7 +5335,7 @@
         cleanupViewerResources(container);
             
         // 启用基础图片查看器作为兜底方案
-        console.log('ℹ️ 启用基础图片查看器作为替代方案');
+        console.log('启用基础图片查看器作为替代方案');
             
         // 获取当前图片 Blob 并创建临时 URL
         try {
@@ -5380,12 +5376,12 @@
                 const url = img.dataset.blobUrl;
                 if (url && url.startsWith('blob:')) {
                     URL.revokeObjectURL(url);
-                    console.log(`🔓 已释放临时 Blob URL`);
+                    console.log(`已释放临时 Blob URL`);
                 }
             });
             container.parentNode.removeChild(container);
         }
-        console.log('✅ Viewer.js 资源已清理');
+        console.log('Viewer.js 资源已清理');
     }
     
     /**
@@ -5403,7 +5399,7 @@
         resizeDebounceTimer = setTimeout(() => {
             if (viewerInstance && viewerInstance.update) {
                 viewerInstance.update();
-                console.log('🪟 窗口大小改变，已更新 Viewer 布局');
+                console.log('窗口大小改变，已更新 Viewer 布局');
             }
         }, 150);
     }
@@ -5550,7 +5546,7 @@
             
             showBatchStatus(successCount, failureCount, '刷新');
             
-            console.log(`缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
+            logInfo('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
             logError('缩略图刷新', `刷新缩略图过程出错: ${error.message || error}`);
             statusDiv.innerHTML = ' 刷新缩略图失败';
@@ -6174,7 +6170,7 @@
             localStorageEnabled = true;
             const lsToggle = document.getElementById('localstorage-toggle');
             if (lsToggle) lsToggle.checked = true;
-            console.log('🗑️ 已清除全部 localStorage 数据');
+            logInfo('localStorage', '已清除全部 localStorage 数据');
             location.reload();
         });
 
