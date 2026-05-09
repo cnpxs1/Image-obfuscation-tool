@@ -742,79 +742,216 @@
             }
         }
 
-        /* 错误日志面板 */
-        .error-log-panel {
-            background-color: #ffe6e6;
-            border: 1px solid #ffcccc;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 20px;
-        }
-
-        .error-log-item {
-            padding: 5px 0;
-            border-bottom: 1px solid #ffdddd;
-            font-family: monospace;
-            font-size: 0.9rem;
+        /* ========== 日志悬浮按钮 ========== */
+        .log-fab {
+            position: fixed;
+            right: 12px;
+            top: auto;
+            bottom: 20vh;
+            width: 32px;
+            background: #fff;
+            border: 2px solid #1296db;
+            border-radius: 6px;
             display: flex;
-            align-items: flex-start;  /* 对齐到顶部 */
+            flex-direction: column;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+            z-index: 9998;
+            transition: opacity 0.2s ease;
         }
-
-        .error-log-item:last-child {
-            border-bottom: none;
+        .log-fab-level {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2px 0;
         }
-
-        .error-timestamp {
-            color: #666;
-            font-size: 0.8rem;
-            margin-right: 8px;
-            flex: 0 0 auto;
-            min-width: 80px;  /* 时间戳最小宽度 */
-            max-width: 20%;   /* 限制最大宽度百分比 */
-            word-break: break-word;  /* 允许换行 */
-            white-space: normal;     /* 允许自动换行 */
+        .log-fab-level svg {
+            width: 20px;
+            height: 20px;
+            display: block;
         }
-        
-        .error-file-name {
+        .log-fab-count {
+            font-size: 10px;
             font-weight: bold;
-            color: #d00;
-            flex: 0 0 auto;
-            min-width: 100px;  /* 文件名最小宽度 */
-            max-width: 30%;    /* 限制最大宽度百分比 */
-            word-break: break-word;
+            line-height: 1;
+            margin-top: 1px;
+            padding: 1px 3px;
+            border-radius: 6px;
+            min-width: 14px;
+            text-align: center;
+        }
+
+        /* ========== 日志浮动面板 ========== */
+        .log-panel-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+        }
+        .log-panel-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .log-panel {
+            background: #fff;
+            border-radius: 12px;
+            width: 800px;
+            height: 900px;
+            max-width: calc(100vw - 24px);
+            max-height: calc(100vh - 24px);
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+        .log-panel-overlay.open .log-panel {
+            transform: scale(1);
+        }
+        .log-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .log-panel-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .log-panel-close {
+            width: 28px;
+            height: 28px;
+            background: #fff;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+        .log-panel-close svg {
+            width: 14px;
+            height: 14px;
+        }
+        .log-panel-close:hover {
+            background: #f5f5f5;
+        }
+        .log-panel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 0;
+            min-height: 0;
+            overflow-anchor: none;
+            scroll-behavior: auto;
+        }
+        .log-panel-item {
+            display: flex;
+            align-items: baseline;
+            padding: 4px 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 4px;
+            animation: logItemIn 0.15s ease-out;
+        }
+        @keyframes logItemIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .log-panel-item .log-timestamp {
+            color: #999;
+            font-size: 12px;
+            margin-right: 8px;
+            font-family: monospace;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .log-panel-item .log-file {
+            font-weight: bold;
+            margin-right: 6px;
+            max-width: 30%;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;     /* 单行显示，超出省略 */
+            white-space: nowrap;
+            flex-shrink: 0;
         }
-        
-        .error-reason {
-            color: #a00;
+        .log-panel-item .log-reason {
             flex: 1 1 auto;
+            min-width: 0;
+            text-align: right;
             word-break: break-word;
-            min-width: 0;  /* 防止 flex 溢出 */
         }
-        
-        /* 移动端错误日志适配 */
+        .log-panel-item.level-error { color: #d81e06; }
+        .log-panel-item.level-error .log-file { color: #d81e06; }
+        .log-panel-item.level-warn  { color: #ec7a40; }
+        .log-panel-item.level-warn  .log-file { color: #ec7a40; }
+        .log-panel-item.level-info { color: #1296db; }
+        .log-panel-item.level-info .log-file { color: #1296db; }
+        .log-panel-empty {
+            text-align: center;
+            color: #999;
+            padding: 40px 16px;
+            font-size: 14px;
+        }
+        .log-panel-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-top: 1px solid #eee;
+            flex-shrink: 0;
+        }
+        .log-stats {
+            display: flex;
+            gap: 8px;
+        }
+        .log-stat-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.15s ease;
+        }
+        .log-stat-btn:hover { background: #f0f0f0; }
+        .log-stat-btn.active { border-color: currentColor; background: #eee; }
+        .log-stat-btn svg { width: 14px; height: 14px; }
+        .log-clear-btn {
+            padding: 6px 16px;
+            background: #d81e06;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .log-clear-btn:hover { background: #b71a05; }
+
+        /* ========== 移动端适配 ========== */
         @media screen and (max-width: 768px) {
-            .error-log-item {
-                flex-wrap: wrap;  /* 允许换行 */
+            .log-panel {
+                width: 90vw;
+                max-width: 90vw;
+                max-height: 70vh;
             }
-        
-            .error-timestamp {
-                min-width: 100%;  /* 占满整行 */
-                max-width: 100%;
-                margin-bottom: 4px;
-            }
-        
-            .error-file-name {
-                min-width: 100%;  /* 占满整行 */
-                max-width: 100%;
-                margin-bottom: 4px;
-                white-space: normal;  /* 允许换行 */
-            }
-        
-            .error-reason {
-                min-width: 100%;  /* 占满整行 */
+            .log-panel-list { max-height: none; }
+            .log-panel-item {
+                font-size: 14px;
+                line-height: 1.5;
+                margin-bottom: 8px;
             }
         }
 
@@ -1616,11 +1753,24 @@
         <div class="empty-state" id="emptyState"></div>
     </div>
 
-    <!-- 错误日志面板 -->
-    <div class="error-log-panel" id="errorLogPanel" style="display:none; margin: 20px auto; padding: 15px; border: 1px solid #ffcccc; background-color: #ffe6e6; border-radius: 8px; max-width: 1200px;">
-        <h3 style="margin-top: 0; color: #d00; text-align: center;">错误日志</h3>
-        <div id="errorLogContent" style="max-height: 200px; overflow-y: auto;"></div>
-        <button id="clearErrorLog" class="normal_button" style="background-color: #ff1100; color: #fff; margin-top: 10px; display: block; margin-left: auto; margin-right: auto;">清空日志</button>
+    <!-- 日志悬浮按钮 -->
+    <div class="log-fab" id="logFab" style="display:none;"></div>
+
+    <!-- 日志浮动面板 -->
+    <div class="log-panel-overlay" id="logPanelOverlay">
+        <div class="log-panel" id="logPanel">
+            <div class="log-panel-header">
+                <span class="log-panel-title">日志</span>
+                <button class="log-panel-close" id="logPanelClose" title="关闭">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
+                </button>
+            </div>
+            <div class="log-panel-list" id="logPanelList"></div>
+            <div class="log-panel-footer">
+                <div class="log-stats" id="logStats"></div>
+                <button class="log-clear-btn" id="logClearBtn">清空日志</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -2247,172 +2397,334 @@
     let currentViewMode = 'grid'; // 'grid' 或 'list'
     let isSwitchingViewMode = false;
     
+    // ==================== 日志系统（三级：Error / Warn / Info） ====================
+
+    /** 日志最大数量限制 */
+    const MAX_LOGS = 100;
+    /** @type {Array<Object>} 日志数据存储 */
+    let logs = [];
+
+    const LEVEL_COLORS = { error: '#d81e06', warn: '#ec7a40', info: '#1296db' };
+    const LEVEL_ORDER = ['error', 'warn', 'info']; // 严重程度降序
+
     /**
-     * 显示错误日志
-     * @param {string} fileName - 文件名
-     * @param {string} reason - 错误原因
-     * @param {Object} [metadata] - 可选的元数据
-     *
-     * 统一由ErrorLogManager管理日志数据，只负责UI更新
+     * 日志管理器
+     * 统一管理三级日志的添加、查询和清理
      */
-    function logError(fileName, reason, metadata = {}) {
-        const errorLogPanel = document.getElementById('errorLogPanel');
-        const errorLogContent = document.getElementById('errorLogContent');
-
-        // 统一由ErrorLogManager管理日志数据
-        const logEntry = ErrorLogManager.add(fileName, reason, metadata);
-
-        // 显示错误日志面板
-        errorLogPanel.style.display = 'block';
-
-        // 创建错误日志项（使用HTML转义防止XSS）
-        const errorItem = document.createElement('div');
-        errorItem.className = 'error-log-item';
-        errorItem.dataset.logId = logEntry.id; // 关联日志ID便于管理
-        errorItem.innerHTML = `<span class="error-timestamp">[${logEntry.formattedTime}]</span> <span class="error-file-name">${escapeHtml(logEntry.fileName)}</span><span class="error-reason"> - ${escapeHtml(logEntry.reason)}</span>`;
-        
-        // 添加鼠标悬停效果（可选）
-        errorItem.style.cursor = 'default';
-        errorItem.onmouseover = function() {
-            this.style.backgroundColor = '#fff0f0';
-        };
-        errorItem.onmouseout = function() {
-            this.style.backgroundColor = '';
-        };
-        
-        // 添加到错误日志内容顶部
-        if (errorLogContent.firstChild) {
-            errorLogContent.insertBefore(errorItem, errorLogContent.firstChild);
-        } else {
-            errorLogContent.appendChild(errorItem);
-        }
-        
-        // 限制最多显示 100 条错误日志，超出时自动移除最早的条目
-        const errorItems = errorLogContent.querySelectorAll('.error-log-item');
-        if (errorItems.length > MAX_ERROR_LOGS) {
-            // 移除最旧的条目（位于末尾）
-            const oldestItem = errorItems[errorItems.length - 1];
-            if (oldestItem && oldestItem.parentNode) {
-                // 通过 ErrorLogManager.remove() 方法统一清理数据和 DOM，保持数据一致性
-                const logId = oldestItem.dataset.logId;
-                ErrorLogManager.remove(logId);
-                // 从 DOM 中移除对应的元素
-                oldestItem.parentNode.removeChild(oldestItem);
-                console.log(`🗑️ 已从 UI 层移除最旧错误日志：${logId}`);
-            }
-        }
-
-        console.warn(`📝 错误已记录: ${fileName} - ${reason}`);
-    }
-    
-    /** 错误日志最大数量限制（UI和数据层共用） */
-    const MAX_ERROR_LOGS = 100;
-    /** @type {Array<Object>} 错误日志数据存储 */
-    let errorLogs = [];
-    
-    // =============================================
-    // 错误日志管理器
-    // =============================================
-    
-    /**
-     * 错误日志管理器
-     * 用于管理错误日志的添加、查询和清理
-     */
-    const ErrorLogManager = {
-        /**
-         * 添加错误日志
-         * @param {string} fileName - 文件名
-         * @param {string} reason - 错误原因
-         * @param {Object} [metadata] - 可选的元数据
-         */
-        add(fileName, reason, metadata = {}) {
+    const LogManager = {
+        add(fileName, reason, level, metadata = {}) {
             const timestamp = new Date();
             const logEntry = {
                 id: Date.now().toString(36) + Math.random().toString(36).substring(2),
                 fileName,
                 reason,
+                level,
                 timestamp,
                 formattedTime: timestamp.toLocaleString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
                 }),
                 metadata: metadata,
-                // 未来可能添加的字段：
-                // blobUrl: null,  // 如果需要存储图片预览
-                // previewData: null  // 预览数据
             };
-            
-            errorLogs.push(logEntry);
-            
-            // 限制最大的日志数量，防止内存泄漏
-            if (errorLogs.length > MAX_ERROR_LOGS) {
-                const removedLogs = errorLogs.splice(0, errorLogs.length - MAX_ERROR_LOGS);
-                // 清理被移除日志的资源
+            logs.push(logEntry);
+            if (logs.length > MAX_LOGS) {
+                const removedLogs = logs.splice(0, logs.length - MAX_LOGS);
                 this.cleanupLogs(removedLogs);
-                console.log(`🗑️ 已从数据层清理${removedLogs.length}条错误日志`);
             }
-            
             return logEntry;
         },
 
-        /**
-         * 清理错误日志
-         * @param {Array<Object>} [logs] - 要清理的日志数组，如果不提供则清理所有日志
-         */
-        cleanupLogs(logs = errorLogs) {
-            logs.forEach(log => {
-                // 通用Blob URL清理：遍历metadata中所有以blob:开头的字符串
+        cleanupLogs(targetLogs = logs) {
+            targetLogs.forEach(log => {
                 if (log.metadata) {
                     Object.keys(log.metadata).forEach(key => {
                         const value = log.metadata[key];
-                        // 检查是否为blob URL字符串
                         if (typeof value === 'string' && value.startsWith('blob:')) {
-                            try {
-                                URL.revokeObjectURL(value);
-                                console.log(`已释放错误日志中的Blob URL [${key}]:`, value);
-                            } catch (error) {
-                                console.warn(`释放Blob URL [${key}] 失败:`, error);
-                            }
-                            // 删除已释放的引用
+                            try { URL.revokeObjectURL(value); } catch (e) { /* ignore */ }
                             delete log.metadata[key];
                         }
                     });
                 }
             });
         },
-        
-        /**
-         * 移除错误日志
-         * @param {string} logId - 要移除的日志 ID
-         * @returns {boolean} 是否成功移除
-         */
+
         remove(logId) {
-            const index = errorLogs.findIndex(log => log.id === logId);
+            const index = logs.findIndex(log => log.id === logId);
             if (index !== -1) {
-                const removedLog = errorLogs.splice(index, 1)[0];
-                // 清理被移除日志的资源
+                const removedLog = logs.splice(index, 1)[0];
                 this.cleanupLogs([removedLog]);
                 return true;
             }
             return false;
         },
-        
-        /**
-         * 清空所有错误日志
-         */
+
         clear() {
-            // 先清理资源
             this.cleanupLogs();
-            // 再清空数组
-            errorLogs = [];
-            console.log('✅ 错误日志数据已清空并释放相关资源');
+            logs = [];
+        },
+
+        getByLevel(level) {
+            return level ? logs.filter(l => l.level === level) : logs;
+        },
+
+        getCounts() {
+            return {
+                error: logs.filter(l => l.level === 'error').length,
+                warn: logs.filter(l => l.level === 'warn').length,
+                info: logs.filter(l => l.level === 'info').length
+            };
+        },
+
+        /** 返回最高严重级别，无日志时返回 null */
+        getHighestLevel() {
+            for (const lv of LEVEL_ORDER) {
+                if (logs.some(l => l.level === lv)) return lv;
+            }
+            return null;
         }
     };
+
+    // ---- 日志 API ----
+
+    function logError(fileName, reason, metadata = {}) {
+        LogManager.add(fileName, reason, 'error', metadata);
+        updateLogFab();
+        if (logPanelVisible) renderLogPanel(currentFilter);
+    }
+
+    function logWarn(fileName, reason, metadata = {}) {
+        LogManager.add(fileName, reason, 'warn', metadata);
+        updateLogFab();
+        if (logPanelVisible) renderLogPanel(currentFilter);
+    }
+
+    function logInfo(fileName, reason, metadata = {}) {
+        LogManager.add(fileName, reason, 'info', metadata);
+        updateLogFab();
+        if (logPanelVisible) renderLogPanel(currentFilter);
+    }
+
+    // ---- SVG 图标内联 ----
+
+    const LOG_ICONS = {
+        error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#d81e06" stroke-width="81" fill="none"/><path d="M330 330L694 694M694 330L330 694" stroke="#d81e06" stroke-width="81" stroke-linecap="round" fill="none"/></svg>',
+        warn: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215 200"><path fill="#ec7a40" d="M187.6098,199.4113H27.3938c-10.7441,0-19.3754-4.2385-23.6859-11.6313-4.3117-7.3926-3.7871-17.0494,1.4445-26.4856L85.9903,15.4977c5.2619-9.5051,13.0867-14.9533,21.4582-14.9533s16.1895,5.4414,21.4662,14.9381l80.9225,145.8271c5.2305,9.4363,5.7715,19.0859,1.4518,26.4775-4.3037,7.3926-12.942,11.6242-23.6791,11.6242h0ZM107.4565,15.8492c-2.6617,0-5.7107,2.6553-8.1824,7.102L18.4366,168.7631c-2.5328,4.5762-3.1258,8.6865-1.6129,11.2797,1.5143,2.5867,5.3687,4.0723,10.5701,4.0723h160.216c5.2096,0,9.057-1.4775,10.5701-4.0723,1.5047-2.5863.9199-6.6953-1.6197-11.2715L115.6387,22.951c-2.4644-4.4465-5.5285-7.1018-8.1822-7.1018Z"/><line x1="107.5" y1="54" x2="107.5" y2="124" stroke="#ec7a40" stroke-width="15" stroke-linecap="round"/><circle cx="107.5" cy="156" r="12" fill="#ec7a40"/></svg>',
+        info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#1296db" stroke-width="81" fill="none"/><line x1="512" y1="300" x2="512" y2="580" stroke="#1296db" stroke-width="81" stroke-linecap="round"/><circle cx="512" cy="720" r="47" fill="#1296db"/></svg>'
+    };
+
+    // ---- UI 状态 ----
+
+    let logPanelVisible = false;
+    let currentFilter = null; // null = 全部, 'error' | 'warn' | 'info'
+    /** 跟踪列表中已渲染的日志 ID，用于增量更新 */
+    let renderedLogIds = new Set();
+    /** 上次渲染的过滤器，用于判断是否需要全量重建 */
+    let lastFilter = undefined;
+
+    // ---- 悬浮按钮 ----
+
+    function updateLogFab() {
+        const fab = document.getElementById('logFab');
+        const counts = LogManager.getCounts();
+        const total = counts.error + counts.warn + counts.info;
+
+        if (total === 0) {
+            fab.style.display = 'none';
+            return;
+        }
+
+        fab.style.display = 'flex';
+        const highest = LogManager.getHighestLevel();
+        fab.style.borderColor = LEVEL_COLORS[highest];
+
+        let html = '';
+        for (const lv of LEVEL_ORDER) {
+            const count = counts[lv];
+            if (count === 0) continue;
+            const color = LEVEL_COLORS[lv];
+            const displayCount = count > 99 ? '99+' : count;
+            html += `<div class="log-fab-level">
+                ${LOG_ICONS[lv]}
+                <span class="log-fab-count" style="color:${color};background:${color}15;">${displayCount}</span>
+            </div>`;
+        }
+        fab.innerHTML = html;
+    }
+
+    // ---- 日志面板 ----
+
+    /** 创建单个日志条目 DOM 元素 */
+    function createLogItem(l) {
+        const item = document.createElement('div');
+        item.className = `log-panel-item level-${l.level}`;
+        item.dataset.logId = l.id;
+
+        const ts = document.createElement('span');
+        ts.className = 'log-timestamp';
+        ts.textContent = `[${l.formattedTime}]`;
+
+        const file = document.createElement('span');
+        file.className = 'log-file';
+        file.textContent = l.fileName;
+        file.title = l.fileName;
+
+        const reason = document.createElement('span');
+        reason.className = 'log-reason';
+        reason.textContent = `- ${l.reason}`;
+
+        item.append(ts, file, reason);
+        return item;
+    }
+
+    /** 清理 renderedLogIds 中已被 LogManager 移除的过期 ID */
+    function pruneRenderedIds(filteredLogs) {
+        const liveIds = new Set(filteredLogs.map(l => l.id));
+        for (const id of renderedLogIds) {
+            if (!liveIds.has(id)) renderedLogIds.delete(id);
+        }
+    }
+
+    function renderLogPanel(filterLevel) {
+        currentFilter = filterLevel;
+        const list = document.getElementById('logPanelList');
+        const stats = document.getElementById('logStats');
+        const filteredLogs = filterLevel ? LogManager.getByLevel(filterLevel) : logs;
+
+        // 过滤器变化 → 全量重建
+        if (filterLevel !== lastFilter) {
+            lastFilter = filterLevel;
+            renderedLogIds.clear();
+
+            if (filteredLogs.length === 0) {
+                list.innerHTML = '<div class="log-panel-empty">暂无日志</div>';
+            } else {
+                const frag = document.createDocumentFragment();
+                for (let i = filteredLogs.length - 1; i >= 0; i--) {
+                    frag.appendChild(createLogItem(filteredLogs[i]));
+                    renderedLogIds.add(filteredLogs[i].id);
+                }
+                list.innerHTML = '';
+                list.appendChild(frag);
+            }
+        } else {
+            // 同过滤器 → 增量追加新日志到顶部
+            pruneRenderedIds(filteredLogs);
+            const newLogs = filteredLogs.filter(l => !renderedLogIds.has(l.id));
+            if (newLogs.length === 0) {
+                renderStats(stats, filterLevel);
+                return;
+            }
+
+            const empty = list.querySelector('.log-panel-empty');
+            if (empty) empty.remove();
+
+            const frag = document.createDocumentFragment();
+            for (let i = newLogs.length - 1; i >= 0; i--) {
+                frag.appendChild(createLogItem(newLogs[i]));
+                renderedLogIds.add(newLogs[i].id);
+            }
+            list.insertBefore(frag, list.firstChild);
+
+            // 超出上限时移除底部旧 DOM 节点
+            while (list.children.length > MAX_LOGS) {
+                list.lastElementChild.remove();
+            }
+        }
+
+        renderStats(stats, filterLevel);
+    }
+
+    /** 渲染底部统计筛选按钮 */
+    function renderStats(statsEl, filterLevel) {
+        const counts = LogManager.getCounts();
+        statsEl.innerHTML = LEVEL_ORDER.map(lv => {
+            const color = LEVEL_COLORS[lv];
+            const active = filterLevel === lv ? ' active' : '';
+            return `<button class="log-stat-btn${active}" data-level="${lv}" style="color:${color};">
+                ${LOG_ICONS[lv]} ${counts[lv]}
+            </button>`;
+        }).join('');
+    }
+
+    function openLogPanel() {
+        logPanelVisible = true;
+        document.getElementById('logPanelOverlay').classList.add('open');
+        currentFilter = null;
+        lastFilter = undefined; // 强制全量重建
+        renderLogPanel(null);
+    }
+
+    function closeLogPanel() {
+        logPanelVisible = false;
+        document.getElementById('logPanelOverlay').classList.remove('open');
+    }
+
+    function toggleLogPanel() {
+        if (logPanelVisible) closeLogPanel();
+        else openLogPanel();
+    }
+
+    function clearAllLogs() {
+        LogManager.clear();
+        renderedLogIds.clear();
+        lastFilter = undefined;
+        updateLogFab();
+        if (logPanelVisible) {
+            renderLogPanel(null);
+            closeLogPanel();
+        }
+    }
+
+    // ---- 事件绑定（日志面板） ----
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const fab = document.getElementById('logFab');
+        const overlay = document.getElementById('logPanelOverlay');
+        const panel = document.getElementById('logPanel');
+
+        fab.addEventListener('click', toggleLogPanel);
+        document.getElementById('logPanelClose').addEventListener('click', closeLogPanel);
+        document.getElementById('logClearBtn').addEventListener('click', clearAllLogs);
+
+        // 点击遮罩关闭
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeLogPanel();
+        });
+
+        // ESC 关闭
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && logPanelVisible) closeLogPanel();
+        });
+
+        // 统计筛选按钮 — 事件委托，只绑定一次
+        document.getElementById('logStats').addEventListener('click', function(e) {
+            const btn = e.target.closest('.log-stat-btn');
+            if (!btn) return;
+            const lv = btn.dataset.level;
+            renderLogPanel(currentFilter === lv ? null : lv);
+        });
+
+        // 移动端右滑关闭
+        let touchStartX = 0;
+        panel.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        panel.addEventListener('touchmove', function(e) {
+            const dx = e.touches[0].clientX - touchStartX;
+            if (dx > 0) {
+                panel.style.transform = `translateX(${dx}px)`;
+                panel.style.transition = 'none';
+            }
+        }, { passive: true });
+        panel.addEventListener('touchend', function(e) {
+            panel.style.transition = '';
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (dx > 80) {
+                closeLogPanel();
+            }
+            panel.style.transform = '';
+        });
+    });
     
     // =============================================
     // 公共工具函数
@@ -4332,26 +4644,7 @@
         return validExtensions.some(ext => fileName.endsWith(ext));
     }
 
-    /**
-     * 清空错误日志
-     *
-     * 统一调用ErrorLogManager.clear()来清空所有错误日志数据和UI
-     */
-    function clearErrorLog() {
-        const errorLogContent = document.getElementById('errorLogContent');
-        const errorLogPanel = document.getElementById('errorLogPanel');
-        
-        // 调用ErrorLogManager统一清理所有日志数据和资源
-        ErrorLogManager.clear();
-        
-        // 清空DOM内容
-        errorLogContent.innerHTML = '';
-        
-        // 隐藏错误日志面板
-        errorLogPanel.style.display = 'none';
-        
-        console.log('✅ 错误日志已清空并释放相关资源');
-    }
+    // clearErrorLog 已移除，使用新的 clearAllLogs() 函数（见日志系统部分）
 
     // =============================================
     // 透明检测
@@ -4611,9 +4904,7 @@
         }
     });
 
-    // 清空错误日志按钮事件
-    document.getElementById('clearErrorLog').addEventListener('click', clearErrorLog);
-
+    // 日志相关事件绑定已移至 LogManager 区域（DOMContentLoaded 内）
     // 按钮事件绑定
     document.getElementById('select-all').addEventListener('click', selectAll);
     document.getElementById('clear-selection').addEventListener('click', clearSelection);
