@@ -10,6 +10,12 @@
     <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
     <!-- 通用 CDN 回退加载函数 -->
     <script>
+        // 早期日志存根 — 在日志系统初始化前安全降级到 console
+        function logLog(...args) { console.log(...args); }
+        function logInfo(fileName, reason, metadata) { console.info('[INFO] ' + fileName + ' - ' + reason, metadata || {}); }
+        function logWarn(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); }
+        function logError(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); }
+
         function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, onAllFailed) {
             function load(cdnUrl, index = 0) {
                 if (stateObj.loaded || stateObj.loading) return;
@@ -2248,13 +2254,20 @@
             // 清理旧的 onclick
             indicator.onclick = null;
 
+            // 清理旧的 touch 滚动监听器（无论当前屏幕尺寸，防止旧监听器残留）
+            if (cacheIndicatorTouchListeners) {
+                document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
+                document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
+                cacheIndicatorTouchListeners = null;
+            }
+
             // 移动端点击事件
             if (window.innerWidth <= 768) {
                 indicator.onclick = function(e) {
                     e.stopPropagation();
                     // 切换气泡显示
                     this.classList.toggle('tooltip-active');
-                    
+
                     // 重新绑定全局点击监听，确保每次打开都能正确关闭
                     if (mobileTooltipListener) {
                         document.removeEventListener('click', mobileTooltipListener);
@@ -2272,11 +2285,6 @@
                     }, 0);
                 };
 
-                // 清理旧的 touch 滚动监听器，防止重复绑定
-                if (cacheIndicatorTouchListeners) {
-                    document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
-                    document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
-                }
                 // 移动端滑动页面时关闭气泡
                 cacheIndicatorTouchListeners = addTouchScrollDismiss(indicator);
             }
@@ -2528,6 +2536,7 @@
 
     function updateLogFab() {
         const fab = document.getElementById('logFab');
+        if (!fab) return; // DOM 尚未加载完成，跳过更新
         const counts = LogManager.getCounts();
         const total = counts.error + counts.warn + counts.info;
 
@@ -2780,6 +2789,8 @@
             const url = img.dataset.blobUrl;
             if (url && url.startsWith('blob:')) {
                 URL.revokeObjectURL(url);
+                img.src = ''; // 释放 Blob 引用，避免内存残留
+                delete img.dataset.blobUrl;
             }
         });
     }
@@ -5059,13 +5070,18 @@
 
         const loadPromises = images.map((imgData, index) => {
             return new Promise((resolve) => {
-                storage.get(`current_${imgData.id}`).then(blob => {
+                // 对 storage.get 添加超时，防止存储层永久 pending
+                const storagePromise = storage.get(`current_${imgData.id}`);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('存储读取超时')), 8000)
+                );
+                Promise.race([storagePromise, timeoutPromise]).then(blob => {
                     if (!blob) throw new Error(`图片数据不存在：${imgData.name}`);
 
                     const blobUrl = URL.createObjectURL(blob);
                     const img = document.createElement('img');
                     img.src = blobUrl;
-                    img.alt = imgData.name || `图片 ${index + 1}`;
+                    img.alt = escapeHtml(imgData.name) || `图片 ${index + 1}`;
                     img.dataset.imageId = imgData.id;
                     img.dataset.index = index.toString();
                     img.dataset.blobUrl = blobUrl;
@@ -5099,7 +5115,7 @@
                     logError(imgData.name, `图片获取异常：${err?.message || err}`);
                     const img = document.createElement('img');
                     img.src = PLACEHOLDER_SRC;
-                    img.alt = imgData.name || `图片 ${index + 1}`;
+                    img.alt = escapeHtml(imgData.name) || `图片 ${index + 1}`;
                     img.dataset.imageId = imgData.id;
                     img.dataset.index = index.toString();
                     imgElements[index] = img;
