@@ -2471,28 +2471,32 @@
     // ---- 日志 API（同步 UI 面板 + 控制台）----
 
     function logError(fileName, reason, metadata = {}) {
+        if (!shouldOutputLog('error')) return;
         LogManager.add(fileName, reason, 'error', metadata);
-        if (shouldOutputLog('error')) _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
+        _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logWarn(fileName, reason, metadata = {}) {
+        if (!shouldOutputLog('warn')) return;
         LogManager.add(fileName, reason, 'warn', metadata);
-        if (shouldOutputLog('warn')) _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
+        _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logInfo(fileName, reason, metadata = {}) {
+        if (!shouldOutputLog('info')) return;
         LogManager.add(fileName, reason, 'info', metadata);
-        if (shouldOutputLog('info')) _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
+        _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logLog(...args) {
-        if (shouldOutputLog('log')) _origConsoleLog(...args);
+        if (!shouldOutputLog('log')) return;
+        _origConsoleLog(...args);
     }
 
     // ---- SVG 图标内联 ----
