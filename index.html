@@ -626,8 +626,6 @@
             flex: 0 0 auto;
         }
 
-
-
         /* 列表管理按钮容器 */
         .list-management-container {
             display: flex;
@@ -2041,21 +2039,14 @@
 
                 // 检查是否为图片文件（扩展名）
                 const ext = filename.split('.').pop()?.toLowerCase();
-                const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'svg'];
-                if (!imageExts.includes(ext)) continue;
+                if (!VALID_EXTENSIONS.includes(ext)) continue;
 
                 // 提取文件名（去掉路径前缀）
                 const baseName = filename.split('/').pop();
                 if (!baseName) continue;
 
                 try {
-                    // MIME 类型映射表
-                    const mimeMap = {
-                        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-                        gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
-                        tiff: 'image/tiff', svg: 'image/svg+xml'
-                    };
-                    const mime = mimeMap[ext] || 'application/octet-stream';
+                    const mime = MIME_MAP[ext] || 'application/octet-stream';
                     
                     // 创建 Blob 并转换为 File 对象
                     const blob = new Blob([fileData], { type: mime });
@@ -2068,8 +2059,7 @@
             }
 
             if (imageFiles.length === 0) {
-                statusDiv.innerHTML = '⚠️ ZIP 文件中未找到支持的图片格式';
-                setTimeout(() => statusDiv.innerHTML = '', 3000);
+                showTempStatus('⚠️ ZIP 文件中未找到支持的图片格式', 3000);
                 return { added: 0, errors };
             }
 
@@ -2083,7 +2073,7 @@
                     added++;
                     // 更新进度
                     const progress = Math.round((i + 1) / imageFiles.length * 100);
-                    statusDiv.innerHTML = `正在添加图片 ${i + 1}/${imageFiles.length} (${progress}%)<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+                    statusDiv.innerHTML = `正在添加图片 ${i + 1}/${imageFiles.length} (${progress}%)${progressBarHTML(progress)}`;
                     await new Promise(resolve => setTimeout(resolve, 0));
                 } catch (e) {
                     errors.push({ name: imageFiles[i].name, error: e.message });
@@ -2091,14 +2081,12 @@
                 }
             }
 
-            statusDiv.innerHTML = `✅ 已从 ZIP 添加 ${added} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus(`✅ 已从 ZIP 添加 ${added} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
 
             return { added, errors };
 
         } catch (error) {
-            statusDiv.innerHTML = `❌ ZIP 解压失败: ${error.message}`;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus(`❌ ZIP 解压失败: ${error.message}`, 3000);
             logError(zipFile.name, `ZIP 解压失败: ${error.message}`);
             return { added: 0, errors: [{ name: zipFile.name, error: error.message }] };
         }
@@ -2113,20 +2101,14 @@
         // 防御性检测：检查 fflate 是否可用
         if (typeof fflate === 'undefined') {
             logError('fflate', 'fflate 未加载，ZIP 打包功能不可用');
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '❌ ZIP 打包功能不可用（fflate 库未加载）';
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus('❌ ZIP 打包功能不可用（fflate 库未加载）', 3000);
             return;
         }
-        
-        const targetIds = selectedImages.size > 0
-            ? Array.from(selectedImages)
-            : images.map(img => img.id);
+
+        const targetIds = getTargetImageIds();
 
         if (targetIds.length === 0) {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '⚠️ 请先选择图片';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('⚠️ 请先选择图片');
             return;
         }
 
@@ -2181,7 +2163,7 @@
 
                 // 更新进度
                 const progress = Math.round((i + 1) / targetIds.length * 100);
-                statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} (${progress}%)<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+                statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHTML(progress)}`;
                 await new Promise(resolve => setTimeout(resolve, 0));
 
             } catch (error) {
@@ -2191,8 +2173,7 @@
         }
 
         if (successCount === 0) {
-            statusDiv.innerHTML = `❌ 打包失败，没有可用的图片`;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus('❌ 打包失败，没有可用的图片', 3000);
             return;
         }
 
@@ -2220,12 +2201,10 @@
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
             downloadBlob(zipBlob, `混淆图片_${timestamp}.zip`);
 
-            statusDiv.innerHTML = `✅ 打包完成，已下载 ${successCount} 张图片${failureCount ? `，${failureCount} 张失败` : ''}`;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus(`✅ 打包完成，已下载 ${successCount} 张图片${failureCount ? `，${failureCount} 张失败` : ''}`, 3000);
 
         } catch (error) {
-            statusDiv.innerHTML = `❌ ZIP 创建失败: ${error.message}`;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus(`❌ ZIP 创建失败: ${error.message}`, 3000);
             logError('ZIP打包', `创建失败: ${error.message}`);
         }
     }
@@ -2732,6 +2711,57 @@
     // 公共工具函数
     // =============================================
 
+    // ---- 共享常量 ----
+
+    /** 扩展名 → MIME 类型映射 */
+    const MIME_MAP = {
+        jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+        gif: 'image/gif', webp: 'image/webp', bmp: 'image/bmp',
+        tiff: 'image/tiff', svg: 'image/svg+xml'
+    };
+    /** 有效图片扩展名列表 */
+    const VALID_EXTENSIONS = Object.keys(MIME_MAP);
+    /** 有效 MIME 类型列表 */
+    const VALID_MIME_TYPES = [...new Set(Object.values(MIME_MAP))];
+
+    // ---- 共享工具函数 ----
+
+    /** 检查 localStorage 是否可用于非保护键 */
+    function isStorageEnabledForKey(key) {
+        return key === 'localStorageEnabled' || localStorageEnabled;
+    }
+
+    /** 获取当前操作的目标图片 ID 列表（优先选中，否则全部） */
+    function getTargetImageIds() {
+        return selectedImages.size > 0
+            ? Array.from(selectedImages)
+            : images.map(img => img.id);
+    }
+
+    /** 在 batchStatus 区域显示临时消息，默认 2 秒后清除 */
+    function showTempStatus(message, duration = 2000) {
+        const statusDiv = document.getElementById('batchStatus');
+        statusDiv.innerHTML = message;
+        setTimeout(() => { statusDiv.innerHTML = ''; }, duration);
+    }
+
+    /** 生成进度条 HTML 片段 */
+    function progressBarHTML(progress) {
+        return `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+    }
+
+    /** 释放容器中所有图片元素的 Blob URL */
+    function revokeBlobUrlsInContainer(container) {
+        if (!container) return;
+        const imgs = container.querySelectorAll('img');
+        imgs.forEach(img => {
+            const url = img.dataset.blobUrl;
+            if (url && url.startsWith('blob:')) {
+                URL.revokeObjectURL(url);
+            }
+        });
+    }
+
     /** 触发浏览器下载 Blob */
     function downloadBlob(blob, fileName) {
         const url = URL.createObjectURL(blob);
@@ -2755,15 +2785,15 @@
 
     /** 显示批量操作结果状态消息 */
     function showBatchStatus(successCount, failureCount, actionVerb) {
-        const statusDiv = document.getElementById('batchStatus');
+        let message;
         if (failureCount === 0) {
-            statusDiv.innerHTML = `✅ 全部${actionVerb}成功 (${successCount} 张)`;
+            message = `✅ 全部${actionVerb}成功 (${successCount} 张)`;
         } else if (successCount === 0) {
-            statusDiv.innerHTML = `❌ 全部${actionVerb}失败 (${failureCount} 张)`;
+            message = `❌ 全部${actionVerb}失败 (${failureCount} 张)`;
         } else {
-            statusDiv.innerHTML = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
+            message = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
         }
-        setTimeout(() => statusDiv.innerHTML = '', 3000);
+        showTempStatus(message, 3000);
     }
 
     /** 校验 RGB 输入值（钳位到 0-255），返回数值 */
@@ -2825,11 +2855,11 @@
     }
 
     function saveSetting(key, value) {
-        if (key !== 'localStorageEnabled' && !localStorageEnabled) return;
+        if (!isStorageEnabledForKey(key)) return;
         try { localStorage.setItem(key, value); } catch (e) {}
     }
     function loadSetting(key) {
-        if (key !== 'localStorageEnabled' && !localStorageEnabled) return null;
+        if (!isStorageEnabledForKey(key)) return null;
         try { return localStorage.getItem(key); } catch (e) { return null; }
     }
 
@@ -2939,9 +2969,7 @@
             }
 
             // 显示提示信息
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus(currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）');
         } finally {
             isSwitchingViewMode = false;
         }
@@ -3390,9 +3418,7 @@
         canvasPoolBySize.clear();
         console.log('已清理所有Canvas池');
     }
-    
 
-    
     // =============================================
     // 图片格式转换函数
     // =============================================
@@ -3848,14 +3874,10 @@
         if (isProcessing) return;
 
         // 确定目标图片ID：优先使用选中的图片，否则处理所有图片
-        const targetIds = selectedImages.size > 0
-            ? Array.from(selectedImages)
-            : images.map(img => img.id);
+        const targetIds = getTargetImageIds();
 
         if (targetIds.length === 0) {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '⚠️ 请先选择图片';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('⚠️ 请先选择图片');
             return;
         }
 
@@ -3866,7 +3888,7 @@
         // 统计成功和失败数量
         let successCount = 0;
         let failureCount = 0;
-        
+
         try {
             for (let i = 0; i < targetIds.length; i++) {
                 const imageId = targetIds[i];
@@ -3887,12 +3909,7 @@
 
                     // 更新进度显示
                     const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `
-                    正在处理 ${i + 1}/${targetIds.length} 张图片 (${progress}%)
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${progress}%"></div>
-                    </div>
-                `;
+                    statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} 张图片 (${progress}%)${progressBarHTML(progress)}`;
 
                     // 让出控制权，避免阻塞UI
                     await new Promise(resolve => setTimeout(resolve, 0));
@@ -3902,8 +3919,7 @@
             showBatchStatus(successCount, failureCount, '处理');
         } catch (error) {
             logError('批量处理', `批量处理失败: ${error.message || error}`);
-            statusDiv.innerHTML = '❌ 处理失败';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('❌ 处理失败');
         } finally {
             isProcessing = false;
         }
@@ -3933,20 +3949,16 @@
             await saveImagesAsZip(format);
         } else {
             // 原有的逐个下载逻辑
-            const targetIds = selectedImages.size > 0
-                ? Array.from(selectedImages)
-                : images.map(img => img.id);
+            const targetIds = getTargetImageIds();
 
             if (targetIds.length === 0) {
-                const statusDiv = document.getElementById('batchStatus');
-                statusDiv.innerHTML = '⚠️ 请先选择图片';
-                setTimeout(() => statusDiv.innerHTML = '', 2000);
+                showTempStatus('⚠️ 请先选择图片');
                 return;
             }
 
             let successCount = 0;
             let failureCount = 0;
-            
+
             const statusDiv = document.getElementById('batchStatus');
             statusDiv.innerHTML = `<div class="loading"></div> 正在保存 ${targetIds.length} 张图片...`;
 
@@ -3969,15 +3981,14 @@
 
                     // 更新进度
                     const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `正在保存 ${i + 1}/${targetIds.length} (${progress}%)<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+                    statusDiv.innerHTML = `正在保存 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHTML(progress)}`;
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
                 showBatchStatus(successCount, failureCount, '保存');
             } catch (error) {
                 logError('批量保存', `保存失败: ${error.message || error}`);
-                statusDiv.innerHTML = '❌ 保存失败';
-                setTimeout(() => statusDiv.innerHTML = '', 2000);
+                showTempStatus('❌ 保存失败');
             }
         }
     }
@@ -4133,8 +4144,9 @@
         item.appendChild(thumbnailContainer);
         
         // 获取状态文本和样式
-        const statusText = getStatusInfo(imageData.scrambleLevel).text;
-        const statusClass = getStatusInfo(imageData.scrambleLevel).className;
+        const statusInfo = getStatusInfo(imageData.scrambleLevel);
+        const statusText = statusInfo.text;
+        const statusClass = statusInfo.className;
         
         // 创建信息区域
         const infoDiv = document.createElement('div');
@@ -4234,10 +4246,9 @@
             
         // 更新状态徽章（基于 scrambleLevel）
         if (cache.statusBadge) {
-            const newStatusText = getStatusInfo(imageData.scrambleLevel).text;
-            const newStatusClass = getStatusInfo(imageData.scrambleLevel).className;
-            cache.statusBadge.className = `status-badge ${newStatusClass}`;
-            cache.statusBadge.textContent = newStatusText;
+            const statusInfo = getStatusInfo(imageData.scrambleLevel);
+            cache.statusBadge.className = `status-badge ${statusInfo.className}`;
+            cache.statusBadge.textContent = statusInfo.text;
         }
     }
 
@@ -4369,9 +4380,7 @@
             
         // 如果没有选中的图片，提示用户
         if (selectedImages.size === 0) {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '⚠️ 请先选择要删除的图片';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('⚠️ 请先选择要删除的图片');
             return;
         }
             
@@ -4454,8 +4463,6 @@
             return;
         }
 
-        const statusDiv = document.getElementById('batchStatus');
-        
         let overlay = null;
         try {
             if (operation === 'save') {
@@ -4466,13 +4473,11 @@
 
                 await processSingleImage(imageData, operation);
 
-                statusDiv.innerHTML = `✅ "${imageData.name}" 处理完成`;
-                setTimeout(() => statusDiv.innerHTML = '', 2000);
+                showTempStatus(`✅ "${imageData.name}" 处理完成`);
             }
         } catch (error) {
             logError(imageData.name, `处理失败: ${error.message || error}`);
-            statusDiv.innerHTML = `❌ "${imageData.name}" 处理失败`;
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus(`❌ "${imageData.name}" 处理失败`);
         } finally {
             overlay?.remove();
             isProcessing = false;
@@ -4500,13 +4505,11 @@
 
         try {
             await saveImageInFormat(imageData, format);
-            
-            statusDiv.innerHTML = `✅ "${imageData.name}" 保存完成`;
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+
+            showTempStatus(`✅ "${imageData.name}" 保存完成`);
         } catch (error) {
             logError(imageData.name, `保存失败: ${error.message || error}`);
-            statusDiv.innerHTML = `❌ "${imageData.name}" 保存失败`;
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus(`❌ "${imageData.name}" 保存失败`);
         }
     }
 
@@ -4600,9 +4603,7 @@
         }
 
         if (message) {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = message;
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus(message, 3000);
         }
     }
 
@@ -4616,30 +4617,10 @@
      * 检查文件的MIME类型和扩展名来确定是否为图片
      */
     function isValidImageFile(file) {
-        // 检查MIME类型
-        const validMimeTypes = [
-            'image/jpeg',
-            'image/jpg',
-            'image/png',
-            'image/gif',
-            'image/webp',
-            'image/svg+xml',
-            'image/bmp',
-            'image/tiff'
-        ];
-
-        if (validMimeTypes.includes(file.type.toLowerCase())) {
-            return true;
-        }
-
-        // 检查文件扩展名
+        if (VALID_MIME_TYPES.includes(file.type.toLowerCase())) return true;
         const fileName = file.name.toLowerCase();
-        const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.tiff', '.svg'];
-
-        return validExtensions.some(ext => fileName.endsWith(ext));
+        return VALID_EXTENSIONS.some(ext => fileName.endsWith('.' + ext));
     }
-
-    // clearErrorLog 已移除，使用新的 clearAllLogs() 函数（见日志系统部分）
 
     // =============================================
     // 透明检测
@@ -4916,9 +4897,7 @@
     });
 
     // 使用 Viewer.js 的 showPreview 函数
-    
-    // 图片预加载管理器已被移除（取消按需加载功能）
-    
+
     /**
      * 按照 Viewer.js 最佳实践实现的图片预览功能
      * @param {string} imageId - 要预览的图片 ID
@@ -4943,13 +4922,7 @@
         // 1. 彻底清理所有残留预览容器和实例（含 Blob URL）
         const existingContainers = document.querySelectorAll('.image-gallery-container');
         existingContainers.forEach(container => {
-            const imgs = container.querySelectorAll('img');
-            imgs.forEach(img => {
-                const url = img.dataset.blobUrl;
-                if (url && url.startsWith('blob:')) {
-                    URL.revokeObjectURL(url);
-                }
-            });
+            revokeBlobUrlsInContainer(container);
             if (container.parentNode) container.parentNode.removeChild(container);
         });
         cleanupExistingViewer();
@@ -5371,14 +5344,7 @@
                 container._timeoutIds = null;
             }
             // 释放所有临时 blob URL
-            const imgs = container.querySelectorAll('img');
-            imgs.forEach(img => {
-                const url = img.dataset.blobUrl;
-                if (url && url.startsWith('blob:')) {
-                    URL.revokeObjectURL(url);
-                    console.log(`已释放临时 Blob URL`);
-                }
-            });
+            revokeBlobUrlsInContainer(container);
             container.parentNode.removeChild(container);
         }
         console.log('Viewer.js 资源已清理');
@@ -5476,9 +5442,7 @@
     async function refreshAllThumbnails() {
         // 列表模式下不执行缩略图刷新
         if (currentViewMode === 'list') {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = 'ℹ️ 当前为列表模式，不显示缩略图，无需刷新';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('ℹ️ 当前为列表模式，不显示缩略图，无需刷新');
             return;
         }
         
@@ -5492,9 +5456,7 @@
         
         // 检查是否有图片
         if (images.length === 0) {
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = '⚠️ 没有图片需要刷新';
-            setTimeout(() => statusDiv.innerHTML = '', 2000);
+            showTempStatus('⚠️ 没有图片需要刷新');
             return;
         }
         
@@ -5538,7 +5500,7 @@
                 
                 // 更新进度显示
                 const progress = Math.round((i + 1) / totalCount * 100);
-                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)${progressBarHTML(progress)}`;
                 
                 // 让出控制权，避免阻塞UI
                 await new Promise(resolve => setTimeout(resolve, 10));
@@ -5549,8 +5511,7 @@
             logInfo('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
             logError('缩略图刷新', `刷新缩略图过程出错: ${error.message || error}`);
-            statusDiv.innerHTML = ' 刷新缩略图失败';
-            setTimeout(() => statusDiv.innerHTML = '', 3000);
+            showTempStatus('❌ 刷新缩略图失败', 3000);
         } finally {
             isRefreshingThumbnails = false;
             // 恢复按钮状态
@@ -5857,6 +5818,18 @@
         doc.body.appendChild(container);
     }
     
+    /** 解析 rgb(r,g,b) 字符串，返回 {r,g,b} 或 null */
+    function normalizeRgb(input) {
+        const regex = /rgb\(\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*\)/;
+        const match = input.match(regex);
+        if (!match) return null;
+        const toInteger = (value) => {
+            if (value.endsWith('%')) return Math.round(parseFloat(value) * 2.55);
+            return parseInt(value, 10);
+        };
+        return { r: toInteger(match[1]), g: toInteger(match[2]), b: toInteger(match[3]) };
+    }
+
     // 页面加载完成后绑定事件
     document.addEventListener('DOMContentLoaded', function() {
         // 全局 resize 监听：窗口大小改变时更新 Viewer 布局（带防抖）
@@ -6030,27 +6003,6 @@
             
             // 失焦时同步所有输入框
             hexInput.addEventListener('blur', updateColorInputs);
-        }
-        
-        // RGB粘贴检测函数
-        function normalizeRgb(input) {
-            const regex = /rgb\(\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*[, ]\s*(\d{1,3}%?)\s*\)/;
-            const match = input.match(regex);
-            
-            if (!match) return null;
-            
-            const toInteger = (value) => {
-                if (value.endsWith('%')) {
-                    return Math.round(parseFloat(value) * 2.55);
-                }
-                return parseInt(value, 10);
-            };
-            
-            return {
-                r: toInteger(match[1]),
-                g: toInteger(match[2]),
-                b: toInteger(match[3])
-            };
         }
         
         // 为所有RGB输入框添加粘贴事件监听
