@@ -52,7 +52,7 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 3. 双击文件，使用任意现代浏览器打开即可使用
 
 ### 三、在线预览（GitHub Pages）
-直接访问在线地址：`https://cnpxs1.github.io/Image-obfuscation-tool/`
+直接访问在线地址：<https://cnpxs1.github.io/Image-obfuscation-tool/>
 
 **温馨提示**：工具不兼容 IE 等老旧浏览器；处理 4K 及以上超大分辨率图片时，处理速度受设备 CPU/内存性能影响，请耐心等待运算完成。
 
