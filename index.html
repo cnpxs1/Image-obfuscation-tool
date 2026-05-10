@@ -1639,7 +1639,7 @@
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
                                 <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</span>
-                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
+                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
                                     <option value="off">off</option>
                                     <option value="error">error</option>
                                     <option value="warn">warn</option>
@@ -2926,7 +2926,7 @@
     
     /**
      * 获取占位符 SVG
-     * ./img/icons/placeholder.svg
+     * ./img/placeholder.svg
      * @returns {string} SVG 字符串
      */
     function getPlaceholderSVG() {
@@ -5040,6 +5040,8 @@
         const timeoutIds = [];
         container._timeoutIds = timeoutIds;
 
+        const PLACEHOLDER_SRC = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pgo8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDIwMCAyMDAiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj4KICA8cGF0aCBmaWxsPSIjNTE1MTUxIiBkPSJNOTMuMTI1LDg1bDM2LjI1LTYxLjg3NUgxNWMtOC4xMjUsMC0xNSw2Ljg3NS0xNSwxNS42MjV2MTIyLjVjMCw4LjEyNSw2Ljg3NSwxNSwxNSwxNWw4MC44MzE1LjAwODQsMjkuNzkzNS01My43NTg0LTMyLjUtMzcuNWgwWk0xNSwzNWg5My4xMjVsLTMwLjYyNSw1MS44NzUsMzAuNjI1LDM1Yy0xMi41LDguMTI1LTIyLjUsOC4xMjUtMzUuNjI1LTEuMjUtMjIuNS0xNS00OC4xMjUsMi41LTYxLjI1LDE1VjM4Ljc1Yy4wMDg0LTEuOTkxNiwxLjg3NS0zLjc1LDMuNzUtMy43NVpNODMuMTI1LDE2NUgxNWMtMS44NzUsMC0zLjc1LTEuODc1LTMuNzUtMy43NXYtMTMuMTI1YzguMTI1LTguMTI1LDM1LTMzLjc1LDU2LjI1LTIwLDEyLjUsOC4xMjUsMjguNDY2MywxMi43NDAyLDQzLjAyODEsMS41NDkybC0yMC4zMjE2LDM1LjMzNDMtNy4wODE1LS4wMDg0Wk0xODUsMjMuMTI1aC00MS4yNWwtMzYuODc1LDU4Ljc1LDMzLjEyNSwzNy41LTMwLjY1MTcsNTYuODgzNCw3NS42NTE3LS4wMDg0YzguMTI1LDAsMTUtNi44NzUsMTUtMTVWMzguNzVjMC04Ljc1LTYuODc1LTE1LjYyNS0xNS0xNS42MjVoMFpNMTUwLjYyNSwzNWgzNC4zNzVjMS44NzUsMCwzLjc1LDEuODc1LDMuNzUsMy43NXY2MS44NzVjLTkuMzc1LTkuMzc1LTE5LjM3NS0xNS42MjUtMjguMTI1LTE2LjI1LTUuNjI1LS42MjUtMTEuMjUsMS4yNS0xNS42MjUsNWwtOC4xMjUsOC4xMjUtMTUtMTYuODc1LDI4Ljc1LTQ1LjYyNWgwWk0xODUsMTY1aC01Ni4yNWwyNS4zMjg2LTQ3LjE5MS0xMC45NTM3LTEzLjQzNCw4Ljc1LTguMTI1YzIuNS0xLjg3NSw1LTMuMTI1LDguMTI1LTIuNSw4Ljc1LjYyNSwyMCw5LjM3NSwyOC43NSwyMS4yNXY0Ni4yNWMtLjAxOTcsMS43Mjc1LTEuODc1LDMuNzUtMy43NSwzLjc1aDBaIi8+CiAgPGNpcmNsZSBjeD0iNDQuMzc1IiBjeT0iNjguNzUiIHI9IjE0LjA2MjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzUxNTE1MSIgc3Ryb2tlLXdpZHRoPSI5LjM3NSIvPgo8L3N2Zz4=';
+
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
         logLog(`开始创建图片元素，共 ${images.length} 张`);
@@ -5063,9 +5065,8 @@
                     logLog(`[索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
-                        logWarn(imgData.name, '图片加载超时，使用占位图');
-                        // 创建占位图并 resolve，确保数组完整
-                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgVGltZW91dDwvdGV4dD48L3N2Zz4=';
+                        logError(imgData.name, '图片加载超时，使用占位图');
+                        img.src = PLACEHOLDER_SRC;
                         resolve(img);
                     }, 5000);
                     timeoutIds.push(timeoutId);
@@ -5079,20 +5080,9 @@
                     img.onerror = () => {
                         clearTimeout(timeoutId);
                         logError(imgData.name, '图片加载失败');
-                        // 显示占位图并继续
-                        img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
-                        resolve(img); // 即使失败也继续
+                        img.src = PLACEHOLDER_SRC;
+                        resolve(img);
                     };
-                }).catch(error => {
-                    logError(imgData.name, `图片加载异常: ${error.message || error}`);
-                    // 创建占位图并 resolve，确保数组完整
-                    const placeholderImg = document.createElement('img');
-                    placeholderImg.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJtaWRkbGUiPkxvYWQgRXJyb3I8L3RleHQ+PC9zdmc+';
-                    placeholderImg.alt = imgData.name || `图片 ${index + 1}`;
-                    placeholderImg.dataset.imageId = imgData.id;
-                    placeholderImg.dataset.index = index.toString();
-                    imgElements[index] = placeholderImg;
-                    resolve(placeholderImg);
                 });
             });
         });
