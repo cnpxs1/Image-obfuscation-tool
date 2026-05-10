@@ -21,7 +21,7 @@
                     if (window[globalName] !== undefined) {
                         stateObj.loaded = true;
                         stateObj.loading = false;
-                        console.log(globalName + ' 加载成功:', cdnUrl);
+                        logLog(globalName + ' 加载成功:', cdnUrl);
                     } else {
                         logWarn(globalName, '脚本加载但未定义，视为失败');
                         stateObj.loading = false;
@@ -1089,7 +1089,7 @@
                     if (window.viewerResources.jsLoaded && window.viewerResources.cssLoaded) {
                         // 额外验证 Viewer 构造函数是否真正可用
                         if (window.hasOwnProperty('Viewer') && window.Viewer) {
-                            console.log('Viewer.js 资源加载完成且 Viewer 构造函数可用');
+                            logLog('Viewer.js 资源加载完成且 Viewer 构造函数可用');
                             resolve();
                             return true;
                         } else {
@@ -1143,7 +1143,7 @@
                 
                 if (failedCDN === 'bootcdn') {
                     // 从bootcdn降级到cdnjs - 动态创建链接
-                    console.log('尝试加载 cdnjs CSS');
+                    logLog('尝试加载 cdnjs CSS');
                     const cdnjsCss = document.createElement('link');
                     cdnjsCss.id = 'viewer-css-cdnjs';
                     cdnjsCss.rel = 'stylesheet';
@@ -1152,7 +1152,7 @@
                         if(window.viewerResources) {
                             window.viewerResources.cssLoaded = true; 
                             window.viewerResources.currentCDN = 'cdnjs';
-                            console.log('cdnjs CSS 加载成功');
+                            logLog('cdnjs CSS 加载成功');
                         }
                     };
                     cdnjsCss.onerror = () => {
@@ -1181,7 +1181,7 @@
                 
                 if (failedCDN === 'bootcdn') {
                     // 从bootcdn降级到cdnjs
-                    console.log('尝试加载 cdnjs JS');
+                    logLog('尝试加载 cdnjs JS');
                     loadCDNJSViewerJs();
                 } else {
                     // cdnjs也失败了，加载本地资源
@@ -1194,13 +1194,13 @@
         function loadCDNJSViewerJs() {
             if (window.viewerResources.localFallback) return;
             
-            console.log('尝试加载 cdnjs Viewer.js JS');
+            logLog('尝试加载 cdnjs Viewer.js JS');
             const cdnjsScript = document.createElement('script');
             cdnjsScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js';
             cdnjsScript.onload = () => {
                 window.viewerResources.jsLoaded = true;
                 window.viewerResources.currentCDN = 'cdnjs';
-                console.log('cdnjs Viewer.js JS 加载成功');
+                logLog('cdnjs Viewer.js JS 加载成功');
                 // 清除超时定时器
                 if (window.viewerResources.jsTimeout) {
                     clearTimeout(window.viewerResources.jsTimeout);
@@ -1243,7 +1243,7 @@
             localCss.onload = () => {
                 window.viewerResources.cssLoaded = true;
                 window.viewerResources.currentCDN = 'local';
-                console.log('本地 Viewer.js CSS 加载成功');
+                logLog('本地 Viewer.js CSS 加载成功');
             };
             localCss.onerror = () => handleViewerResourceFailure('CSS');
             document.head.appendChild(localCss);
@@ -1257,7 +1257,7 @@
             localJs.onload = () => {
                 window.viewerResources.jsLoaded = true;
                 window.viewerResources.currentCDN = 'local';
-                console.log('本地 Viewer.js JS 加载成功');
+                logLog('本地 Viewer.js JS 加载成功');
                 if (window.viewerResources.jsTimeout) {
                     clearTimeout(window.viewerResources.jsTimeout);
                     window.viewerResources.jsTimeout = null;
@@ -1269,7 +1269,7 @@
 
                 // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
         function showBasicImageViewer(imageData) {
-            console.log('启动基础图片查看器');
+            logLog('启动基础图片查看器');
             
             // 清理可能存在的旧实例
             const existingViewer = document.querySelector('[data-basic-viewer]');
@@ -1390,7 +1390,7 @@
                 imgContainer.style.maxWidth = maxW + 'px';
                 imgContainer.style.maxHeight = maxH + 'px';
                 img.style.cursor = img.naturalWidth * img.naturalHeight > maxW * maxH ? 'zoom-out' : 'default';
-                console.log('基础查看器：图片加载完成');
+                logLog('基础查看器：图片加载完成');
             };
             
             img.onerror = () => {
@@ -1424,7 +1424,7 @@
                     if (img.src && img.src.startsWith('blob:')) {
                         try {
                             URL.revokeObjectURL(img.src);
-                            console.log('已释放基础查看器的 Blob URL');
+                            logLog('已释放基础查看器的 Blob URL');
                         } catch (error) {
                             logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
                         }
@@ -1439,7 +1439,7 @@
                     closeBtn.onmouseleave = null;
                 }
                             
-                console.log('基础查看器已关闭并清理资源');
+                logLog('基础查看器已关闭并清理资源');
             }
             
             // 绑定关闭事件
@@ -1484,7 +1484,7 @@
             img.onclick = (e) => e.stopPropagation();
             imgContainer.onclick = (e) => e.stopPropagation();
             
-            console.log('基础图片查看器启动成功');
+            logLog('基础图片查看器启动成功');
         }
         
         // 检查 Viewer.js 是否已加载
@@ -1638,11 +1638,14 @@
                                 </label>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">调试模式</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="debug-mode-toggle" class="setting-switch" />
-                                    <span class="toggle-slider"></span>
-                                </label>
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</span>
+                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
+                                    <option value="off">off</option>
+                                    <option value="error">error</option>
+                                    <option value="warn">warn</option>
+                                    <option value="info" selected>info</option>
+                                    <option value="log">log</option>
+                                </select>
                             </div>
                             <button id="clear-localstorage-btn" style="font-size: 1rem; color: #fff; background: #ff0000; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; align-self: flex-start;">清除配置</button>
                         </div>
@@ -1820,7 +1823,7 @@
             try {
                 canvas.toBlob((blob) => {
                     const supported = blob !== null;
-                    console.log(`WebP 支持检测: ${supported ? '支持' : '不支持'}`);
+                    logLog(`WebP 支持检测: ${supported ? '支持' : '不支持'}`);
                     resolve(supported);
                 }, 'image/webp');
             } catch (e) {
@@ -1850,7 +1853,7 @@
             });
             
             if (cleanedCount > 0) {
-                console.log(`已清理 ${cleanedCount} 个残留的处理遮罩层`);
+                logLog(`已清理 ${cleanedCount} 个残留的处理遮罩层`);
             }
             
             return cleanedCount;
@@ -1889,7 +1892,7 @@
                     await caches.open(this.cacheName);
                     this.isCacheApi = true;
                     this.backend = await caches.open(this.cacheName);
-                    console.log('使用 Cache API');
+                    logLog('使用 Cache API');
                     // 更新 UI 指示器
                     setTimeout(() => updateCacheIndicator('Cache API'), 100);
                     return;
@@ -1900,7 +1903,7 @@
             // 降级到 IndexedDB
             this.isCacheApi = false;
             await this._initIndexedDB();
-            console.log('使用 IndexedDB');
+            logLog('使用 IndexedDB');
             // 更新 UI 指示器
             setTimeout(() => updateCacheIndicator('IndexedDB'), 100);
         }
@@ -2348,8 +2351,8 @@
     let viewerInstance = null;
     /** @type {boolean} 预览取消标志 */
     let previewCanceled = false;
-    /** @type {boolean} 调试模式标志 */
-    let debugMode = false;
+    /** @type {string} 日志输出级别: 'error' | 'warn' | 'info' | 'log' */
+    let logLevel = 'info';
     /** @type {boolean} 本地存储开关 */
     let localStorageEnabled = true;
     /** @type {boolean} 使用 Viewer.js 查看器 */
@@ -2361,21 +2364,11 @@
     const _origConsoleLog = console.log.bind(console);
     const _origConsoleWarn = console.warn.bind(console);
 
-    // 覆盖 console.log：调试模式关闭时仅输出缓存方法相关日志
-    (function setupConsoleLog() {
-        const cacheKeywords = ['✅ 使用 Cache API', '✅ 使用 IndexedDB'];
-        console.log = function(...args) {
-            if (debugMode || cacheKeywords.some(k => args.some(a => typeof a === 'string' && a.includes(k)))) {
-                _origConsoleLog(...args);
-            }
-        };
-    })();
-
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
     let isSwitchingViewMode = false;
     
-    // ==================== 日志系统（三级：Error / Warn / Info） ====================
+    // ==================== 日志系统（四级：Error / Warn / Info / Log） ====================
 
     /** 日志最大数量限制 */
     const MAX_LOGS = 100;
@@ -2442,7 +2435,11 @@
         },
 
         getByLevel(level) {
-            return level ? logs.filter(l => l.level === level) : logs;
+            if (!level) return logs;
+            const maxIdx = LEVEL_ORDER.indexOf(level);
+            if (maxIdx === -1) return logs;
+            const allowed = LEVEL_ORDER.slice(0, maxIdx + 1);
+            return logs.filter(l => allowed.includes(l.level));
         },
 
         getCounts() {
@@ -2462,30 +2459,46 @@
         }
     };
 
+    // ---- 日志级别层级 ----
+    const LOG_LEVEL_HIERARCHY = ['off', 'error', 'warn', 'info', 'log'];
+
+    /** 检查给定级别是否满足当前日志输出阈值 */
+    function shouldOutputLog(level) {
+        if (logLevel === 'off') return false;
+        return LOG_LEVEL_HIERARCHY.indexOf(level) <= LOG_LEVEL_HIERARCHY.indexOf(logLevel);
+    }
+
     // ---- 日志 API（同步 UI 面板 + 控制台）----
 
     function logError(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'error', metadata);
-        _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
+        if (shouldOutputLog('error')) _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logWarn(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'warn', metadata);
-        _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
+        if (shouldOutputLog('warn')) _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
     function logInfo(fileName, reason, metadata = {}) {
         LogManager.add(fileName, reason, 'info', metadata);
-        _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
+        if (shouldOutputLog('info')) _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     }
 
+    function logLog(...args) {
+        if (shouldOutputLog('log')) _origConsoleLog(...args);
+    }
+
     // ---- SVG 图标内联 ----
+    // error: img/icons/error.svg
+    // warn:  img/icons/warn.svg
+    // info:  img/icons/info.svg
 
     const LOG_ICONS = {
         error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#d81e06" stroke-width="81" fill="none"/><path d="M330 330L694 694M694 330L330 694" stroke="#d81e06" stroke-width="81" stroke-linecap="round" fill="none"/></svg>',
@@ -2496,7 +2509,7 @@
     // ---- UI 状态 ----
 
     let logPanelVisible = false;
-    let currentFilter = null; // null = 全部, 'error' | 'warn' | 'info'
+    let currentFilter = null; // null = 全部, 层级过滤: 'error'→仅error | 'warn'→error+warn | 'info'→全部
     /** 跟踪列表中已渲染的日志 ID，用于增量更新 */
     let renderedLogIds = new Set();
     /** 上次渲染的过滤器，用于判断是否需要全量重建 */
@@ -2999,18 +3012,18 @@
     let accessCounter = 0;
     const STATS_INTERVAL = MAX_CACHE_SIZE * 2; // 每 40 次访问输出一次监控
 
-    // 命中率监控（仅调试模式，非调试模式完全跳过计算）
+    // 命中率监控（仅在 log 级别统计，其他级别完全跳过计算）
     let cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
 
     function logCacheStats() {
-        if (!debugMode) return;
+        if (logLevel !== 'log') return;
         const total = cacheHits + cacheMisses;
         if (total === 0) return;
         const rate = (cacheHits / total * 100).toFixed(1);
         const freqs = [...curveCache.values()].map(e => e.frequency);
         const minF = freqs.length ? Math.min(...freqs) : 0;
         const maxF = freqs.length ? Math.max(...freqs) : 0;
-        console.log(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+        logLog(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
     function avgCacheFrequency() {
@@ -3029,15 +3042,15 @@
         accessCounter++;
 
         if (curveCache.has(key)) {
-            if (debugMode) cacheHits++;
+            if (logLevel === 'log') cacheHits++;
             const cacheEntry = curveCache.get(key);
             cacheEntry.frequency++;
             cacheEntry.lastAccess = accessCounter;
-            if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
+            if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
             return cacheEntry.data;
         }
 
-        if (debugMode) cacheMisses++;
+        if (logLevel === 'log') cacheMisses++;
         // 未命中：生成新的曲线数据及映射表
         const totalPixels = width * height;
         const curve = hilbert2d(width, height);
@@ -3050,7 +3063,7 @@
         if (curveCache.size >= MAX_CACHE_SIZE) {
             ageFrequencies();
             evictLFUCacheEntry();
-            if (debugMode) cacheEvictions++;
+            if (logLevel === 'log') cacheEvictions++;
         }
 
         curveCache.set(key, {
@@ -3059,7 +3072,7 @@
             lastAccess: accessCounter
         });
 
-        if (debugMode && accessCounter % STATS_INTERVAL === 0) logCacheStats();
+        if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
         return curveCache.get(key).data;
     }
 
@@ -3345,7 +3358,7 @@
                     // 保留指定数量的Canvas
                     pool.length = 0;
                     pool.push(...canvasesToKeep);
-                    console.log(`保留常用尺寸 ${key}: ${canvasesToKeep.length} 个Canvas`);
+                    logLog(`保留常用尺寸 ${key}: ${canvasesToKeep.length} 个Canvas`);
                 }
             } else {
                 // 非常用尺寸完全清理
@@ -3354,7 +3367,7 @@
                     canvas.height = 0;
                 });
                 pool.length = 0;
-                console.log(`清理非常用尺寸 ${key}: ${pool.length} 个Canvas`);
+                logLog(`清理非常用尺寸 ${key}: ${pool.length} 个Canvas`);
             }
         });
         
@@ -3365,7 +3378,7 @@
             }
         }
         
-        console.log('智能清理完成，保留了常用尺寸的Canvas');
+        logLog('智能清理完成，保留了常用尺寸的Canvas');
     }
     
     /**
@@ -3398,7 +3411,7 @@
             }
         });
         
-        console.log('预创建常用Canvas完成');
+        logLog('预创建常用Canvas完成');
     }
     
     /**
@@ -3416,7 +3429,7 @@
             pool.length = 0;
         });
         canvasPoolBySize.clear();
-        console.log('已清理所有Canvas池');
+        logLog('已清理所有Canvas池');
     }
 
     // =============================================
@@ -4406,7 +4419,7 @@
         updateSaveButtonText();
         updateImageCounter();
         if (images.length === 0) showEmptyState();
-        console.log(`已删除 ${idsToDelete.length} 张选中的图片`);
+        logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
     /**
@@ -4433,9 +4446,9 @@
             // ✅ 清理存储：删除原始图片和当前图片
             await storage.delete(`original_${imageId}`);
             await storage.delete(`current_${imageId}`);
-            console.log(`已删除存储数据：original_${imageId}, current_${imageId}`);
+            logLog(`已删除存储数据：original_${imageId}, current_${imageId}`);
             cleanupImageFromUI(imageId);
-            console.log('已删除图片:', imageData.name);
+            logLog('已删除图片:', imageData.name);
         } catch (error) {
             logError('图片删除', `删除图片时出错: ${error.message || error}`);
             alert('删除图片失败: ' + (error.message || '未知错误'));
@@ -4737,7 +4750,7 @@
                 containerStyle: 'border-radius: 0;'
             });
 
-            console.log('颜色选择器初始化成功');
+            logLog('颜色选择器初始化成功');
 
             // 监听容器宽度：换行时切换为垂直布局
             let isWrapped = false;
@@ -4989,7 +5002,7 @@
             try {
                 // @ts-ignore - Viewer.js 是动态加载的，destroy 方法在运行时存在
                 viewerInstance.destroy();
-                console.log('已销毁之前的 viewer 实例');
+                logLog('已销毁之前的 viewer 实例');
             } catch (error) {
                 logWarn('Viewer.js', `销毁 viewer 实例时出错: ${error.message || error}`);
             } finally {
@@ -5025,7 +5038,7 @@
 
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
-        console.log(`开始创建图片元素，共 ${images.length} 张`);
+        logLog(`开始创建图片元素，共 ${images.length} 张`);
 
         const loadPromises = images.map((imgData, index) => {
             return new Promise((resolve) => {
@@ -5043,7 +5056,7 @@
 
                     // 保存引用到数组（保持顺序）- 在创建 img 后立即同步赋值
                     imgElements[index] = img;
-                    console.log(`[索引${index}] 已创建图片元素：${imgData.name}`);
+                    logLog(`[索引${index}] 已创建图片元素：${imgData.name}`);
 
                     const timeoutId = setTimeout(() => {
                         logWarn(imgData.name, '图片加载超时，使用占位图');
@@ -5055,7 +5068,7 @@
 
                     img.onload = () => {
                         clearTimeout(timeoutId);
-                        console.log(`图片 ${img.alt} 加载完成 (${img.naturalWidth}x${img.naturalHeight})`);
+                        logLog(`图片 ${img.alt} 加载完成 (${img.naturalWidth}x${img.naturalHeight})`);
                         resolve(img);
                     };
 
@@ -5083,7 +5096,7 @@
         // 等待所有图片元素创建完成后再添加到 DOM
         await Promise.allSettled(loadPromises);
         
-        console.log(`Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
+        logLog(`Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
         
         // 按顺序将所有图片添加到容器（保证 DOM 顺序与 images 数组一致）
         imgElements.forEach((img, index) => {
@@ -5094,7 +5107,7 @@
             }
         });
         
-        console.log(`共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
+        logLog(`共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
         
         // 存储加载 Promise 到容器
         container._loadPromises = Promise.allSettled(loadPromises);
@@ -5113,7 +5126,7 @@
     async function initializeViewerWithBestPractices(imageData, container, targetImageId) {
         // 最终检查取消状态
         if (previewCanceled) {
-            console.log('预览操作已被取消，跳过 Viewer 实例创建');
+            logLog('预览操作已被取消，跳过 Viewer 实例创建');
             cleanupViewerResources(container);
             return;
         }
@@ -5121,9 +5134,9 @@
         try {
             // 等待所有图片至少尝试加载完成
             if (container._loadPromises) {
-                console.log('等待图片加载完成...');
+                logLog('等待图片加载完成...');
                 await container._loadPromises;
-                console.log('所有图片加载尝试完成');
+                logLog('所有图片加载尝试完成');
             }
                 
             // 额外等待一小段时间，确保 DOM 渲染完成
@@ -5166,13 +5179,13 @@
                     }
                     // 对于未完成加载的图片，也允许 Viewer.js 加载
                     // Viewer.js 会在内部等待图片加载完成
-                    console.log(`图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
+                    logLog(`图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
                     return true;
                 },
                 
                 // 生命周期事件
                 ready() {
-                    console.log('Viewer.js 已准备就绪');
+                    logLog('Viewer.js 已准备就绪');
                 },
                                 
                 shown() {
@@ -5190,9 +5203,9 @@
                     });
                     
                     if (failedImages.length === 0) {
-                        console.log(`已加载${loadedCount}张图片`);
+                        logLog(`已加载${loadedCount}张图片`);
                     } else {
-                        console.log(`已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
+                        logLog(`已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
                     }
                 },
                                 
@@ -5200,7 +5213,7 @@
                     const { detail } = event;
                     const currentImage = detail.image;
                     const currentIndex = detail.index;
-                    console.log(`当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
+                    logLog(`当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
                                     
                     // 每次切换图片时检查加载状态
                     if (!currentImage.complete || currentImage.naturalWidth === 0) {
@@ -5209,16 +5222,16 @@
                 },
                 
                 hide() {
-                    console.log('Viewer.js 开始隐藏');
+                    logLog('Viewer.js 开始隐藏');
                 },
                 
                 hidden() {
-                    console.log('Viewer.js 已隐藏');
+                    logLog('Viewer.js 已隐藏');
                     cleanupViewerResources(container);
                 },
                 
                 play() {
-                    console.log('全屏');
+                    logLog('全屏');
                 }
             });
             
@@ -5232,30 +5245,30 @@
             const targetImg = container.querySelector(`img[data-image-id="${targetImageId}"]`);
             if (targetImg) {
                 const domIndex = Array.from(container.children).indexOf(targetImg);
-                console.log(`容器中共有 ${container.children.length} 张图片`);
-                console.log(`找到目标图片，DOM 索引：${domIndex}`);
+                logLog(`容器中共有 ${container.children.length} 张图片`);
+                logLog(`找到目标图片，DOM 索引：${domIndex}`);
                 viewerInstance.view(domIndex);
             } else {
                 // 详细调试信息
                 logError('Viewer.js', `未在 DOM 中找到目标图片：${targetImageId}`);
-                console.log(`容器中的图片元素:`);
+                logLog(`容器中的图片元素:`);
                 Array.from(container.children).forEach((img, idx) => {
                     const imageId = img.dataset?.imageId || '无 ID';
-                    console.log(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
+                    logLog(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                 });
                                 
                 // 尝试使用 Viewer.js 的 images 数组访问（Viewer.js 1.x 使用 images 而非 list）
                 if (viewerInstance && viewerInstance.images) {
-                    console.log(`Viewer.js images 中有 ${viewerInstance.images.length} 张图片`);
+                    logLog(`Viewer.js images 中有 ${viewerInstance.images.length} 张图片`);
                     viewerInstance.images.forEach((img, idx) => {
                         const imageId = img.dataset?.imageId || '无 ID';
-                        console.log(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
+                        logLog(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                     });
                                     
                     // 尝试在 Viewer.js 的 images 中查找
                     const foundIndex = viewerInstance.images.findIndex(img => img.dataset?.imageId === targetImageId);
                     if (foundIndex >= 0) {
-                        console.log(`在 Viewer.js images 中找到目标图片，索引：${foundIndex}`);
+                        logLog(`在 Viewer.js images 中找到目标图片，索引：${foundIndex}`);
                         viewerInstance.view(foundIndex);
                     }
                 }
@@ -5299,7 +5312,7 @@
     async function handleViewerInitializationFailure(container, imageData) {
         // 检查是否因取消而失败
         if (previewCanceled) {
-            console.log('预览操作已被取消，跳过失败处理');
+            logLog('预览操作已被取消，跳过失败处理');
             cleanupViewerResources(container);
             return;
         }
@@ -5308,7 +5321,7 @@
         cleanupViewerResources(container);
             
         // 启用基础图片查看器作为兜底方案
-        console.log('启用基础图片查看器作为替代方案');
+        logLog('启用基础图片查看器作为替代方案');
             
         // 获取当前图片 Blob 并创建临时 URL
         try {
@@ -5347,7 +5360,7 @@
             revokeBlobUrlsInContainer(container);
             container.parentNode.removeChild(container);
         }
-        console.log('Viewer.js 资源已清理');
+        logLog('Viewer.js 资源已清理');
     }
     
     /**
@@ -5365,7 +5378,7 @@
         resizeDebounceTimer = setTimeout(() => {
             if (viewerInstance && viewerInstance.update) {
                 viewerInstance.update();
-                console.log('窗口大小改变，已更新 Viewer 布局');
+                logLog('窗口大小改变，已更新 Viewer 布局');
             }
         }, 150);
     }
@@ -5384,16 +5397,16 @@
 
         // 重置Viewer加载Promise状态
         window.viewerLoadPromise = null;
-        console.log('页面卸载：已重置Viewer加载Promise');
+        logLog('页面卸载：已重置Viewer加载Promise');
 
         // 清空像素缓冲区池
         pixelBufferPool.length = 0;
-        console.log('页面卸载：已清空像素缓冲区池');
+        logLog('页面卸载：已清空像素缓冲区池');
 
         // 清理所有残留的处理遮罩层
         const cleanedOverlays = cleanupAllProcessingOverlays();
         if (cleanedOverlays > 0) {
-            console.log(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
+            logLog(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
 
         // 清理移动端缓存指示器的残留监听器
@@ -5407,7 +5420,7 @@
             mobileTooltipListener = null;
         }
 
-        console.log('页面卸载：所有图片资源将由浏览器自动回收');
+        logLog('页面卸载：所有图片资源将由浏览器自动回收');
     });
     
     // 页面可见性变化处理
@@ -5421,11 +5434,11 @@
             
             // 清空像素缓冲区池
             pixelBufferPool.length = 0;
-            console.log('页面隐藏：已执行智能Canvas池清理');
+            logLog('页面隐藏：已执行智能Canvas池清理');
         } else {
             // 页面重新可见时预创建常用尺寸的Canvas
             preCreateCommonCanvases();
-            console.log('页面可见：已预创建常用Canvas');
+            logLog('页面可见：已预创建常用Canvas');
         }
     });
     
@@ -5450,7 +5463,7 @@
         
         // 防止重复刷新
         if (isRefreshingThumbnails) {
-            console.log('刷新缩略图正在进行中，请稍后再试');
+            logLog('刷新缩略图正在进行中，请稍后再试');
             return;
         }
         
@@ -6108,7 +6121,11 @@
         bindToggle('webp-lossless-toggle', 'webpLossless');
         bindToggle('zip-download-toggle', 'zipDownload');
         bindSelect('save-format-select', 'saveFormat');
-        bindToggle('debug-mode-toggle', 'debugMode', (v) => { debugMode = v; });
+        bindSelect('log-level-select', 'logLevel');
+        logLevel = document.getElementById('log-level-select')?.value || 'info';
+        document.getElementById('log-level-select')?.addEventListener('change', function() {
+            logLevel = this.value;
+        });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
 
