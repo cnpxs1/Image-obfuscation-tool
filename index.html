@@ -1899,19 +1899,17 @@
             const isCacheSupported = typeof window.caches !== 'undefined' && location.protocol !== 'file:';
             if (isCacheSupported) {
                 try {
-                    // 尝试打开缓存，验证可用性
-                    await caches.open(this.cacheName);
+                    // 启动时删除整个旧缓存（单次操作，避免逐个 delete() 导致长任务阻塞 LCP）
+                    await caches.delete(this.cacheName);
                     this.isCacheApi = true;
                     this.backend = await caches.open(this.cacheName);
-                    // 启动时清空所有旧数据，避免跨会话孤儿积累
-                    const keys = await this.backend.keys();
-                    await Promise.all(keys.map(req => this.backend.delete(req)));
                     logLog('使用 Cache API');
                     logLog('已清理旧数据');
                     // 更新 UI 指示器
                     setTimeout(() => updateCacheIndicator('Cache API'), 100);
                     return;
                 } catch (e) {
+                    // delete 或 open 失败 → 降级 IndexedDB（如私有模式 Safari）
                     logInfo('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
                 }
             }
@@ -2810,6 +2808,14 @@
     /** 生成进度条 HTML 片段 */
     function progressBarHTML(progress) {
         return `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+    }
+
+    /** 释放单个 img 元素的 Blob URL，避免内存泄漏 */
+    function releaseImgBlob(img) {
+        if (img && img.dataset.blobUrl && img.dataset.blobUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(img.dataset.blobUrl);
+            delete img.dataset.blobUrl;
+        }
     }
 
     /** 释放容器中所有图片元素的 Blob URL */
@@ -5180,10 +5186,7 @@
 
                     const timeoutId = setTimeout(() => {
                         logError(imgData.name, '图片加载超时，使用占位图');
-                        if (blobUrl && blobUrl.startsWith('blob:')) {
-                            URL.revokeObjectURL(blobUrl);
-                            delete img.dataset.blobUrl;
-                        }
+                        releaseImgBlob(img);
                         img.onerror = null;
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
@@ -5199,10 +5202,7 @@
                     img.onerror = () => {
                         clearTimeout(timeoutId);
                         logError(imgData.name, '图片加载失败');
-                        if (blobUrl && blobUrl.startsWith('blob:')) {
-                            URL.revokeObjectURL(blobUrl);
-                            delete img.dataset.blobUrl;
-                        }
+                        releaseImgBlob(img);
                         img.onerror = null;
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
