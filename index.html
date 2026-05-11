@@ -1903,7 +1903,11 @@
                     await caches.open(this.cacheName);
                     this.isCacheApi = true;
                     this.backend = await caches.open(this.cacheName);
+                    // 启动时清空所有旧数据，避免跨会话孤儿积累
+                    const keys = await this.backend.keys();
+                    await Promise.all(keys.map(req => this.backend.delete(req)));
                     logLog('使用 Cache API');
+                    logLog('已清理旧数据');
                     // 更新 UI 指示器
                     setTimeout(() => updateCacheIndicator('Cache API'), 100);
                     return;
@@ -1914,7 +1918,17 @@
             // 降级到 IndexedDB
             this.isCacheApi = false;
             await this._initIndexedDB();
+            // 启动时清空所有旧数据
+            await new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([this.storeName], 'readwrite');
+                const store = transaction.objectStore(this.storeName);
+                const request = store.clear();
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+                request.onerror = () => reject(request.error);
+            });
             logLog('使用 IndexedDB');
+            logLog('已清理旧数据');
             // 更新 UI 指示器
             setTimeout(() => updateCacheIndicator('IndexedDB'), 100);
         }
@@ -1938,21 +1952,33 @@
     
         async set(key, blob) {
             await this.ready;
-            if (this.isCacheApi) {
-                // Cache API 存储 Response 对象
-                const response = new Response(blob, {
-                    headers: { 'Content-Type': blob.type || 'image/png' }
-                });
-                await this.backend.put(key, response);
-            } else {
-                // IndexedDB 存储
-                return new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.put(blob, key);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve();
-                });
+            try {
+                if (this.isCacheApi) {
+                    const response = new Response(blob, {
+                        headers: { 'Content-Type': blob.type || 'image/png' }
+                    });
+                    await this.backend.put(key, response);
+                } else {
+                    await new Promise((resolve, reject) => {
+                        const transaction = this.db.transaction([this.storeName], 'readwrite');
+                        const store = transaction.objectStore(this.storeName);
+                        const request = store.put(blob, key);
+                        transaction.onerror = () => reject(transaction.error);
+                        request.onerror = () => reject(request.error);
+                        request.onsuccess = () => resolve();
+                    });
+                }
+            } catch (err) {
+                const name = (err && err.name) || '';
+                if (name === 'QuotaExceededError') {
+                    const quotaErr = new Error('存储空间已满，请清理部分图片后重试');
+                    quotaErr.type = 'quota';
+                    throw quotaErr;
+                }
+                const storageErr = new Error(`存储写入失败: ${err.message || err}`);
+                storageErr.type = 'storage';
+                storageErr.cause = err;
+                throw storageErr;
             }
         }
     
@@ -1961,12 +1987,13 @@
             if (this.isCacheApi) {
                 const response = await this.backend.match(key);
                 if (!response) return null;
-                return response.blob();
+                return await response.blob();
             } else {
                 return new Promise((resolve, reject) => {
                     const transaction = this.db.transaction([this.storeName], 'readonly');
                     const store = transaction.objectStore(this.storeName);
                     const request = store.get(key);
+                    transaction.onerror = () => reject(transaction.error);
                     request.onerror = () => reject(request.error);
                     request.onsuccess = () => resolve(request.result || null);
                 });
@@ -1982,6 +2009,7 @@
                     const transaction = this.db.transaction([this.storeName], 'readwrite');
                     const store = transaction.objectStore(this.storeName);
                     const request = store.delete(key);
+                    transaction.onerror = () => reject(transaction.error);
                     request.onerror = () => reject(request.error);
                     request.onsuccess = () => resolve();
                 });
@@ -2000,6 +2028,7 @@
                     const transaction = this.db.transaction([this.storeName], 'readwrite');
                     const store = transaction.objectStore(this.storeName);
                     const request = store.clear();
+                    transaction.onerror = () => reject(transaction.error);
                     request.onerror = () => reject(request.error);
                     request.onsuccess = () => resolve();
                 });
@@ -4124,9 +4153,29 @@
             }
         }
 
-        // 存储原始图片
-        await storage.set(`original_${id}`, blob);
-        await storage.set(`current_${id}`, blob); // 当前图片初始为原始
+        // 存储原始图片（带存储空间检查）
+        try {
+            await storage.set(`original_${id}`, blob);
+        } catch (storageErr) {
+            if (storageErr.type === 'quota') {
+                alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
+            } else {
+                alert(`图片存储失败: ${storageErr.message}`);
+            }
+            throw storageErr;
+        }
+        try {
+            await storage.set(`current_${id}`, blob); // 当前图片初始为原始
+        } catch (storageErr) {
+            // 回滚已存的 original 数据
+            await storage.delete(`original_${id}`).catch(() => {});
+            if (storageErr.type === 'quota') {
+                alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
+            } else {
+                alert(`图片存储失败: ${storageErr.message}`);
+            }
+            throw storageErr;
+        }
 
         // 先获取图片尺寸
         const bitmap = await createImageBitmap(blob);
@@ -5131,6 +5180,11 @@
 
                     const timeoutId = setTimeout(() => {
                         logError(imgData.name, '图片加载超时，使用占位图');
+                        if (blobUrl && blobUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(blobUrl);
+                            delete img.dataset.blobUrl;
+                        }
+                        img.onerror = null;
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
                     }, 5000);
@@ -5145,6 +5199,11 @@
                     img.onerror = () => {
                         clearTimeout(timeoutId);
                         logError(imgData.name, '图片加载失败');
+                        if (blobUrl && blobUrl.startsWith('blob:')) {
+                            URL.revokeObjectURL(blobUrl);
+                            delete img.dataset.blobUrl;
+                        }
+                        img.onerror = null;
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
                     };
@@ -5526,13 +5585,12 @@
             logLog('页面卸载：已清理基础图片查看器');
         }
 
-        // 清除所有缓存的图片数据（使用原生 API，确保页面关闭时可靠执行）
+        // 关闭时清除持久化缓存（与启动清理互补，确保正常关闭不残留）
         try {
-            // IndexedDB：deleteDatabase 同步返回，浏览器在后台完成删除
+            if (storage.db) storage.db.close();
             indexedDB.deleteDatabase('ImageObfuscationDB');
         } catch (e) { /* 忽略异常 */ }
         try {
-            // Cache API：delete 返回 Promise 但不依赖自定义初始化，更可靠
             if (typeof caches !== 'undefined') {
                 caches.delete('image-obfuscation-cache-v1').catch(() => {});
             }
