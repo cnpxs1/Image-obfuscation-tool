@@ -4467,7 +4467,11 @@
         // 更新 UI
         updateSaveButtonText();
         updateImageCounter();
-        if (images.length === 0) showEmptyState();
+        if (images.length === 0) {
+            showEmptyState();
+            await storage.clear();
+            logLog('所有图片已删除：已清除全部缓存');
+        }
         logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
@@ -4498,6 +4502,10 @@
             await storage.delete(`thumb_${imageId}`);
             logLog(`已删除存储数据：original_${imageId}, current_${imageId}, thumb_${imageId}`);
             cleanupImageFromUI(imageId);
+            if (images.length === 0) {
+                await storage.clear();
+                logLog('所有图片已删除：已清除全部缓存');
+            }
             logLog('已删除图片:', imageData.name);
         } catch (error) {
             logError('图片删除', `删除图片时出错: ${error.message || error}`);
@@ -5493,6 +5501,43 @@
             document.removeEventListener('click', mobileTooltipListener);
             mobileTooltipListener = null;
         }
+
+        // 销毁 Viewer.js 实例
+        if (viewerInstance) {
+            try { viewerInstance.destroy(); } catch (e) { /* 忽略 */ }
+            viewerInstance = null;
+        }
+
+        // 回收所有画廊容器中的 Blob URL
+        document.querySelectorAll('.image-gallery-container').forEach(container => {
+            revokeBlobUrlsInContainer(container);
+            if (container.parentNode) container.parentNode.removeChild(container);
+        });
+        logLog('页面卸载：已回收所有画廊容器 Blob URL');
+
+        // 清理基础图片查看器及其 Blob URL
+        const basicViewer = document.querySelector('[data-basic-viewer]');
+        if (basicViewer) {
+            const img = basicViewer.querySelector('img');
+            if (img && img.src && img.src.startsWith('blob:')) {
+                URL.revokeObjectURL(img.src);
+            }
+            basicViewer.remove();
+            logLog('页面卸载：已清理基础图片查看器');
+        }
+
+        // 清除所有缓存的图片数据（使用原生 API，确保页面关闭时可靠执行）
+        try {
+            // IndexedDB：deleteDatabase 同步返回，浏览器在后台完成删除
+            indexedDB.deleteDatabase('ImageObfuscationDB');
+        } catch (e) { /* 忽略异常 */ }
+        try {
+            // Cache API：delete 返回 Promise 但不依赖自定义初始化，更可靠
+            if (typeof caches !== 'undefined') {
+                caches.delete('image-obfuscation-cache-v1').catch(() => {});
+            }
+        } catch (e) { /* 忽略异常 */ }
+        logLog('页面卸载：已清除所有图片缓存');
 
         logLog('页面卸载：所有图片资源将由浏览器自动回收');
     });
