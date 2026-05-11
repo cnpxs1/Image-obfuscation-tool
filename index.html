@@ -11,10 +11,11 @@
     <!-- 通用 CDN 回退加载函数 -->
     <script>
         // 早期日志存根 — 在日志系统初始化前安全降级到 console
-        function logLog(...args) { console.log(...args); }
-        function logInfo(fileName, reason, metadata) { console.info('[INFO] ' + fileName + ' - ' + reason, metadata || {}); }
-        function logWarn(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); }
-        function logError(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); }
+        // 使用 var 赋值而非 function 声明，避免被后面同名 function 声明提前覆盖
+        var logLog = function(...args) { console.log(...args); };
+        var logInfo = function(fileName, reason, metadata) { console.info('[INFO] ' + fileName + ' - ' + reason, metadata || {}); };
+        var logWarn = function(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); };
+        var logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); };
 
         function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, onAllFailed) {
             function load(cdnUrl, index = 0) {
@@ -2483,34 +2484,35 @@
 
     // ---- 日志 API（同步 UI 面板 + 控制台）----
 
-    function logError(fileName, reason, metadata = {}) {
+    // 主日志函数（赋值覆盖早期存根，接管日志系统）
+    logError = function(fileName, reason, metadata = {}) {
         if (!shouldOutputLog('error')) return;
         LogManager.add(fileName, reason, 'error', metadata);
         _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
-    }
+    };
 
-    function logWarn(fileName, reason, metadata = {}) {
+    logWarn = function(fileName, reason, metadata = {}) {
         if (!shouldOutputLog('warn')) return;
         LogManager.add(fileName, reason, 'warn', metadata);
         _origConsoleWarn(`[WARN] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
-    }
+    };
 
-    function logInfo(fileName, reason, metadata = {}) {
+    logInfo = function(fileName, reason, metadata = {}) {
         if (!shouldOutputLog('info')) return;
         LogManager.add(fileName, reason, 'info', metadata);
         _origConsoleLog(`[INFO] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
-    }
+    };
 
-    function logLog(...args) {
+    logLog = function(...args) {
         if (!shouldOutputLog('log')) return;
         _origConsoleLog(...args);
-    }
+    };
 
     // ---- SVG 图标内联 ----
     // error: img/icons/error.svg
@@ -2789,7 +2791,8 @@
             const url = img.dataset.blobUrl;
             if (url && url.startsWith('blob:')) {
                 URL.revokeObjectURL(url);
-                img.src = ''; // 释放 Blob 引用，避免内存残留
+                img.onerror = null; // 避免清空 src 时触发虚假的"图片加载失败"日志
+                img.src = '';
                 delete img.dataset.blobUrl;
             }
         });
@@ -3721,23 +3724,46 @@
         if (images.length === 0) showEmptyState();
     }
 
+    // 缩略图绘制：智能缓存 + WebP 0.8 优先 + JPEG 0.9 兼容
     async function createAndDrawThumbnail(thumbnailContainer, imageData) {
         const canvas = document.createElement('canvas');
         canvas.className = 'thumbnail-canvas';
-        canvas.style.display = 'block';
-        canvas.style.maxWidth = '100%';
-        canvas.style.maxHeight = '100%';
-        const blob = await storage.get(`current_${imageData.id}`);
-        if (blob) {
-            try {
-                const bitmap = await createImageBitmap(blob);
-                const size = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                drawThumbnail(canvas, bitmap, size.width, size.height);
+        canvas.style.cssText = 'display:block;max-width:100%;max-height:100%';
+
+        try {
+            // 1. 优先使用已缓存的缩略图
+            let thumbBlob = await storage.get(`thumb_${imageData.id}`);
+
+            if (!thumbBlob) {
+                // 2. 缓存未命中：从原图生成缩略图
+                const fullBlob = await storage.get(`current_${imageData.id}`);
+                if (!fullBlob) return canvas;
+
+                const bitmap = await createImageBitmap(fullBlob);
+                const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                drawThumbnail(canvas, bitmap, width, height);
                 bitmap.close();
-            } catch (e) {
-                logWarn('图片处理', `缩略图绘制失败: ${e.message || e}`);
+
+                // 3. 导出为压缩格式（WebP 优先）
+                const [mime, quality] = (await isWebPSupported())
+                    ? ['image/webp', 0.8]
+                    : ['image/jpeg', 0.9];
+                thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+
+                // 4. 缓存压缩结果，供后续直接使用
+                await storage.set(`thumb_${imageData.id}`, thumbBlob);
+            } else {
+                // 5. 缓存命中：用压缩缩略图绘制（跳过原图解码）
+                const bitmap = await createImageBitmap(thumbBlob);
+                const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                drawThumbnail(canvas, bitmap, width, height);
+                bitmap.close();
             }
+        } catch (e) {
+            logWarn('图片处理', `缩略图绘制失败: ${e.message}`);
+            // 即使失败，若 Canvas 已有内容也会返回
         }
+
         return canvas;
     }
 
@@ -3760,6 +3786,7 @@
             if (!originalBlob) throw new Error('原始图片数据不存在');
 
             await storage.set(`current_${imageData.id}`, originalBlob);
+            await storage.delete(`thumb_${imageData.id}`);
 
             imageData.scrambleLevel = 0;
             imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
@@ -3813,6 +3840,7 @@
                 // 生成新 Blob (PNG 格式存储)
                 const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                 await storage.set(`current_${imageData.id}`, newBlob);
+                await storage.delete(`thumb_${imageData.id}`);
 
                 imageData.format = 'PNG';
                 imageData.processed = true;
@@ -4424,6 +4452,7 @@
         for (const id of idsToDelete) {
             await storage.delete(`original_${id}`);
             await storage.delete(`current_${id}`);
+            await storage.delete(`thumb_${id}`);
         }
             
         // 从 DOM 中移除选中的图片项
@@ -4463,10 +4492,11 @@
         // 直接删除，不弹出确认对话框
                 
         try {
-            // ✅ 清理存储：删除原始图片和当前图片
+            // 清理存储：删除原始图片、当前图片和缩略图缓存
             await storage.delete(`original_${imageId}`);
             await storage.delete(`current_${imageId}`);
-            logLog(`已删除存储数据：original_${imageId}, current_${imageId}`);
+            await storage.delete(`thumb_${imageId}`);
+            logLog(`已删除存储数据：original_${imageId}, current_${imageId}, thumb_${imageId}`);
             cleanupImageFromUI(imageId);
             logLog('已删除图片:', imageData.name);
         } catch (error) {
@@ -5259,6 +5289,7 @@
                 
                 hidden() {
                     logLog('Viewer.js 已隐藏');
+                    viewerInstance = null; // Viewer.js 已自毁，避免 cleanupViewerResources 重复销毁
                     cleanupViewerResources(container);
                 },
                 
@@ -5381,6 +5412,10 @@
      * @param {HTMLElement} container - 容器元素
      */
     function cleanupViewerResources(container) {
+        // 重入防护：destroy() 可能触发 hidden 回调导致递归调用
+        if (container && container._cleanedUp) return;
+        if (container) container._cleanedUp = true;
+
         if (viewerInstance) {
             try {
                 viewerInstance.destroy();
@@ -5536,6 +5571,8 @@
                 if (!imageData) continue;
                 
                 try {
+                    // 删除旧缩略图缓存，确保后续 createAndDrawThumbnail 从最新 current blob 重新生成
+                    await storage.delete(`thumb_${imageData.id}`);
                     // 获取当前图片的 Blob
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
