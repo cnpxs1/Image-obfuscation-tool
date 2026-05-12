@@ -3824,7 +3824,6 @@
             if (!originalBlob) throw new Error('原始图片数据不存在');
 
             await storage.set(`current_${imageData.id}`, originalBlob);
-            await storage.delete(`thumb_${imageData.id}`);
 
             imageData.scrambleLevel = 0;
             imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
@@ -3878,7 +3877,6 @@
                 // 生成新 Blob (PNG 格式存储)
                 const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
                 await storage.set(`current_${imageData.id}`, newBlob);
-                await storage.delete(`thumb_${imageData.id}`);
 
                 imageData.format = 'PNG';
                 imageData.processed = true;
@@ -3951,6 +3949,12 @@
             const size = getThumbnailSize(container, bitmap.width, bitmap.height);
             drawThumbnail(canvas, bitmap, size.width, size.height);
             updateImageInfo(imageId);
+
+            const [mime, quality] = (await isWebPSupported())
+                ? ['image/webp', 0.8]
+                : ['image/jpeg', 0.9];
+            const thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+            await storage.set(`thumb_${imageId}`, thumbBlob);
         } catch (e) {
             logWarn('图片处理', `更新缩略图失败: ${e.message || e}`);
         } finally {
@@ -5679,9 +5683,6 @@
                 if (!imageData) continue;
                 
                 try {
-                    // 删除旧缩略图缓存，确保后续 createAndDrawThumbnail 从最新 current blob 重新生成
-                    await storage.delete(`thumb_${imageData.id}`);
-                    // 获取当前图片的 Blob
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
                         await updateThumbnail(imageData.id, blob);
