@@ -6178,7 +6178,9 @@
             
             // 粘贴时自动处理十六进制格式
             hexInput.addEventListener('paste', (e) => {
-                const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                const clipboardData = e.clipboardData || window.clipboardData;
+                if (!clipboardData) return;
+                const pasteText = clipboardData.getData('text');
                 // 匹配十六进制颜色格式：#FFF, #FFFFFF, FFF, FFFFFF
                 const hexRegex = /^#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
                 
@@ -6207,7 +6209,9 @@
         [rgbRInput, rgbGInput, rgbBInput].forEach(input => {
             if (input) {
                 input.addEventListener('paste', (e) => {
-                    const pasteText = (e.clipboardData || window.clipboardData).getData('text');
+                    const clipboardData = e.clipboardData || window.clipboardData;
+                    if (!clipboardData) return;
+                    const pasteText = clipboardData.getData('text');
                     const rgb = normalizeRgb(pasteText);
                     
                     if (rgb && rgbRInput && rgbGInput && rgbBInput) {
