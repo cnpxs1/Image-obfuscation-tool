@@ -2894,10 +2894,10 @@
 
         if (!needConvert) return blob;
 
-        const bitmap = await createImageBitmap(blob);
+        const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
         try {
-            const ctx = canvas.getContext('2d');
+            const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(bitmap, 0, 0);
 
@@ -3355,10 +3355,11 @@
             return pool.pop();
         }
         
-        // 池为空时创建新Canvas并设置尺寸
+        // 池为空时创建新Canvas并设置尺寸，初始化上下文避免后续getContext属性不匹配
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
+        canvas.getContext('2d', { willReadFrequently: true, premultipliedAlpha: false });
         return canvas;
     }
     
@@ -3507,7 +3508,7 @@
      * 3. 对大图(>2MB)可考虑使用Web Worker处理
      */
     function canvasToBMP(canvas) {
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
         const width = canvas.width;
         const height = canvas.height;
         const imageData = ctx.getImageData(0, 0, width, height);
@@ -3689,7 +3690,7 @@
                     finalize(new Error('Web Worker消息传输失败'));
                 });
 
-                const ctx = canvas.getContext('2d');
+                const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
                 worker.postMessage({
@@ -3776,7 +3777,7 @@
                 const fullBlob = await storage.get(`current_${imageData.id}`);
                 if (!fullBlob) return canvas;
 
-                const bitmap = await createImageBitmap(fullBlob);
+                const bitmap = await createImageBitmap(fullBlob, { premultiplyAlpha: 'none' });
                 const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
                 drawThumbnail(canvas, bitmap, width, height);
                 bitmap.close();
@@ -3791,7 +3792,7 @@
                 await storage.set(`thumb_${imageData.id}`, thumbBlob);
             } else {
                 // 5. 缓存命中：用压缩缩略图绘制（跳过原图解码）
-                const bitmap = await createImageBitmap(thumbBlob);
+                const bitmap = await createImageBitmap(thumbBlob, { premultiplyAlpha: 'none' });
                 const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
                 drawThumbnail(canvas, bitmap, width, height);
                 bitmap.close();
@@ -3840,10 +3841,10 @@
         if (!sourceBlob) throw new Error('图片数据不存在');
 
         // 通过 ImageBitmap 加载到 canvas
-        const bitmap = await createImageBitmap(sourceBlob);
+        const bitmap = await createImageBitmap(sourceBlob, { premultiplyAlpha: 'none' });
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
         try {
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const ctx = canvas.getContext('2d', { willReadFrequently: true, premultipliedAlpha: false });
             // 清除旧内容，避免透明图层残留
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(bitmap, 0, 0);
@@ -3921,7 +3922,7 @@
     function drawThumbnail(canvas, bitmap, drawWidth, drawHeight) {
         canvas.width = drawWidth;
         canvas.height = drawHeight;
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
         ctx.clearRect(0, 0, drawWidth, drawHeight);
         ctx.drawImage(bitmap, 0, 0, drawWidth, drawHeight);
     }
@@ -3946,7 +3947,7 @@
 
         let bitmap;
         try {
-            bitmap = await createImageBitmap(blob);
+            bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
             const size = getThumbnailSize(container, bitmap.width, bitmap.height);
             drawThumbnail(canvas, bitmap, size.width, size.height);
             updateImageInfo(imageId);
@@ -4143,10 +4144,10 @@
                 logWarn(file.name, `FileReader 读取也失败，尝试 createImageBitmap 直接获取图像: ${secondError.message || secondError}`);
                 try {
                     // 最终回退：尝试直接使用 createImageBitmap 获取图像数据（绕过文件读取）
-                    const bitmap = await createImageBitmap(file);
+                    const bitmap = await createImageBitmap(file, { premultiplyAlpha: 'none' });
                     // 将 ImageBitmap 绘制到 canvas 并导出为 PNG Blob
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-                    const ctx = canvas.getContext('2d');
+                    const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
                     // 清除旧内容，避免透明图层残留
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(bitmap, 0, 0);
@@ -4187,7 +4188,8 @@
         }
 
         // 先获取图片尺寸
-        const bitmap = await createImageBitmap(blob);
+        const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
+
         const width = bitmap.width;
         const height = bitmap.height;
         bitmap.close();
