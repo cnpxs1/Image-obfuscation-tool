@@ -2907,8 +2907,6 @@
                 ctx.drawImage(bitmap, 0, 0);
             }
 
-            bitmap.close();
-
             if (targetFormat === 'png') {
                 return await new Promise(r => canvas.toBlob(r, 'image/png'));
             } else if (targetFormat === 'bmp') {
@@ -2923,6 +2921,7 @@
             }
             return blob;
         } finally {
+            bitmap.close();
             releaseCanvasToPool(canvas);
         }
     }
@@ -3778,9 +3777,12 @@
                 if (!fullBlob) return canvas;
 
                 const bitmap = await createImageBitmap(fullBlob, { premultiplyAlpha: 'none' });
-                const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                drawThumbnail(canvas, bitmap, width, height);
-                bitmap.close();
+                try {
+                    const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                    drawThumbnail(canvas, bitmap, width, height);
+                } finally {
+                    bitmap.close();
+                }
 
                 // 3. 导出为压缩格式（WebP 优先）
                 const [mime, quality] = (await isWebPSupported())
@@ -3793,9 +3795,12 @@
             } else {
                 // 5. 缓存命中：用压缩缩略图绘制（跳过原图解码）
                 const bitmap = await createImageBitmap(thumbBlob, { premultiplyAlpha: 'none' });
-                const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                drawThumbnail(canvas, bitmap, width, height);
-                bitmap.close();
+                try {
+                    const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
+                    drawThumbnail(canvas, bitmap, width, height);
+                } finally {
+                    bitmap.close();
+                }
             }
         } catch (e) {
             logWarn('图片处理', `缩略图绘制失败: ${e.message}`);
@@ -4151,13 +4156,16 @@
                     const bitmap = await createImageBitmap(file, { premultiplyAlpha: 'none' });
                     // 将 ImageBitmap 绘制到 canvas 并导出为 PNG Blob
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
-                    const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
-                    // 清除旧内容，避免透明图层残留
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(bitmap, 0, 0);
-                    bitmap.close();
-                    blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                    releaseCanvasToPool(canvas);
+                    try {
+                        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
+                        // 清除旧内容，避免透明图层残留
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(bitmap, 0, 0);
+                        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                    } finally {
+                        bitmap.close();
+                        releaseCanvasToPool(canvas);
+                    }
                     originalFormat = 'PNG'; // 强制格式为 PNG
                     logWarn(file.name, '已将图片转换为 PNG 格式存储（回退方案）');
                 } catch (thirdError) {
