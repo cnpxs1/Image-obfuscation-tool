@@ -12,11 +12,11 @@
     <!-- 通用 CDN 回退加载函数 -->
     <script>
         // 早期日志存根 — 在日志系统初始化前安全降级到 console
-        // 使用 var 赋值而非 function 声明，避免被后面同名 function 声明提前覆盖
-        var logLog = function(...args) { console.log(...args); };
-        var logInfo = function(fileName, reason, metadata) { console.info('[INFO] ' + fileName + ' - ' + reason, metadata || {}); };
-        var logWarn = function(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); };
-        var logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); };
+        // 使用 let 赋值而非 function 声明，避免被后面同名 function 声明提前覆盖
+        let logLog = function(...args) { console.log(...args); };
+        let logInfo = function(fileName, reason, metadata) { console.info('[INFO] ' + fileName + ' - ' + reason, metadata || {}); };
+        let logWarn = function(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); };
+        let logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); };
 
         function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, onAllFailed) {
             function load(cdnUrl, index = 0) {
@@ -33,7 +33,7 @@
                     } else {
                         logWarn(globalName, '脚本加载但未定义，视为失败');
                         stateObj.loading = false;
-                        script.onerror(new Error(globalName + ' is not defined'));
+                        script.onerror(globalName + ' is not defined');
                     }
                 };
                 script.onerror = () => {
@@ -1979,6 +1979,7 @@
             }
         }
     
+        /** @returns {Promise<Blob|null>} */
         async get(key) {
             await this.ready;
             if (this.isCacheApi) {
@@ -2062,6 +2063,7 @@
             const zipData = new Uint8Array(arrayBuffer);
 
             // 使用 fflate 解压
+            /** @type {Record<string, Uint8Array>} */
             const unzipped = await new Promise((resolve, reject) => {
                 fflate.unzip(zipData, (err, data) => {
                     if (err) reject(err);
@@ -2229,6 +2231,7 @@
             }
 
             // 压缩为 ZIP (level: 1 - 最快压缩)
+            /** @type {Uint8Array} */
             const zipData = await new Promise((resolve, reject) => {
                 fflate.zip(zipObj, { level: 1 }, (err, data) => {
                     if (err) reject(err);
@@ -2252,9 +2255,9 @@
     // 全局存储实例
     const storage = new StorageAdapter();
     
-    /** @type {Object|null} 当前移动端气泡关闭监听器 */
+    /** @type {Function|null} 当前移动端气泡关闭监听器 */
     let mobileTooltipListener = null;
-    /** @type {Object} 缓存指示器 touch 滚动监听器引用（防泄漏） */
+    /** @type {Function|null} 缓存指示器 touch 滚动监听器引用（防泄漏） */
     let cacheIndicatorTouchListeners = null;
 
     /**
@@ -2388,7 +2391,7 @@
     let hasImportedFiles = false;
     /** @type {Object|null} Viewer.js 实例 */
     let viewerInstance = null;
-    /** @type {boolean} 预览取消标志 */
+    /** @type {number} 预览取消标志 */
     let previewNonce = 0;
     function isPreviewStale(token) { return token !== previewNonce; }
     /** @type {string} 日志输出级别: 'error' | 'warn' | 'info' | 'log' */
@@ -4128,6 +4131,7 @@
             logWarn(file.name, `arrayBuffer 读取失败，尝试 FileReader: ${firstError.message || firstError}`);
             try {
                 // 回退到 FileReader
+                /** @type {ArrayBuffer} */
                 const buffer = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
