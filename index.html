@@ -1675,7 +1675,7 @@
         <!-- fflate 打包下载开关 -->
         <div class="toggle-switch-container zip-download-container">
             <label class="toggle-switch">
-                <input type="checkbox" id="zip-download-toggle" />
+                <input type="checkbox" id="zip-download-toggle" aria-label="打包下载开关" />
                 <span class="toggle-slider"></span>
             </label>
             <span class="toggle-switch-text zip-download-text"></span>
@@ -2255,8 +2255,8 @@
     // 全局存储实例
     const storage = new StorageAdapter();
     
-    /** @type {Function|null} 当前移动端气泡关闭监听器 */
-    let mobileTooltipListener = null;
+    /** @type {{ bind: Function, unbind: Function }|null} 移动端气泡关闭处理器 */
+    let mobileTooltipCloser = null;
     /** @type {Function|null} 缓存指示器 touch 滚动监听器引用（防泄漏） */
     let cacheIndicatorTouchListeners = null;
 
@@ -2277,9 +2277,9 @@
             indicator.removeAttribute('title');
             
             // 清理旧的监听器
-            if (mobileTooltipListener) {
-                document.removeEventListener('click', mobileTooltipListener);
-                mobileTooltipListener = null;
+            if (mobileTooltipCloser) {
+                mobileTooltipCloser.unbind();
+                mobileTooltipCloser = null;
             }
             // 清理旧的 onclick
             indicator.onclick = null;
@@ -2293,26 +2293,13 @@
 
             // 移动端点击事件
             if (window.innerWidth <= 768) {
+                const closer = createClickOutsideCloser(indicator, ['tooltip-active']);
+                mobileTooltipCloser = closer;
+
                 indicator.onclick = function(e) {
                     e.stopPropagation();
-                    // 切换气泡显示
                     this.classList.toggle('tooltip-active');
-
-                    // 重新绑定全局点击监听，确保每次打开都能正确关闭
-                    if (mobileTooltipListener) {
-                        document.removeEventListener('click', mobileTooltipListener);
-                    }
-                    mobileTooltipListener = function closeTooltip(ev) {
-                        if (!indicator.contains(ev.target)) {
-                            indicator.classList.remove('tooltip-active');
-                            document.removeEventListener('click', mobileTooltipListener);
-                            mobileTooltipListener = null;
-                        }
-                    };
-                    // 使用 setTimeout 避免立即触发本次点击的全局监听
-                    setTimeout(() => {
-                        document.addEventListener('click', mobileTooltipListener);
-                    }, 0);
+                    closer.bind();
                 };
 
                 // 移动端滑动页面时关闭气泡
@@ -2348,7 +2335,7 @@
 
         // 移动端点击行为
         if (window.innerWidth > 768) return;
-        let listener = null;
+        const closer = createClickOutsideCloser(el, ['tooltip-active', 'edge-left', 'edge-right']);
 
         el.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -2356,21 +2343,10 @@
 
             if (el.classList.contains('tooltip-active')) {
                 checkTooltipEdge(el);
-                if (listener) document.removeEventListener('click', listener);
-                listener = function closeTooltip(ev) {
-                    if (!el.contains(ev.target)) {
-                        el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
-                        document.removeEventListener('click', listener);
-                        listener = null;
-                    }
-                };
-                setTimeout(() => document.addEventListener('click', listener), 0);
+                closer.bind();
             } else {
                 el.classList.remove('edge-left', 'edge-right');
-                if (listener) {
-                    document.removeEventListener('click', listener);
-                    listener = null;
-                }
+                closer.unbind();
             }
         });
 
@@ -2787,6 +2763,35 @@
     const VALID_MIME_TYPES = [...new Set(Object.values(MIME_MAP))];
 
     // ---- 共享工具函数 ----
+
+    /**
+     * 创建点击外部关闭处理器，用于 tooltip 等浮层组件
+     * @param {HTMLElement} el - 目标元素
+     * @param {string[]} classList - 关闭时需移除的 CSS 类名
+     * @returns {{ bind: Function, unbind: Function }}
+     */
+    function createClickOutsideCloser(el, classList) {
+        let listener = null;
+        return {
+            bind() {
+                if (listener) document.removeEventListener('click', listener);
+                listener = (ev) => {
+                    if (!el.contains(ev.target)) {
+                        el.classList.remove(...classList);
+                        document.removeEventListener('click', listener);
+                        listener = null;
+                    }
+                };
+                setTimeout(() => document.addEventListener('click', listener), 0);
+            },
+            unbind() {
+                if (listener) {
+                    document.removeEventListener('click', listener);
+                    listener = null;
+                }
+            }
+        };
+    }
 
     /** 检查 localStorage 是否可用于非保护键 */
     function isStorageEnabledForKey(key) {
@@ -5028,7 +5033,6 @@
         }
     });
 
-    // 日志相关事件绑定已移至 LogManager 区域（DOMContentLoaded 内）
     // 按钮事件绑定
     document.getElementById('select-all').addEventListener('click', selectAll);
     document.getElementById('clear-selection').addEventListener('click', clearSelection);
@@ -5573,9 +5577,9 @@
             document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
             cacheIndicatorTouchListeners = null;
         }
-        if (mobileTooltipListener) {
-            document.removeEventListener('click', mobileTooltipListener);
-            mobileTooltipListener = null;
+        if (mobileTooltipCloser) {
+            mobileTooltipCloser.unbind();
+            mobileTooltipCloser = null;
         }
 
         // 销毁 Viewer.js 实例
