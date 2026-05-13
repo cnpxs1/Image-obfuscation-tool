@@ -15,6 +15,9 @@ build/
 *.sublime-project
 *.sublime-workspace
 
+# Claude Code配置文件
+.claude/
+
 # 本地临时需求文档（隐藏的开发文档）
 .Exacta*.md
 
@@ -36,3 +39,4 @@ yarn-error.log*
 .cache/
 
 # 项目文档（开发文档）
+dev-docs/
