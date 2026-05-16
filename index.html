@@ -1160,114 +1160,161 @@
         // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
         function showBasicImageViewer(imageData) {
             logLog('启动基础图片查看器');
-            
+
             // 清理可能存在的旧实例
             const existingViewer = document.querySelector('[data-basic-viewer]');
             if (existingViewer) {
                 existingViewer.remove();
             }
-            
-            // 创建基础查看器容器
+
+            // ========== 创建 DOM 元素 ==========
+
             const viewerContainer = document.createElement('div');
             viewerContainer.setAttribute('data-basic-viewer', 'true');
             viewerContainer.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background: rgba(0, 0, 0, 0.9);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-                cursor: zoom-out;
-            `;
-            
-            // 创建图片容器
-            const imgContainer = document.createElement('div');
-            imgContainer.style.cssText = `
-                position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background: rgba(0, 0, 0, 0.9); display: flex; align-items: center;
+                justify-content: center; z-index: 10000; cursor: zoom-out;
+                opacity: 0; transition: opacity 0.2s ease;
             `;
 
-            // 创建图片元素
+            const imgContainer = document.createElement('div');
+            imgContainer.style.cssText = `
+                position: relative; display: flex; align-items: center; justify-content: center;
+                opacity: 0; transition: opacity 0.2s ease;
+            `;
+
             const img = document.createElement('img');
             img.draggable = false;
             img.src = imageData.blobUrl || imageData.url;
             img.alt = escapeHtml(imageData.originalName);
             img.style.cssText = `
-                display: block;
-                object-fit: contain;
-                transition: none;
-                -webkit-user-drag: none;
-                user-select: none;
+                display: block; object-fit: contain; transition: none;
+                -webkit-user-drag: none; user-select: none;
             `;
             img.addEventListener('dragstart', (e) => e.preventDefault());
 
-            // 添加加载状态
             const loadingIndicator = document.createElement('div');
             loadingIndicator.textContent = '图片加载中...';
             loadingIndicator.style.cssText = `
-                position: absolute;
-                color: white;
-                font-size: 16px;
-                background: rgba(0, 0, 0, 0.7);
-                padding: 10px 20px;
-                border-radius: 4px;
-                display: block;
+                position: absolute; color: white; font-size: 16px;
+                background: rgba(0, 0, 0, 0.7); padding: 10px 20px;
+                border-radius: 4px; display: block;
             `;
 
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.tabIndex = 0;
+            closeBtn.setAttribute('aria-label', '关闭');
+            closeBtn.style.cssText = `
+                position: absolute; right: 20px; top: 20px; width: 40px; height: 40px;
+                background-color: rgba(0, 0, 0, 0.5); border: none; border-radius: 50%;
+                color: white; font-size: 24px; font-weight: normal; line-height: 1;
+                cursor: pointer; transition: background-color 0.15s, opacity 0.2s ease;
+                display: flex; align-items: center; justify-content: center; z-index: 10001;
+                opacity: 0;
+            `;
+
+            // 组装 DOM
             imgContainer.appendChild(loadingIndicator);
             imgContainer.appendChild(img);
             viewerContainer.appendChild(imgContainer);
+            viewerContainer.appendChild(closeBtn);
 
-            // 添加关闭按钮
-            const closeBtn = document.createElement('button');
-            closeBtn.innerHTML = '×';
-            closeBtn.style.cssText = `
-                position: absolute;
-                right: 20px;
-                top: 20px;
-                width: 40px;
-                height: 40px;
-                background-color: rgba(0, 0, 0, 0.5);
-                border: none;
-                border-radius: 50%;
-                color: white;
-                font-size: 24px;
-                font-weight: normal;
-                line-height: 1;
-                cursor: pointer;
-                transition: background-color 0.15s;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10001;
-            `;
+            // ========== 关闭逻辑（统一定义在前） ==========
 
-            closeBtn.onmouseenter = () => {
+            const closeBtnClickHandler = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                closeBasicViewer();
+            };
+
+            const closeBtnKeyHandler = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    closeBasicViewer();
+                }
+            };
+
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    closeBasicViewer();
+                }
+            };
+
+            const closeBtnHoverIn = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             };
 
-            closeBtn.onmouseleave = () => {
+            const closeBtnHoverOut = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             };
 
-            viewerContainer.appendChild(closeBtn);
+            const imgStopPropagation = (e) => e.stopPropagation();
 
-            // 禁用页面滚动
-            document.body.style.overflow = 'hidden';
+            function closeBasicViewer() {
+                // 防止重复关闭
+                if (closeBasicViewer._called) return;
+                closeBasicViewer._called = true;
 
-            // 添加到页面
-            document.body.appendChild(viewerContainer);
+                // 移除按钮事件
+                closeBtn.removeEventListener('click', closeBtnClickHandler);
+                closeBtn.removeEventListener('keydown', closeBtnKeyHandler);
+                closeBtn.removeEventListener('mouseenter', closeBtnHoverIn);
+                closeBtn.removeEventListener('mouseleave', closeBtnHoverOut);
 
-            // 图片加载完成后根据实际尺寸调整显示大小
+                // 移除全局键盘事件
+                document.removeEventListener('keydown', escHandler);
+
+                // 淡出动画，完成后移除 DOM 并释放资源
+                viewerContainer.style.opacity = '0';
+
+                let cleaned = false;
+                const finalize = () => {
+                    if (cleaned) return;
+                    cleaned = true;
+                    viewerContainer.removeEventListener('transitionend', finalize);
+                    if (viewerContainer.parentNode) {
+                        viewerContainer.parentNode.removeChild(viewerContainer);
+                    }
+                    img.onload = null;
+                    img.onerror = null;
+                    img.onclick = null;
+                    if (img.src && img.src.startsWith('blob:')) {
+                        try {
+                            URL.revokeObjectURL(img.src);
+                            logLog('已释放基础查看器的 Blob URL');
+                        } catch (error) {
+                            logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
+                        }
+                    }
+                    document.body.style.overflow = '';
+                    logLog('基础查看器已关闭并清理资源');
+                };
+
+                viewerContainer.addEventListener('transitionend', finalize);
+
+                // fallback: 若 transitionend 未触发，400ms 后强制清理
+                setTimeout(finalize, 400);
+            }
+
+            // ========== 绑定事件 ==========
+
+            closeBtn.addEventListener('click', closeBtnClickHandler);
+            closeBtn.addEventListener('keydown', closeBtnKeyHandler);
+            closeBtn.addEventListener('mouseenter', closeBtnHoverIn);
+            closeBtn.addEventListener('mouseleave', closeBtnHoverOut);
+            document.addEventListener('keydown', escHandler);
+
+            viewerContainer.onclick = closeBasicViewer;
+            img.onclick = imgStopPropagation;
+            imgContainer.onclick = imgStopPropagation;
+
+            // ========== 图片加载回调 ==========
+
             img.onload = () => {
                 loadingIndicator.style.display = 'none';
-                const margin = 50; // 页面边距
+                const margin = 50;
                 const maxW = window.innerWidth - margin;
                 const maxH = window.innerHeight - margin;
                 const iw = img.naturalWidth;
@@ -1279,101 +1326,30 @@
                 }
                 imgContainer.style.maxWidth = maxW + 'px';
                 imgContainer.style.maxHeight = maxH + 'px';
-                img.style.cursor = img.naturalWidth * img.naturalHeight > maxW * maxH ? 'zoom-out' : 'default';
+                img.style.cursor = iw * ih > maxW * maxH ? 'zoom-out' : 'default';
                 logLog('基础查看器：图片加载完成');
             };
-            
+
             img.onerror = () => {
                 loadingIndicator.textContent = '图片加载失败';
                 loadingIndicator.style.color = '#ff6b6b';
                 logError('基础图片查看器', '图片加载失败');
             };
-            
-            // 关闭查看器的函数
-            function closeBasicViewer() {
-                // 清理通过 addEventListener 添加的事件监听器
-                cleanupEventListeners();
-                            
-                // 清理全局事件监听器
-                document.removeEventListener('keydown', escHandler);
-                            
-                // 移除查看器容器
-                if (viewerContainer.parentNode) {
-                    viewerContainer.parentNode.removeChild(viewerContainer);
-                }
-                            
-                // 重新启用页面滚动
-                document.body.style.overflow = '';
-                            
-                // 清理图片资源
-                if (img) {
-                    img.onload = null;
-                    img.onerror = null;
-                    img.onclick = null;
-                    // 释放 Blob URL（如果存在）
-                    if (img.src && img.src.startsWith('blob:')) {
-                        try {
-                            URL.revokeObjectURL(img.src);
-                            logLog('已释放基础查看器的 Blob URL');
-                        } catch (error) {
-                            logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
-                        }
-                    }
-                }
-                            
-                // 清理按钮事件
-                if (closeBtn) {
-                    closeBtn.onclick = null;
-                    closeBtn.onkeydown = null;
-                    closeBtn.onmouseenter = null;
-                    closeBtn.onmouseleave = null;
-                }
-                            
-                logLog('基础查看器已关闭并清理资源');
-            }
-            
-            // 绑定关闭事件
-            viewerContainer.onclick = closeBasicViewer;
-            
-            // 确保关闭按钮事件正确绑定
-            const clickHandler = (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                closeBasicViewer();
-            };
-            
-            const keydownHandler = (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    closeBasicViewer();
-                }
-            };
-            
-            closeBtn.addEventListener('click', clickHandler);
-            closeBtn.addEventListener('keydown', keydownHandler);
-            
-            // 在关闭函数中添加对应的移除操作
-            const cleanupEventListeners = () => {
-                closeBtn.removeEventListener('click', clickHandler);
-                closeBtn.removeEventListener('keydown', keydownHandler);
-            };
-            
-            // 确保按钮可获得焦点
-            closeBtn.tabIndex = 0;
-            
-            // ESC 键关闭
-            const escHandler = (e) => {
-                if (e.key === 'Escape') {
-                    closeBasicViewer();
-                    document.removeEventListener('keydown', escHandler);
-                }
-            };
-            document.addEventListener('keydown', escHandler);
-            
-            // 防止事件冒泡到容器
-            img.onclick = (e) => e.stopPropagation();
-            imgContainer.onclick = (e) => e.stopPropagation();
-            
+
+            // ========== 展示 ==========
+
+            document.body.style.overflow = 'hidden';
+            document.body.appendChild(viewerContainer);
+
+            // 背景蒙版先淡入，图片内容和关闭按钮延迟 250ms 后淡入
+            requestAnimationFrame(() => {
+                viewerContainer.style.opacity = '1';
+                setTimeout(() => {
+                    imgContainer.style.opacity = '1';
+                    closeBtn.style.opacity = '1';
+                }, 250);
+            });
+
             logLog('基础图片查看器启动成功');
         }
         
