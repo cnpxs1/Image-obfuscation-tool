@@ -8,9 +8,89 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <!-- Viewer.js 加载状态初始化（必须在 CSS link 之前，避免缓存命中时 onload 竞态） -->
     <script>window.viewerResources = { cssLoaded: false, jsLoaded: false, localFallback: false, promptShown: false, currentCDN: null };</script>
+
+    <!-- Viewer.js CDN 降级（必须在 CSS link 之前定义） -->
+    <script>
+        (function() {
+            const R = window.viewerResources;
+            R._resolve = null; R._reject = null; R._timeout = null;
+
+            R._notifyReady = function() {
+                if (R.jsLoaded && R.cssLoaded && window.Viewer && R._resolve) {
+                    clearTimeout(R._timeout);
+                    R._resolve(); R._resolve = R._reject = null;
+                }
+            };
+            R._notifyFailed = function(reason) {
+                if (R._reject) {
+                    clearTimeout(R._timeout);
+                    R._reject(new Error(reason)); R._resolve = R._reject = null;
+                }
+            };
+            window.createViewerFallback = function(tag, url, onLoad, onError) {
+                if (R.localFallback) return null;
+                const el = document.createElement(tag);
+                if (tag === 'link') { el.rel = 'stylesheet'; el.href = url; }
+                else { el.src = url; }
+                el.onload = function() { if (onLoad) onLoad(); };
+                el.onerror = function() { if (onError) onError(); };
+                document.head.appendChild(el);
+                return el;
+            };
+            window.loadLocalViewerResource = function(type) {
+                if (R.localFallback) return;
+                const isCss = type === 'css';
+                const url = './assets/viewerjs/viewer.min.' + (isCss ? 'css' : 'js');
+                console.warn('[WARN] Viewer.js - CDN 加载失败，尝试本地 ' + type.toUpperCase());
+
+                window.createViewerFallback(isCss ? 'link' : 'script', url,
+                    function() {
+                        if (isCss) R.cssLoaded = true; else R.jsLoaded = true;
+                        R.currentCDN = 'local';
+                        console.log('本地 Viewer.js ' + type.toUpperCase() + ' 加载成功');
+                        R._notifyReady();
+                    },
+                    function() {
+                        console.error('[ERROR] Viewer.js - 本地 ' + type.toUpperCase() + ' 加载失败');
+                        R.localFallback = true;
+                        R._notifyFailed('Viewer.js 资源加载失败');
+                        if (!R.promptShown) {
+                            R.promptShown = true;
+                            setTimeout(function() {
+                                alert('❌ Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
+                            }, 100);
+                        }
+                    }
+                );
+            };
+            window.loadCDNFallback = function(resourceType, failedCDN) {
+                console.warn('[WARN] Viewer.js - ' + failedCDN + ' ' + resourceType + ' 加载失败，降级');
+                if (resourceType === 'css') {
+                    if (failedCDN === 'bootcdn') {
+                        console.log('尝试 cdnjs CSS');
+                        window.createViewerFallback('link',
+                            'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css',
+                            function() { R.cssLoaded = true; R.currentCDN = 'cdnjs'; console.log('cdnjs CSS 加载成功'); R._notifyReady(); },
+                            function() { console.warn('[WARN] Viewer.js - cdnjs CSS 加载失败'); window.loadLocalViewerResource('css'); }
+                        );
+                    } else { window.loadLocalViewerResource('css'); }
+                } else if (resourceType === 'js') {
+                    if (failedCDN === 'bootcdn') {
+                        console.log('尝试 cdnjs JS');
+                        window.createViewerFallback('script',
+                            'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js',
+                            function() { R.jsLoaded = true; R.currentCDN = 'cdnjs'; console.log('cdnjs JS 加载成功'); R._notifyReady(); },
+                            function() { console.warn('[WARN] Viewer.js - cdnjs JS 加载失败'); window.loadLocalViewerResource('js'); }
+                        );
+                    } else { window.loadLocalViewerResource('js'); }
+                }
+            };
+        })();
+    </script>
+
     <!-- Viewer.js CSS 加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
-    <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('css', 'bootcdn')">
+    <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true;window.viewerResources.currentCDN='bootcdn';window.viewerResources._notifyReady();}" onerror="loadCDNFallback('css','bootcdn')">
     <!-- 通用 CDN 回退加载函数 -->
     <script>
         // 早期日志存根 — 在日志系统初始化前安全降级到 console
@@ -1050,121 +1130,32 @@
             }
         }
     </style>
-    <!-- Viewer.js JavaScript 智能加载 -->
+    <!-- Viewer.js 事件驱动加载 -->
     <script>
-        // R = window.viewerResources 已在 <head> 顶部初始化
         window.viewerLoadPromise = null;
 
-        // 获取 Viewer.js 加载 Promise (事件驱动 + 200ms 轻量轮询)
         function getViewerLoadPromise() {
             if (window.viewerLoadPromise) return window.viewerLoadPromise;
             const R = window.viewerResources;
-            let _resolve, _reject, _pollId, _timeoutId;
-
-            function clear() { _resolve = _reject = null; clearInterval(_pollId); clearTimeout(_timeoutId); }
 
             window.viewerLoadPromise = new Promise(function(resolve, reject) {
-                _resolve = resolve; _reject = reject;
-                let attempts = 0;
+                if (R.jsLoaded && R.cssLoaded && window.Viewer) { resolve(); return; }
+                if (R.localFallback) { reject(new Error('Viewer.js 资源加载失败')); return; }
 
-                // 即时检查
-                if (R.jsLoaded && R.cssLoaded && window.hasOwnProperty('Viewer') && window.Viewer) {
-                    resolve(); _resolve = _reject = null; return;
-                }
-                if (R.localFallback) {
-                    reject(new Error('Viewer.js 资源加载失败')); _resolve = _reject = null; return;
-                }
+                R._resolve = resolve;
+                R._reject = reject;
 
-                // 200ms 轮询, 最多 25 次 (5s)
-                _pollId = setInterval(function() {
-                    attempts++;
-                    if (R.jsLoaded && R.cssLoaded && window.hasOwnProperty('Viewer') && window.Viewer) {
-                        clearInterval(_pollId); clearTimeout(_timeoutId);
-                        resolve(); _resolve = _reject = null;
-                    } else if (R.localFallback || attempts >= 25) {
-                        clearInterval(_pollId); clearTimeout(_timeoutId);
-                        if (R.localFallback) reject(new Error('Viewer.js 资源加载失败'));
-                        else if (!R.jsLoaded || !R.cssLoaded) reject(new Error('Viewer.js 加载超时'));
-                        _resolve = _reject = null;
-                    }
-                }, 200);
-
-                _timeoutId = setTimeout(function() {
-                    clearInterval(_pollId);
-                    if (!R.jsLoaded || !R.cssLoaded) {
-                        logError('Viewer.js', '加载超时 (5s)');
-                        reject(new Error('Viewer.js 加载超时')); _resolve = _reject = null;
-                    }
+                R._timeout = setTimeout(function() {
+                    logError('Viewer.js', '加载超时 (5s)');
+                    reject(new Error('Viewer.js 加载超时'));
+                    R._resolve = R._reject = null;
                 }, 5000);
             }).catch(function(err) {
-                window.viewerLoadPromise = null; clear(); throw err;
+                clearTimeout(R._timeout);
+                window.viewerLoadPromise = null; throw err;
             });
 
             return window.viewerLoadPromise;
-        }
-
-        // 统一创建回退资源元素 (link/script)
-        function createViewerFallback(tag, url, onLoad, onError) {
-            if (window.viewerResources.localFallback) return null;
-            const el = document.createElement(tag);
-            if (tag === 'link') { el.rel = 'stylesheet'; el.href = url; }
-            else { el.src = url; }
-            el.onload = function() { if (onLoad) onLoad(); };
-            el.onerror = function() { if (onError) onError(); };
-            document.head.appendChild(el);
-            return el;
-        }
-
-        // 加载本地资源 (CSS/JS 统一)
-        function loadLocalViewerResource(type) {
-            if (window.viewerResources.localFallback) return;
-            const isCss = type === 'css';
-            const url = './assets/viewerjs/viewer.min.' + (isCss ? 'css' : 'js');
-            logWarn('Viewer.js', 'CDN 加载失败，尝试本地 ' + type.toUpperCase());
-
-            createViewerFallback(isCss ? 'link' : 'script', url,
-                function() {
-                    if (isCss) window.viewerResources.cssLoaded = true;
-                    else window.viewerResources.jsLoaded = true;
-                    window.viewerResources.currentCDN = 'local';
-                    logLog('本地 Viewer.js ' + type.toUpperCase() + ' 加载成功');
-                },
-                function() {
-                    logError('Viewer.js', '本地 ' + type.toUpperCase() + ' 加载失败');
-                    window.viewerResources.localFallback = true;
-                    if (!window.viewerResources.promptShown) {
-                        window.viewerResources.promptShown = true;
-                        setTimeout(function() {
-                            alert('❌ Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
-                        }, 100);
-                    }
-                }
-            );
-        }
-
-        // CDN 降级加载函数 (CSS/JS 统一, 超时由 Promise 统一管理)
-        function loadCDNFallback(resourceType, failedCDN) {
-            logWarn('Viewer.js', failedCDN + ' ' + resourceType + ' 加载失败，降级');
-
-            if (resourceType === 'css') {
-                if (failedCDN === 'bootcdn') {
-                    logLog('尝试 cdnjs CSS');
-                    createViewerFallback('link',
-                        'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css',
-                        function() { window.viewerResources.cssLoaded = true; window.viewerResources.currentCDN = 'cdnjs'; logLog('cdnjs CSS 加载成功'); },
-                        function() { logWarn('Viewer.js', 'cdnjs CSS 加载失败'); loadLocalViewerResource('css'); }
-                    );
-                } else { loadLocalViewerResource('css'); }
-            } else if (resourceType === 'js') {
-                if (failedCDN === 'bootcdn') {
-                    logLog('尝试 cdnjs JS');
-                    createViewerFallback('script',
-                        'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js',
-                        function() { window.viewerResources.jsLoaded = true; window.viewerResources.currentCDN = 'cdnjs'; logLog('cdnjs JS 加载成功'); },
-                        function() { logWarn('Viewer.js', 'cdnjs JS 加载失败'); loadLocalViewerResource('js'); }
-                    );
-                } else { loadLocalViewerResource('js'); }
-            }
         }
         // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
         function showBasicImageViewer(imageData) {
@@ -1389,7 +1380,7 @@
     </script>
     <!-- Viewer.js JavaScript 优先级加载 -->
     <!-- 第一级：bootcdn -->
-    <script id="viewer-js-bootcdn" src="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.js" defer onload="if(window.viewerResources){window.viewerResources.jsLoaded=true; window.viewerResources.currentCDN='bootcdn'}" onerror="loadCDNFallback('js', 'bootcdn')"></script>
+    <script id="viewer-js-bootcdn" src="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.js" defer onload="if(window.viewerResources){window.viewerResources.jsLoaded=true;window.viewerResources.currentCDN='bootcdn';window.viewerResources._notifyReady();}" onerror="loadCDNFallback('js','bootcdn')"></script>
 </head>
 <body>
 <!-- 缓存方案指示器 -->
