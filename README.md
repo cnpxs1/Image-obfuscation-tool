@@ -110,7 +110,7 @@ Image-obfuscation-tool/
 ├── favicon.svg         # 网站图标（SVG格式）
 ├── README.md           # 项目说明文档（含使用教程、声明、技术细节）
 ├── LICENSE             # MIT开源许可证文件
-├── .gitignore          # Git版本控制忽略规则配置
+├── .gitignore          # Git忽略规则配置
 ├── assets/             # 可选静态资源文件夹
 │   ├── viewerjs/       # viewer.js静态资源
 │   ├── fflate/         # fflate静态资源
