@@ -216,24 +216,29 @@
             white-space: nowrap;/* 禁止换行 */
         }
 
-        /* 气泡提示样式（统一样式） */
-        #cacheIndicator::after {
+        /* 公共气泡样式 */
+        #cacheIndicator::after,
+        .text-tooltip::after {
             content: attr(data-tooltip);
             position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 8px;
             background: rgba(0, 0, 0, 0.85);
             color: #fff;
             padding: 4px 8px;
             border-radius: 6px;
+            z-index: 1000;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: none;
+        }
+
+        /* 缓存指示器气泡特有样式 */
+        #cacheIndicator::after {
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
             font-size: 0.95rem;
             max-width: 250px;
             min-width: 150px;
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             line-height: 1.3;
-            display: none;
         }
 
         /* PC端：鼠标悬停显示气泡 */
@@ -248,7 +253,7 @@
             .main-content {
                 position: relative; /* 为缓存指示器提供定位上下文 */
             }
-            
+
             /* 移动端时缓存指示器相对于 main-content 定位，在其上层并随内容滚动 */
             #cacheIndicator {
                 position: absolute;
@@ -257,10 +262,9 @@
                 margin-bottom: 10px;
                 padding: 5px 8px;
                 max-width: 75px;
-                white-space: nowrap;/* 禁止换行 */
                 cursor: pointer; /* 允许点击 */
             }
-            
+
             /* 移动端：点击激活时显示气泡 */
             #cacheIndicator.tooltip-active::after {
                 display: block;
@@ -273,22 +277,13 @@
             cursor: help;
         }
         .text-tooltip::after {
-            content: attr(data-tooltip);
-            position: absolute;
             bottom: 100%;
             left: 50%;
             transform: translateX(-50%);
             margin-bottom: 6px;
-            background: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            padding: 4px 8px;
-            border-radius: 6px;
             font-size: 0.85rem;
             white-space: nowrap;
             max-width: calc(100vw - 20px);
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-            display: none;
         }
         /* 屏幕边缘检测：左边缘 */
         .text-tooltip.edge-left::after {
@@ -575,7 +570,7 @@
             border-radius: 12px;
             font-size: 0.8rem;
             margin-top: 0.3rem;
-            border: 1px solid transparent; /* 默认透明边框 */
+            border: 1px solid transparent;
         }
 
         .status-original {
@@ -1689,7 +1684,6 @@
     class StorageAdapter {
         constructor() {
             this.backend = null;
-            this.isCacheApi = false;
             this.dbName = 'ImageObfuscationDB';
             this.storeName = 'imageBlobs';
             this.db = null;
@@ -1704,7 +1698,6 @@
                 try {
                     // 启动时删除整个旧缓存（单次操作，避免逐个 delete() 导致长任务阻塞 LCP）
                     await caches.delete(this.cacheName);
-                    this.isCacheApi = true;
                     this.backend = await caches.open(this.cacheName);
                     logLog('使用 Cache API');
                     logLog('已清理旧数据');
@@ -1717,7 +1710,6 @@
                 }
             }
             // 降级到 IndexedDB
-            this.isCacheApi = false;
             await this._initIndexedDB();
             // 启动时清空所有旧数据
             await new Promise((resolve, reject) => {
@@ -1754,7 +1746,7 @@
         async set(key, blob) {
             await this.ready;
             try {
-                if (this.isCacheApi) {
+                if (this.backend) {
                     const response = new Response(blob, {
                         headers: { 'Content-Type': blob.type || 'image/png' }
                     });
@@ -1786,7 +1778,7 @@
         /** @returns {Promise<Blob|null>} */
         async get(key) {
             await this.ready;
-            if (this.isCacheApi) {
+            if (this.backend) {
                 const response = await this.backend.match(key);
                 if (!response) return null;
                 return await response.blob();
@@ -1804,7 +1796,7 @@
     
         async delete(key) {
             await this.ready;
-            if (this.isCacheApi) {
+            if (this.backend) {
                 await this.backend.delete(key);
             } else {
                 return new Promise((resolve, reject) => {
@@ -1820,7 +1812,7 @@
     
         async clear() {
             await this.ready;
-            if (this.isCacheApi) {
+            if (this.backend) {
                 const keys = await this.backend.keys();
                 for (const key of keys) {
                     await this.backend.delete(key);
@@ -2259,12 +2251,9 @@
             logs = [];
         },
 
-        getByLevel(level) {
-            if (!level) return logs;
-            const maxIdx = LEVEL_ORDER.indexOf(level);
-            if (maxIdx === -1) return logs;
-            const allowed = LEVEL_ORDER.slice(0, maxIdx + 1);
-            return logs.filter(l => allowed.includes(l.level));
+        getByLevels(levels) {
+            if (!levels || levels.size === 0) return logs;
+            return logs.filter(l => levels.has(l.level));
         },
 
         getCounts() {
@@ -2299,7 +2288,7 @@
     logError = function(fileName, reason, metadata = {}) {
         if (!shouldOutputLog('error')) return;
         LogManager.add(fileName, reason, 'error', metadata);
-        _origConsoleLog(`[ERROR] ${fileName} - ${reason}`, metadata);
+        console.error(`[ERROR] ${fileName} - ${reason}`, metadata);
         updateLogFab();
         if (logPanelVisible) renderLogPanel(currentFilter);
     };
@@ -2339,11 +2328,11 @@
     // ---- UI 状态 ----
 
     let logPanelVisible = false;
-    let currentFilter = null; // null = 全部, 层级过滤: 'error'→仅error | 'warn'→error+warn | 'info'→全部
+    let currentFilter = new Set(); // 空集 = 全部, 多选: 'error'/'warn'/'info'
     /** 跟踪列表中已渲染的日志 ID，用于增量更新 */
     let renderedLogIds = new Set();
-    /** 上次渲染的过滤器，用于判断是否需要全量重建 */
-    let lastFilter = undefined;
+    /** 上次渲染的筛选键，用于判断是否需要全量重建 */
+    let lastFilter = '';
 
     // ---- 悬浮按钮 ----
 
@@ -2409,15 +2398,16 @@
         }
     }
 
-    function renderLogPanel(filterLevel) {
-        currentFilter = filterLevel;
+    function renderLogPanel(levels) {
+        currentFilter = levels;
         const list = document.getElementById('logPanelList');
         const stats = document.getElementById('logStats');
-        const filteredLogs = filterLevel ? LogManager.getByLevel(filterLevel) : logs;
+        const filteredLogs = LogManager.getByLevels(levels);
 
         // 过滤器变化 → 全量重建
-        if (filterLevel !== lastFilter) {
-            lastFilter = filterLevel;
+        const filterKey = levels.size === 0 ? '' : [...levels].sort().join(',');
+        if (filterKey !== lastFilter) {
+            lastFilter = filterKey;
             renderedLogIds.clear();
 
             if (filteredLogs.length === 0) {
@@ -2436,7 +2426,7 @@
             pruneRenderedIds(filteredLogs);
             const newLogs = filteredLogs.filter(l => !renderedLogIds.has(l.id));
             if (newLogs.length === 0) {
-                renderStats(stats, filterLevel);
+                renderStats(stats, levels);
                 return;
             }
 
@@ -2456,16 +2446,18 @@
             }
         }
 
-        renderStats(stats, filterLevel);
+        renderStats(stats, levels);
     }
 
     /** 渲染底部统计筛选按钮 */
-    function renderStats(statsEl, filterLevel) {
+    function renderStats(statsEl, levels) {
         const counts = LogManager.getCounts();
+        const allActive = levels.size === 0;
         statsEl.innerHTML = LEVEL_ORDER.map(lv => {
             const color = LEVEL_COLORS[lv];
-            const active = filterLevel === lv ? ' active' : '';
-            return `<button class="log-stat-btn${active}" data-level="${lv}" style="color:${color};">
+            const active = levels.has(lv) ? ' active' : '';
+            const borderStyle = allActive ? `border-color:${color};` : '';
+            return `<button class="log-stat-btn${active}" data-level="${lv}" style="color:${color};${borderStyle}">
                 ${LOG_ICONS[lv]} ${counts[lv]}
             </button>`;
         }).join('');
@@ -2474,9 +2466,9 @@
     function openLogPanel() {
         logPanelVisible = true;
         document.getElementById('logPanelOverlay').classList.add('open');
-        currentFilter = null;
-        lastFilter = undefined; // 强制全量重建
-        renderLogPanel(null);
+        currentFilter = new Set();
+        lastFilter = ''; // 强制全量重建
+        renderLogPanel(new Set());
     }
 
     function closeLogPanel() {
@@ -2492,64 +2484,16 @@
     function clearAllLogs() {
         LogManager.clear();
         renderedLogIds.clear();
-        lastFilter = undefined;
+        lastFilter = '';
         updateLogFab();
         if (logPanelVisible) {
-            renderLogPanel(null);
+            renderLogPanel(new Set());
             closeLogPanel();
         }
     }
 
     // ---- 事件绑定（日志面板） ----
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const fab = document.getElementById('logFab');
-        const overlay = document.getElementById('logPanelOverlay');
-        const panel = document.getElementById('logPanel');
-
-        fab.addEventListener('click', toggleLogPanel);
-        document.getElementById('logPanelClose').addEventListener('click', closeLogPanel);
-        document.getElementById('logClearBtn').addEventListener('click', clearAllLogs);
-
-        // 点击遮罩关闭
-        overlay.addEventListener('click', function(e) {
-            if (e.target === overlay) closeLogPanel();
-        });
-
-        // ESC 关闭
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && logPanelVisible) closeLogPanel();
-        });
-
-        // 统计筛选按钮 — 事件委托，只绑定一次
-        document.getElementById('logStats').addEventListener('click', function(e) {
-            const btn = e.target.closest('.log-stat-btn');
-            if (!btn) return;
-            const lv = btn.dataset.level;
-            renderLogPanel(currentFilter === lv ? null : lv);
-        });
-
-        // 移动端右滑关闭
-        let touchStartX = 0;
-        panel.addEventListener('touchstart', function(e) {
-            touchStartX = e.touches[0].clientX;
-        }, { passive: true });
-        panel.addEventListener('touchmove', function(e) {
-            const dx = e.touches[0].clientX - touchStartX;
-            if (dx > 0) {
-                panel.style.transform = `translateX(${dx}px)`;
-                panel.style.transition = 'none';
-            }
-        }, { passive: true });
-        panel.addEventListener('touchend', function(e) {
-            panel.style.transition = '';
-            const dx = e.changedTouches[0].clientX - touchStartX;
-            if (dx > 80) {
-                closeLogPanel();
-            }
-            panel.style.transform = '';
-        });
-    });
+    // （合并到下方 DOMContentLoaded 统一入口中）
     
     // =============================================
     // 公共工具函数
@@ -2602,6 +2546,21 @@
     /** 检查 localStorage 是否可用于非保护键 */
     function isStorageEnabledForKey(key) {
         return key === 'localStorageEnabled' || localStorageEnabled;
+    }
+
+    /**
+     * 创建 ImageBitmap 并自动管理生命周期（消除重复的 createImageBitmap + finally close 模式）
+     * @param {Blob} blob - 图片 Blob
+     * @param {(bitmap: ImageBitmap) => Promise<any>} callback
+     * @returns {Promise<any>} callback 的返回值
+     */
+    async function withImageBitmap(blob, callback) {
+        const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
+        try {
+            return await callback(bitmap);
+        } finally {
+            bitmap.close();
+        }
     }
 
     /** 获取当前操作的目标图片 ID 列表（优先选中，否则全部） */
@@ -2709,8 +2668,7 @@
     async function convertImageBlob(blob, targetFormat, opts = {}) {
         const currentType = blob.type;
         const needConvert = !(currentType === `image/${targetFormat}` ||
-            (targetFormat === 'jpg' && currentType === 'image/jpeg') ||
-            (targetFormat === 'jpeg' && currentType === 'image/jpg'));
+            (targetFormat === 'jpg' && currentType === 'image/jpeg'));
 
         if (!needConvert) return blob;
 
@@ -2942,7 +2900,7 @@
         if (curveCache.size >= MAX_CACHE_SIZE) {
             ageFrequencies();
             evictLFUCacheEntry();
-            if (logLevel === 'log') cacheEvictions++;
+            cacheEvictions++;
         }
 
         curveCache.set(key, {
@@ -3246,8 +3204,9 @@
                     canvas.width = 0;
                     canvas.height = 0;
                 });
+                const cleanedCount = pool.length;
                 pool.length = 0;
-                logLog(`清理非常用尺寸 ${key}: ${pool.length} 个Canvas`);
+                logLog(`清理非常用尺寸 ${key}: ${cleanedCount} 个Canvas`);
             }
         });
         
@@ -3326,76 +3285,67 @@
      * 2. 预计算行对齐参数，避免循环中重复计算
      * 3. 对大图(>2MB)可考虑使用Web Worker处理
      */
-    function canvasToBMP(canvas) {
-        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
-        const width = canvas.width;
-        const height = canvas.height;
-        const imageData = ctx.getImageData(0, 0, width, height);
-
-        // 预计算行对齐参数（避免在循环中重复计算）
-        const bytesPerPixel = 3; // 24位BMP不包含Alpha通道
-        const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4; // 4字节对齐padding
+    /**
+     * 将 RGBA 像素数据编码为 BMP 24位格式
+     * 供同步 canvasToBMP 和异步 Web Worker 共用，消除维护双份代码的风险
+     */
+    function encodeBMPData(width, height, imageData) {
+        const bytesPerPixel = 3;
+        const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4;
         const rowSize = width * bytesPerPixel + rowPadding;
         const pixelDataSize = rowSize * height;
-        const totalSize = 54 + pixelDataSize; // 14(文件头) + 40(信息头) + 像素数据
-        
-        // 使用Uint8Array直接填充文件头（性能优于DataView）
+        const totalSize = 54 + pixelDataSize;
+
         const result = new Uint8Array(totalSize);
-        
+
         // BMP文件头 (14字节)
-        result[0] = 0x42;  // 'B'
-        result[1] = 0x4D;  // 'M'
-        // 文件大小 (little-endian)
+        result[0] = 0x42; result[1] = 0x4D;
         result[2] = totalSize & 0xFF;
         result[3] = (totalSize >> 8) & 0xFF;
         result[4] = (totalSize >> 16) & 0xFF;
         result[5] = (totalSize >> 24) & 0xFF;
-        // 保留字段 (6-9字节为0)
-        result[10] = 54 & 0xFF;  // 像素数据偏移量低位
-        result[11] = (54 >> 8) & 0xFF;  // 像素数据偏移量高位
-        
+        result[10] = 54 & 0xFF;
+        result[11] = (54 >> 8) & 0xFF;
+
         // BMP信息头 (40字节)
-        result[14] = 40;  // 信息头大小
-        // 图片宽度 (little-endian)
+        result[14] = 40;
         result[18] = width & 0xFF;
         result[19] = (width >> 8) & 0xFF;
         result[20] = (width >> 16) & 0xFF;
         result[21] = (width >> 24) & 0xFF;
-        // 图片高度 (负数表示从上到下存储)
         const negativeHeight = -height;
         result[22] = negativeHeight & 0xFF;
         result[23] = (negativeHeight >> 8) & 0xFF;
         result[24] = (negativeHeight >> 16) & 0xFF;
         result[25] = (negativeHeight >> 24) & 0xFF;
-        result[26] = 1;  // 颜色平面数
-        result[28] = 24; // 每像素位数(24位)
-        // 像素数据大小
+        result[26] = 1; result[28] = 24;
         result[34] = pixelDataSize & 0xFF;
         result[35] = (pixelDataSize >> 8) & 0xFF;
         result[36] = (pixelDataSize >> 16) & 0xFF;
         result[37] = (pixelDataSize >> 24) & 0xFF;
-        // 分辨率 (2835 pixels/meter ≈ 72 DPI)
-        result[38] = 47; result[39] = 11;  // 水平分辨率低位
-        result[42] = 47; result[43] = 11;  // 垂直分辨率低位
-        
-        // 转换像素数据：RGBA -> BGR（优化的循环）
-        const srcData = imageData.data;
+        result[38] = 47; result[39] = 11;
+        result[42] = 47; result[43] = 11;
+
+        // 像素数据转换：RGBA -> BGR
         let srcIndex = 0;
-        let dstIndex = 54; // 从文件头后开始写入
-        
+        let dstIndex = 54;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                // BGR顺序写入（跳过Alpha通道）
-                result[dstIndex++] = srcData[srcIndex + 2];  // B
-                result[dstIndex++] = srcData[srcIndex + 1];  // G
-                result[dstIndex++] = srcData[srcIndex];      // R
-                srcIndex += 4; // 跳过Alpha通道
+                result[dstIndex++] = imageData[srcIndex + 2];
+                result[dstIndex++] = imageData[srcIndex + 1];
+                result[dstIndex++] = imageData[srcIndex];
+                srcIndex += 4;
             }
-            // 添加行padding（已由Uint8Array初始化为0）
             dstIndex += rowPadding;
         }
 
-        return result.buffer;
+        return result;
+    }
+
+    function canvasToBMP(canvas) {
+        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        return encodeBMPData(canvas.width, canvas.height, imageData.data).buffer;
     }
     
     /**
@@ -3427,64 +3377,12 @@
             }
 
             try {
-                // 创建内联Worker处理大图
+                // 创建内联Worker处理大图（复用 encodeBMPData，消除双份维护）
                 const workerCode = `
+                    ${encodeBMPData.toString()}
                     self.onmessage = function(e) {
                         const { width, height, imageData } = e.data;
-
-                        // 预计算参数
-                        const bytesPerPixel = 3;
-                        const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4;
-                        const rowSize = width * bytesPerPixel + rowPadding;
-                        const pixelDataSize = rowSize * height;
-                        const totalSize = 54 + pixelDataSize;
-
-                        const result = new Uint8Array(totalSize);
-
-                        // 文件头
-                        result[0] = 0x42; result[1] = 0x4D;
-                        result[2] = totalSize & 0xFF;
-                        result[3] = (totalSize >> 8) & 0xFF;
-                        result[4] = (totalSize >> 16) & 0xFF;
-                        result[5] = (totalSize >> 24) & 0xFF;
-                        result[10] = 54 & 0xFF;
-                        result[11] = (54 >> 8) & 0xFF;
-
-                        // 信息头
-                        result[14] = 40;
-                        result[18] = width & 0xFF;
-                        result[19] = (width >> 8) & 0xFF;
-                        result[20] = (width >> 16) & 0xFF;
-                        result[21] = (width >> 24) & 0xFF;
-
-                        const negativeHeight = -height;
-                        result[22] = negativeHeight & 0xFF;
-                        result[23] = (negativeHeight >> 8) & 0xFF;
-                        result[24] = (negativeHeight >> 16) & 0xFF;
-                        result[25] = (negativeHeight >> 24) & 0xFF;
-
-                        result[26] = 1; result[28] = 24;
-                        result[34] = pixelDataSize & 0xFF;
-                        result[35] = (pixelDataSize >> 8) & 0xFF;
-                        result[36] = (pixelDataSize >> 16) & 0xFF;
-                        result[37] = (pixelDataSize >> 24) & 0xFF;
-                        result[38] = 47; result[39] = 11;
-                        result[42] = 47; result[43] = 11;
-
-                        // 像素数据转换
-                        let srcIndex = 0;
-                        let dstIndex = 54;
-
-                        for (let y = 0; y < height; y++) {
-                            for (let x = 0; x < width; x++) {
-                                result[dstIndex++] = imageData[srcIndex + 2];
-                                result[dstIndex++] = imageData[srcIndex + 1];
-                                result[dstIndex++] = imageData[srcIndex];
-                                srcIndex += 4;
-                            }
-                            dstIndex += rowPadding;
-                        }
-
+                        const result = encodeBMPData(width, height, imageData);
                         self.postMessage(result.buffer, [result.buffer]);
                         self.close();
                     };
@@ -3571,14 +3469,16 @@
         return closeOnScroll;
     }
 
-    function cleanupImageFromUI(imageId) {
+    function cleanupImageFromUI(imageId, skipUI = false) {
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (item) item.remove();
         images = images.filter(img => img.id !== imageId);
         selectedImages.delete(imageId);
-        updateSaveButtonText();
-        updateImageCounter();
-        if (images.length === 0) showEmptyState();
+        if (!skipUI) {
+            updateSaveButtonText();
+            updateImageCounter();
+            if (images.length === 0) showEmptyState();
+        }
     }
 
     // 缩略图绘制：智能缓存 + WebP 0.8 优先 + JPEG 0.9 兼容
@@ -3596,13 +3496,10 @@
                 const fullBlob = await storage.get(`current_${imageData.id}`);
                 if (!fullBlob) return canvas;
 
-                const bitmap = await createImageBitmap(fullBlob, { premultiplyAlpha: 'none' });
-                try {
+                await withImageBitmap(fullBlob, async (bitmap) => {
                     const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
                     drawThumbnail(canvas, bitmap, width, height);
-                } finally {
-                    bitmap.close();
-                }
+                });
 
                 // 3. 导出为压缩格式（WebP 优先）
                 const [mime, quality] = (await isWebPSupported())
@@ -3614,13 +3511,10 @@
                 await storage.set(`thumb_${imageData.id}`, thumbBlob);
             } else {
                 // 5. 缓存命中：用压缩缩略图绘制（跳过原图解码）
-                const bitmap = await createImageBitmap(thumbBlob, { premultiplyAlpha: 'none' });
-                try {
+                await withImageBitmap(thumbBlob, async (bitmap) => {
                     const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
                     drawThumbnail(canvas, bitmap, width, height);
-                } finally {
-                    bitmap.close();
-                }
+                });
             }
         } catch (e) {
             logWarn('图片处理', `缩略图绘制失败: ${e.message}`);
@@ -3683,17 +3577,12 @@
                 const srcU32 = new Uint32Array(imgData.data.buffer);
                 const dstU32 = new Uint32Array(dstBuffer.buffer);
 
-                if (operation === 'encrypt') {
-                    for (let i = 0; i < totalPixels; i++) {
-                        dstU32[shiftedCurve[i]] = srcU32[curve[i]];
-                    }
-                    imageData.scrambleLevel = (imageData.scrambleLevel || 0) + 1;
-                } else {
-                    for (let i = 0; i < totalPixels; i++) {
-                        dstU32[curve[i]] = srcU32[shiftedCurve[i]];
-                    }
-                    imageData.scrambleLevel = (imageData.scrambleLevel || 0) - 1;
+                const to = operation === 'encrypt' ? shiftedCurve : curve;
+                const from = operation === 'encrypt' ? curve : shiftedCurve;
+                for (let i = 0; i < totalPixels; i++) {
+                    dstU32[to[i]] = srcU32[from[i]];
                 }
+                imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
 
                 // 写回 canvas
                 const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
@@ -4347,16 +4236,10 @@
             await storage.delete(`thumb_${id}`);
         }
             
-        // 从 DOM 中移除选中的图片项
-        idsToDelete.forEach(id => {
-            const item = document.querySelector(`[data-id="${id}"]`);
-            if (item) item.remove();
-        });
-        // 从数组中移除选中的图片
-        images = images.filter(img => !selectedImages.has(img.id));
-        // 重置选择状态
+        // 从 DOM 和数据中移除选中的图片（批量删除，跳过逐项 UI 更新）
+        idsToDelete.forEach(id => cleanupImageFromUI(id, true));
+        // 批量操作完成后一次性更新 UI
         selectedImages.clear();
-        // 更新 UI
         updateSaveButtonText();
         updateImageCounter();
         if (images.length === 0) {
@@ -4971,20 +4854,19 @@
      * 清理已存在的 viewer 实例
      */
     function cleanupExistingViewer() {
+        // 统一销毁 viewer 实例
         if (viewerInstance) {
             try {
-                // @ts-ignore - Viewer.js 是动态加载的，destroy 方法在运行时存在
                 viewerInstance.destroy();
                 logLog('已销毁之前的 viewer 实例');
             } catch (error) {
                 logWarn('Viewer.js', `销毁 viewer 实例时出错: ${error.message || error}`);
-            } finally {
-                viewerInstance = null;
             }
+            viewerInstance = null;
         }
-        // 额外清理所有残留容器
+        // 复用 cleanupViewerResources 清理所有残留容器
         document.querySelectorAll('.image-gallery-container').forEach(container => {
-            if (container.parentNode) container.parentNode.removeChild(container);
+            cleanupViewerResources(container, true);
         });
     }
 
@@ -5331,13 +5213,14 @@
     /**
      * 清理 Viewer.js 相关资源
      * @param {HTMLElement} container - 容器元素
+     * @param {boolean} [skipViewerDestroy=false] - 跳过 Viewer 实例销毁（批量清理时由调用方统一销毁）
      */
-    function cleanupViewerResources(container) {
+    function cleanupViewerResources(container, skipViewerDestroy = false) {
         // 重入防护：destroy() 可能触发 hidden 回调导致递归调用
         if (container && container._cleanedUp) return;
         if (container) container._cleanedUp = true;
 
-        if (viewerInstance) {
+        if (!skipViewerDestroy && viewerInstance) {
             try {
                 viewerInstance.destroy();
             } catch (e) {
@@ -5415,18 +5298,8 @@
             mobileTooltipCloser = null;
         }
 
-        // 销毁 Viewer.js 实例
-        if (viewerInstance) {
-            try { viewerInstance.destroy(); } catch (e) { /* 忽略 */ }
-            viewerInstance = null;
-        }
-
-        // 回收所有画廊容器中的 Blob URL
-        document.querySelectorAll('.image-gallery-container').forEach(container => {
-            revokeBlobUrlsInContainer(container);
-            if (container.parentNode) container.parentNode.removeChild(container);
-        });
-        logLog('页面卸载：已回收所有画廊容器 Blob URL');
+        // 清理所有残留容器和 Viewer 实例
+        cleanupExistingViewer();
 
         // 清理基础图片查看器及其 Blob URL
         const basicViewer = document.querySelector('[data-basic-viewer]');
@@ -5876,9 +5749,60 @@
         return { r: toInteger(match[1]), g: toInteger(match[2]), b: toInteger(match[3]) };
     }
 
-    // 页面加载完成后绑定事件
+    // 页面加载完成后绑定事件（统一入口）
     document.addEventListener('DOMContentLoaded', function() {
-        // 全局 resize 监听：窗口大小改变时更新 Viewer 布局（带防抖）
+        // ---- 日志面板事件 ----
+        const fab = document.getElementById('logFab');
+        const overlay = document.getElementById('logPanelOverlay');
+        const panel = document.getElementById('logPanel');
+
+        fab.addEventListener('click', toggleLogPanel);
+        document.getElementById('logPanelClose').addEventListener('click', closeLogPanel);
+        document.getElementById('logClearBtn').addEventListener('click', clearAllLogs);
+
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closeLogPanel();
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && logPanelVisible) closeLogPanel();
+        });
+
+        document.getElementById('logStats').addEventListener('click', function(e) {
+            const btn = e.target.closest('.log-stat-btn');
+            if (!btn) return;
+            const lv = btn.dataset.level;
+            const newFilter = new Set(currentFilter);
+            if (newFilter.has(lv)) {
+                newFilter.delete(lv);
+            } else {
+                newFilter.add(lv);
+            }
+            renderLogPanel(newFilter);
+        });
+
+        // 移动端右滑关闭
+        let touchStartX = 0;
+        panel.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        panel.addEventListener('touchmove', function(e) {
+            const dx = e.touches[0].clientX - touchStartX;
+            if (dx > 0) {
+                panel.style.transform = `translateX(${dx}px)`;
+                panel.style.transition = 'none';
+            }
+        }, { passive: true });
+        panel.addEventListener('touchend', function(e) {
+            panel.style.transition = '';
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            if (dx > 80) {
+                closeLogPanel();
+            }
+            panel.style.transform = '';
+        });
+
+        // ---- 全局 resize 监听 ----
         window.addEventListener('resize', handleWindowResize);
             
         // 加载视图模式偏好
