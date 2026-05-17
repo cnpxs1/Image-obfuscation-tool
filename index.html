@@ -833,17 +833,17 @@
         /* ========== 日志悬浮按钮 ========== */
         .log-fab {
             position: fixed;
-            right: 12px;
+            right: 5px;
             top: auto;
             bottom: 20vh;
-            width: 32px;
+            width: 28px;
             background: #fff;
             border: 2px solid #1296db;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 4px 0;
+            padding: 2px 0;
             cursor: pointer;
             z-index: 9998;
             transition: opacity 0.2s ease;
@@ -1356,7 +1356,7 @@
                 <div class="setting-section">
                     <div class="setting-info">
                         <h4>图片质量</h4>
-                        <p>用于 JPG、WebP 等有损格式的输出质量</p>
+                        <p>用于 JPG、WebP 等有损格式的输出质量控制</p>
                     </div>
                     <div class="setting-controls">
                         <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
@@ -1364,7 +1364,7 @@
                                 <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
                                 <input type="range" id="quality-slider" min="1" max="100" value="100"
                                     style="flex: 1; max-width: 200px; height: 6px;" />
-                                <input type="number" id="quality-input" min="1" max="100" value="100"
+                                <input type="number" id="quality-input" min="1" max="100" value="100" aria-label="质量"
                                     style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
                                 <span style="font-size: 1rem; color: #000;">%</span>
                             </div>
@@ -1454,8 +1454,8 @@
                                 </label>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</span>
-                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
+                                <label for="log-level-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</label>
+                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
                                     <option value="off">off</option>
                                     <option value="error">error</option>
                                     <option value="warn">warn</option>
@@ -2687,6 +2687,15 @@
             value = 255;
             input.value = '255';
         }
+        return value;
+    }
+
+    /** 校验质量输入值（钳位到 1-100），返回数值 */
+    function validateQualityInput(input) {
+        let value = parseInt(input.value) || 1;
+        if (value > 100) value = 100;
+        if (value < 1) value = 1;
+        input.value = String(value);
         return value;
     }
 
@@ -6105,7 +6114,7 @@
         const qualityInput = document.getElementById('quality-input');
 
         function syncQuality(source, value) {
-            const percent = Math.max(1, Math.min(100, parseInt(value) || 100));
+            const percent = Math.max(1, Math.min(100, parseInt(value) || 1));
             imageQuality = percent / 100;
             if (source !== 'slider' && qualitySlider) qualitySlider.value = percent;
             if (source !== 'input' && qualityInput) qualityInput.value = percent;
@@ -6116,8 +6125,15 @@
             qualitySlider.addEventListener('input', () => syncQuality('slider', qualitySlider.value));
         }
         if (qualityInput) {
-            qualityInput.addEventListener('input', () => syncQuality('input', qualityInput.value));
-            qualityInput.addEventListener('change', () => syncQuality('input', qualityInput.value));
+            qualityInput.addEventListener('input', () => {
+                if (qualityInput.value === '') return;
+                validateQualityInput(qualityInput);
+                syncQuality('input', qualityInput.value);
+            });
+            qualityInput.addEventListener('blur', () => {
+                validateQualityInput(qualityInput);
+                syncQuality('input', qualityInput.value);
+            });
         }
 
         // 初始化文字气泡（悬停+点击+边缘检测）
