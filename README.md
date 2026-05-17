@@ -42,7 +42,7 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ### 一、本地部署（推荐）
 若需模拟生产环境或解决部分浏览器的跨域限制，可使用 Python 或 Node.js 启动本地服务器：
-- **Python:** 安装 `python` 后，在根目录执行 `python -m http.server 8080`
+- **Python:** 安装 `python` 后，在根目录执行 `python -m http.server 8080` 或直接运行 [server.py](server.py)
 - **Node.js:** 安装 `Node.js` 后，在根目录执行 `npx http-server -p 8080`
 - 随后在浏览器访问 `http://localhost:8080`或`http://127.0.0.1:8080`
 
@@ -106,6 +106,7 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 ```plaintext
 Image-obfuscation-tool/
 ├── index.html          # 核心主文件，集成UI界面、算法逻辑、功能交互
+├── server.py           # Gzip 压缩本地静态服务（Python）
 ├── favicon.svg         # 网站图标（SVG格式）
 ├── README.md           # 项目说明文档（含使用教程、声明、技术细节）
 ├── LICENSE             # MIT开源许可证文件
@@ -115,11 +116,12 @@ Image-obfuscation-tool/
 │   ├── fflate/         # fflate静态资源
 │   └── irojs/          # iro.js静态资源
 └── img/                # 图标素材
+    ├── ...
     └── icons/          # 图标资源目录
-        ├── favicon/    # 网站图标（Favicon）相关资源
-        │   ├── RGB/
-        │   └── RGBA/
-        └── ...
+        ├── ...
+        └── favicon/    # 网站图标（Favicon）相关资源
+            ├── RGB/
+            └── RGBA/
 
 ```
 
