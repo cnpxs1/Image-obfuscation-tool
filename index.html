@@ -3074,32 +3074,6 @@
     }
 
     // =============================================
-    // 像素缓冲区池管理
-    // =============================================
-    
-    const pixelBufferPool = [];
-    
-    function getPixelBuffer(size) {
-        // 遍历池，找到第一个长度完全相等的缓冲区
-        for (let i = 0; i < pixelBufferPool.length; i++) {
-            if (pixelBufferPool[i].length === size) {
-                return pixelBufferPool.splice(i, 1)[0];
-            }
-        }
-        // 未找到则新建
-        return new Uint8ClampedArray(size);
-    }
-    
-    function releasePixelBuffer(buffer) {
-        if (!buffer || !(buffer instanceof Uint8ClampedArray)) return;
-        const MAX_POOL_SIZE = 5;          // 限制池大小，避免无限增长
-        if (pixelBufferPool.length >= MAX_POOL_SIZE) {
-            return; // 丢弃，等待GC
-        }
-        pixelBufferPool.push(buffer);
-    }
-    
-    // =============================================
     // Canvas池管理函数（按尺寸分组）
     // =============================================
     
@@ -3571,36 +3545,30 @@
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const totalPixels = canvas.width * canvas.height;
             const { curve, shiftedCurve } = getCachedCurve(canvas.width, canvas.height);
-            let dstBuffer;
-            try {
-                dstBuffer = getPixelBuffer(imgData.data.length);
-                const srcU32 = new Uint32Array(imgData.data.buffer);
-                const dstU32 = new Uint32Array(dstBuffer.buffer);
 
-                const to = operation === 'encrypt' ? shiftedCurve : curve;
-                const from = operation === 'encrypt' ? curve : shiftedCurve;
-                for (let i = 0; i < totalPixels; i++) {
-                    dstU32[to[i]] = srcU32[from[i]];
-                }
-                imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
+            const srcU32 = new Uint32Array(imgData.data.buffer);
+            const newImageData = new ImageData(canvas.width, canvas.height);
+            const dstU32 = new Uint32Array(newImageData.data.buffer);
 
-                // 写回 canvas
-                const newImageData = new ImageData(dstBuffer, canvas.width, canvas.height);
-                ctx.putImageData(newImageData, 0, 0);
-
-                // 生成新 Blob (PNG 格式存储)
-                const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-                await storage.set(`current_${imageData.id}`, newBlob);
-
-                imageData.format = 'PNG';
-                imageData.processed = true;
-                imageData.size = newBlob.size;
-
-                await updateThumbnail(imageData.id, newBlob);
-                updateImageInfo(imageData.id);
-            } finally {
-                releasePixelBuffer(dstBuffer);
+            const to = operation === 'encrypt' ? shiftedCurve : curve;
+            const from = operation === 'encrypt' ? curve : shiftedCurve;
+            for (let i = 0; i < totalPixels; i++) {
+                dstU32[to[i]] = srcU32[from[i]];
             }
+            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
+
+            ctx.putImageData(newImageData, 0, 0);
+
+            // 生成新 Blob (PNG 格式存储)
+            const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            await storage.set(`current_${imageData.id}`, newBlob);
+
+            imageData.format = 'PNG';
+            imageData.processed = true;
+            imageData.size = newBlob.size;
+
+            await updateThumbnail(imageData.id, newBlob);
+            updateImageInfo(imageData.id);
         } finally {
             if (bitmap) bitmap.close();
             releaseCanvasToPool(canvas);
@@ -5277,10 +5245,6 @@
         window.viewerLoadPromise = null;
         logLog('页面卸载：已重置Viewer加载Promise');
 
-        // 清空像素缓冲区池
-        pixelBufferPool.length = 0;
-        logLog('页面卸载：已清空像素缓冲区池');
-
         // 清理所有残留的处理遮罩层
         const cleanedOverlays = cleanupAllProcessingOverlays();
         if (cleanedOverlays > 0) {
@@ -5336,8 +5300,6 @@
             // 清理残留的处理遮罩层
             cleanupAllProcessingOverlays();
             
-            // 清空像素缓冲区池
-            pixelBufferPool.length = 0;
             logLog('页面隐藏：已执行智能Canvas池清理');
         } else {
             // 页面重新可见时预创建常用尺寸的Canvas
