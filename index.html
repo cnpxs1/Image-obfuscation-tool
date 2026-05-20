@@ -2799,12 +2799,7 @@
 
                 // 根据当前模式重新构建缩略图内容
                 if (currentViewMode === 'grid') {
-                    // 网格模式：先放置加载中占位符，然后注册到懒加载器
-                    if (!thumbnailContainer.querySelector('.thumbnail-canvas') &&
-                        !thumbnailContainer.querySelector('.thumbnail-placeholder')) {
-                        // 无内容时才填充
-                    }
-                    // 清除旧内容（列表模式的占位符），统一使用网格加载占位符
+                    // 网格模式：清除列表模式占位符，放置加载中占位符，注册到懒加载器
                     const existingCanvas = thumbnailContainer.querySelector('.thumbnail-canvas');
                     const existingPlaceholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
                     if (!existingCanvas && !existingPlaceholder) {
@@ -4051,7 +4046,7 @@
          * 立即加载所有待加载项
          */
         loadAllPending() {
-            for (const [id, { item }] of this.queued) {
+            for (const [, { item }] of this.queued) {
                 this._loadItem(item);
             }
         }
