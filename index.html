@@ -2183,6 +2183,8 @@
     // ==================== 视图模式管理 ====================
     let currentViewMode = 'grid'; // 'grid' 或 'list'
     let isSwitchingViewMode = false;
+    /** @type {ImageLazyLoader|null} 图片缩略图懒加载管理器 */
+    let imageLazyLoader = null;
     
     // ==================== 日志系统（四级：Error / Warn / Info / Log） ====================
 
@@ -2797,14 +2799,32 @@
 
                 // 根据当前模式重新构建缩略图内容
                 if (currentViewMode === 'grid') {
-                    let canvas = thumbnailContainer.querySelector('.thumbnail-canvas');
-                    if (!canvas) {
+                    // 网格模式：先放置加载中占位符，然后注册到懒加载器
+                    if (!thumbnailContainer.querySelector('.thumbnail-canvas') &&
+                        !thumbnailContainer.querySelector('.thumbnail-placeholder')) {
+                        // 无内容时才填充
+                    }
+                    // 清除旧内容（列表模式的占位符），统一使用网格加载占位符
+                    const existingCanvas = thumbnailContainer.querySelector('.thumbnail-canvas');
+                    const existingPlaceholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+                    if (!existingCanvas && !existingPlaceholder) {
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'thumbnail-placeholder';
+                        placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
+                        placeholder.title = '加载中…';
                         thumbnailContainer.innerHTML = '';
-                        canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
-                        thumbnailContainer.appendChild(canvas);
+                        thumbnailContainer.appendChild(placeholder);
+                    }
+                    // 注册到懒加载器（如果尚未加载）
+                    if (imageLazyLoader && item.dataset.lazyLoaded !== 'true') {
+                        imageLazyLoader.observe(item, imageData);
                     }
                 } else {
-                    // 列表模式：显示占位符
+                    // 列表模式：显示占位符，取消懒加载观察，清除懒加载标记
+                    if (imageLazyLoader) {
+                        imageLazyLoader.unobserve(imageId);
+                    }
+                    delete item.dataset.lazyLoaded;
                     let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
                     if (!placeholder) {
                         placeholder = document.createElement('div');
@@ -3445,6 +3465,7 @@
     function cleanupImageFromUI(imageId, skipUI = false) {
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (item) item.remove();
+        if (imageLazyLoader) imageLazyLoader.unobserve(imageId);
         images = images.filter(img => img.id !== imageId);
         selectedImages.delete(imageId);
         if (!skipUI) {
@@ -3495,6 +3516,59 @@
         }
 
         return canvas;
+    }
+
+    /**
+     * 后台预生成缩略图缓存（不创建 DOM Canvas，仅写缓存）
+     * 上传时调用，确保滚动展示时直接命中缓存，避免解码原图造成卡顿
+     * @param {Object} imageData - 图片数据对象
+     * @returns {Promise<void>}
+     */
+    async function prefetchThumbnailCache(imageData) {
+        const existing = await storage.get(`thumb_${imageData.id}`);
+        if (existing) return;
+
+        try {
+            const fullBlob = await storage.get(`current_${imageData.id}`);
+            if (!fullBlob) return;
+
+            const offscreen = document.createElement('canvas');
+            await withImageBitmap(fullBlob, async (bitmap) => {
+                const maxDim = 250 * (window.devicePixelRatio || 1);
+                let { width, height } = bitmap;
+                if (width > height) {
+                    if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+                } else {
+                    if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+                }
+                width = Math.round(width);
+                height = Math.round(height);
+                offscreen.width = width;
+                offscreen.height = height;
+                drawThumbnail(offscreen, bitmap, width, height);
+            });
+
+            const [mime, quality] = (await isWebPSupported())
+                ? ['image/webp', 0.8]
+                : ['image/jpeg', 0.9];
+            const thumbBlob = await new Promise(resolve => offscreen.toBlob(resolve, mime, quality));
+            await storage.set(`thumb_${imageData.id}`, thumbBlob);
+        } catch (e) {
+            // 预缓存失败不阻塞主流程，滚动时会走正常的缓存未命中路径
+        }
+    }
+
+    /**
+     * 调度后台缩略图预缓存（使用 requestIdleCallback 避免阻塞主线程）
+     * @param {Object} imageData - 图片数据对象
+     */
+    function schedulePrefetch(imageData) {
+        const run = () => prefetchThumbnailCache(imageData);
+        if (typeof requestIdleCallback === 'function') {
+            requestIdleCallback(run, { timeout: 2000 });
+        } else {
+            setTimeout(run, 100);
+        }
     }
 
     // =============================================
@@ -3910,13 +3984,113 @@
         updateImageInfo(imageData.id);
     }
 
+    // =============================================
+    // 图片懒加载管理器（IntersectionObserver）
+    // =============================================
+
     /**
-     * 渲染单个图片项到界面
-     * @param {Object} imageData - 图片数据对象
-     *
-     * 创建图片项的 DOM 元素，包括缩略图、信息显示和操作按钮
-     * 支持预览、选择和单张处理功能
+     * 基于 IntersectionObserver 的图片缩略图懒加载器
+     * 仅当图片项进入视口时才加载缩略图，减少初始渲染开销
      */
+    class ImageLazyLoader {
+        /** @param {{ rootMargin?: string, threshold?: number }} [options] */
+        constructor(options = {}) {
+            this.loaded = new Set();
+            this.queued = new Map();
+            this.rootMargin = options.rootMargin || '200px';
+            this.threshold = options.threshold || 0.01;
+
+            this.observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const item = /** @type {HTMLElement} */ (entry.target);
+                        this._loadItem(item);
+                    }
+                }
+            }, {
+                rootMargin: this.rootMargin,
+                threshold: this.threshold
+            });
+        }
+
+        /**
+         * 注册图片项到观察列表
+         * @param {HTMLElement} item - .image-item 元素
+         * @param {Object} imageData - 图片数据对象
+         */
+        observe(item, imageData) {
+            const id = imageData.id;
+            if (this.loaded.has(id)) return;
+            this.queued.set(id, { item, imageData });
+            this.observer.observe(item);
+        }
+
+        /**
+         * 取消观察指定图片项
+         * @param {string} imageId - 图片 ID
+         */
+        unobserve(imageId) {
+            this.loaded.delete(imageId);
+            const entry = this.queued.get(imageId);
+            if (entry) {
+                this.observer.unobserve(entry.item);
+                this.queued.delete(imageId);
+            }
+        }
+
+        /**
+         * 断开观察器并清空所有状态
+         */
+        disconnect() {
+            this.observer.disconnect();
+            this.loaded.clear();
+            this.queued.clear();
+        }
+
+        /**
+         * 立即加载所有待加载项
+         */
+        loadAllPending() {
+            for (const [id, { item }] of this.queued) {
+                this._loadItem(item);
+            }
+        }
+
+        /** @private */
+        async _loadItem(item) {
+            const imageId = item.dataset.id;
+            if (!imageId || this.loaded.has(imageId)) return;
+
+            const entry = this.queued.get(imageId);
+            if (!entry) return;
+
+            this.observer.unobserve(item);
+            this.queued.delete(imageId);
+            this.loaded.add(imageId);
+
+            const { imageData } = entry;
+            const thumbnailContainer = item.querySelector('.thumbnail-container');
+            if (!thumbnailContainer) return;
+
+            // 列表模式下跳过缩略图加载
+            if (currentViewMode === 'list') return;
+
+            // 检查是否已有缩略图 canvas
+            if (thumbnailContainer.querySelector('.thumbnail-canvas')) return;
+
+            // 移除占位符
+            const placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+            if (placeholder) placeholder.remove();
+
+            try {
+                const canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
+                thumbnailContainer.appendChild(canvas);
+                item.dataset.lazyLoaded = 'true';
+            } catch (e) {
+                logWarn('懒加载', `缩略图加载失败: ${imageData.name} - ${e.message}`);
+            }
+        }
+    }
     async function renderImageItem(imageData) {
         const imageList = document.getElementById('imageList');
         const item = document.createElement('div');
@@ -3938,25 +4112,27 @@
         thumbnailContainer.className = 'thumbnail-container';
         thumbnailContainer.onclick = () => showPreview(imageData.id);
         
+        // 统一先放置占位符，由懒加载器在进入视口时替换为缩略图
+        const placeholder = document.createElement('div');
+        placeholder.className = 'thumbnail-placeholder';
         if (currentViewMode === 'grid') {
-            const canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
-            thumbnailContainer.appendChild(canvas);
+            // 网格模式：使用简洁的加载占位符，懒加载器负责后续替换
+            placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
+            placeholder.title = '加载中…';
         } else {
-            // 列表模式：显示占位符图标，不加载实际图片
-            const placeholder = document.createElement('div');
-            placeholder.className = 'thumbnail-placeholder';
+            // 列表模式：显示占位符图标
             placeholder.innerHTML = getPlaceholderSVG();
             placeholder.title = '点击预览图片';
-            thumbnailContainer.appendChild(placeholder);
         }
-        
+        thumbnailContainer.appendChild(placeholder);
+
         item.appendChild(thumbnailContainer);
-        
+
         // 获取状态文本和样式
         const statusInfo = getStatusInfo(imageData.scrambleLevel);
         const statusText = statusInfo.text;
         const statusClass = statusInfo.className;
-        
+
         // 创建信息区域
         const infoDiv = document.createElement('div');
         infoDiv.className = 'image-info';
@@ -3970,7 +4146,7 @@
             <div class="status-badge ${statusClass}">${statusText}</div>
         `;
         item.appendChild(infoDiv);
-        
+
         // 创建操作按钮区域
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'image-actions';
@@ -3984,21 +4160,29 @@
             </div>
         `;
         item.appendChild(actionsDiv);
-        
+
         imageList.appendChild(item);
-        
+
         // 设置选中状态（如果之前已选中）
         if (selectedImages.has(imageData.id)) {
             checkbox.checked = true;
             item.classList.add('selected');
         }
-        
+
         // 缓存 DOM 引用以便后续更新
         imageData.domCache = {
             sizeRow: infoDiv.querySelector('.image-info-row'),
             fileSize: infoDiv.querySelector('.file-size'),
             statusBadge: infoDiv.querySelector('.status-badge')
         };
+
+        // 网格模式：注册到懒加载器
+        if (currentViewMode === 'grid' && imageLazyLoader) {
+            imageLazyLoader.observe(item, imageData);
+        }
+
+        // 后台预生成缩略图缓存，滚动展示时直接命中，避免卡顿
+        schedulePrefetch(imageData);
     }
 
     // =============================================
@@ -4886,18 +5070,22 @@
                     img.dataset.index = index.toString();
                     img.dataset.blobUrl = blobUrl;
                     img.loading = 'eager';
+                    img.decoding = 'async';
 
                     // 保存引用到数组（保持顺序）- 在创建 img 后立即同步赋值
                     imgElements[index] = img;
                     logLog(`[索引${index}] 已创建图片元素：${imgData.name}`);
 
+                    // 动态超时：按 blob 大小估算，每 MB 给 3 秒，最少 8 秒，最多 60 秒
+                    const blobSizeMB = (blob?.size || 0) / (1024 * 1024);
+                    const dynTimeout = Math.max(8000, Math.min(60000, blobSizeMB * 3000));
                     const timeoutId = setTimeout(() => {
-                        logError(imgData.name, '图片加载超时，使用占位图');
+                        logError(imgData.name, `图片加载超时(${(dynTimeout/1000).toFixed(0)}s)，使用占位图`);
                         releaseImgBlob(img);
                         img.onerror = null;
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
-                    }, 5000);
+                    }, dynTimeout);
                     timeoutIds.push(timeoutId);
 
                     img.onload = () => {
@@ -5368,6 +5556,8 @@
                 try {
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
+                        // 清除旧缩略图缓存，确保进入视口时重新生成
+                        await storage.delete(`thumb_${imageData.id}`);
                         await updateThumbnail(imageData.id, blob);
                         successCount++;
                     } else {
@@ -6086,6 +6276,12 @@
                 if (qualityInput) qualityInput.value = percent;
             }
         })();
+
+        // 初始化图片懒加载器（IntersectionObserver）
+        imageLazyLoader = new ImageLazyLoader({
+            rootMargin: '300px',
+            threshold: 0.01
+        });
     });
 </script>
 <!-- 页面底部信息 -->
