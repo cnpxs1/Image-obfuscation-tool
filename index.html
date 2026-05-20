@@ -1492,11 +1492,12 @@
 
     <!-- 拖拽区域 -->
     <div class="drop-zone" id="dropZone">
+        <input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="display: none;" />
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
             <p style="margin-bottom: 0.5rem;">拖拽图片文件到这里，或点击选择文件</p>
             <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持 PNG、JPG、BMP、WebP 及 ZIP 批量导入</p>
-            <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; pointer-events: none; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
-                <label for="add-images">添加图片</label><input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="pointer-events: none;" />
+            <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
+                添加图片
             </span>
         </div>
     </div>
@@ -1813,10 +1814,8 @@
         async clear() {
             await this.ready;
             if (this.backend) {
-                const keys = await this.backend.keys();
-                for (const key of keys) {
-                    await this.backend.delete(key);
-                }
+                await caches.delete(this.cacheName);
+                this.backend = await caches.open(this.cacheName);
             } else {
                 return new Promise((resolve, reject) => {
                     const transaction = this.db.transaction([this.storeName], 'readwrite');
@@ -4775,8 +4774,12 @@
             return;
         }
 
-        // 4. 等待 Viewer 资源加载
-        await getViewerLoadPromise();
+        // 4. 等待 Viewer 资源加载（失败时降级到基础查看器）
+        try {
+            await getViewerLoadPromise();
+        } catch (err) {
+            logError('Viewer.js', `资源加载失败: ${err.message || err}`);
+        }
 
         if (isPreviewStale(token)) return;
 
