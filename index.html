@@ -4046,7 +4046,9 @@
          * 立即加载所有待加载项
          */
         loadAllPending() {
-            for (const [, { item }] of this.queued) {
+            // 快照避免遍历时 _loadItem 修改 queued
+            const pending = [...this.queued.values()];
+            for (const { item } of pending) {
                 this._loadItem(item);
             }
         }
@@ -4059,19 +4061,20 @@
             const entry = this.queued.get(imageId);
             if (!entry) return;
 
-            this.observer.unobserve(item);
-            this.queued.delete(imageId);
-            this.loaded.add(imageId);
-
             const { imageData } = entry;
             const thumbnailContainer = item.querySelector('.thumbnail-container');
             if (!thumbnailContainer) return;
 
-            // 列表模式下跳过缩略图加载
+            // 列表模式下跳过，不标记 loaded（等切回网格时重新 observe）
             if (currentViewMode === 'list') return;
 
             // 检查是否已有缩略图 canvas
             if (thumbnailContainer.querySelector('.thumbnail-canvas')) return;
+
+            // 先标记已加载，再异步创建缩略图
+            this.observer.unobserve(item);
+            this.queued.delete(imageId);
+            this.loaded.add(imageId);
 
             // 移除占位符
             const placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
