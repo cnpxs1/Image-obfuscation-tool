@@ -1992,7 +1992,7 @@
                 const outputBlob = await convertImageBlob(blob, targetFormat);
 
                 // 生成文件名（使用 getStatusSuffix 基于 scrambleLevel）
-                const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+                const ext = getOutputExtension(targetFormat);
                 const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
                 const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
 
@@ -2570,6 +2570,11 @@
         }
     }
 
+    /** 将 'jpeg' 规范化为 'jpg' (同一 MIME 类型)，其余原样返回 */
+    function getOutputExtension(format) {
+        return format === 'jpeg' ? 'jpg' : format;
+    }
+
     /** 获取当前操作的目标图片 ID 列表（优先选中，否则全部） */
     function getTargetImageIds() {
         return selectedImages.size > 0
@@ -2923,33 +2928,26 @@
             cacheEvictions++;
         }
 
+        const newData = { curve, shiftedCurve };
         curveCache.set(key, {
-            data: { curve, shiftedCurve },
+            data: newData,
             frequency: avgCacheFrequency(),
             lastAccess: accessCounter
         });
 
         if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
-        return curveCache.get(key).data;
+        return newData;
     }
 
-    // LFU淘汰策略：淘汰访问频率最低的条目，频率相同时淘汰最久未访问的
+    /**
+     * LFU-Aging 淘汰策略
+     * 淘汰频率最低的条目，频率相同时淘汰最久未访问的
+     * （ageFrequencies 右移老化后大量条目频率→1，统一走频率+时间判断，语义一致）
+     */
     function evictLFUCacheEntry() {
         let minFreq = Infinity;
         for (const entry of curveCache.values()) {
             if (entry.frequency < minFreq) minFreq = entry.frequency;
-        }
-        if (minFreq === 1) {
-            let oldestAccess = Infinity;
-            let evictionKey = null;
-            for (const [key, entry] of curveCache.entries()) {
-                if (entry.lastAccess < oldestAccess) {
-                    oldestAccess = entry.lastAccess;
-                    evictionKey = key;
-                }
-            }
-            if (evictionKey !== null) curveCache.delete(evictionKey);
-            return;
         }
         let oldestAccess = Infinity;
         let evictionKey = null;
@@ -3498,9 +3496,7 @@
                 });
 
                 // 3. 导出为压缩格式（WebP 优先）
-                const [mime, quality] = (await isWebPSupported())
-                    ? ['image/webp', 0.8]
-                    : ['image/jpeg', 0.9];
+                const [mime, quality] = await getThumbnailEncodeParams();
                 thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
 
                 // 4. 缓存压缩结果，供后续直接使用
@@ -3550,9 +3546,7 @@
                 drawThumbnail(offscreen, bitmap, width, height);
             });
 
-            const [mime, quality] = (await isWebPSupported())
-                ? ['image/webp', 0.8]
-                : ['image/jpeg', 0.9];
+            const [mime, quality] = await getThumbnailEncodeParams();
             const thumbBlob = await new Promise(resolve => offscreen.toBlob(resolve, mime, quality));
             await storage.set(`thumb_${imageData.id}`, thumbBlob);
         } catch (e) {
@@ -3683,6 +3677,16 @@
     }
 
     /**
+     * 获取缩略图编码参数（WebP 0.8 优先，否则 JPEG 0.9 兼容）
+     * @returns {Promise<[string, number]>} [mime, quality]
+     */
+    async function getThumbnailEncodeParams() {
+        return (await isWebPSupported())
+            ? ['image/webp', 0.8]
+            : ['image/jpeg', 0.9];
+    }
+
+    /**
      * 更新缩略图显示
      * @param {string} imageId - 图片 ID
      * @param {Blob} blob - 图片 Blob 对象
@@ -3707,9 +3711,7 @@
             drawThumbnail(canvas, bitmap, size.width, size.height);
             updateImageInfo(imageId);
 
-            const [mime, quality] = (await isWebPSupported())
-                ? ['image/webp', 0.8]
-                : ['image/jpeg', 0.9];
+            const [mime, quality] = await getThumbnailEncodeParams();
             const thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
             await storage.set(`thumb_${imageId}`, thumbBlob);
         } catch (e) {
@@ -3866,7 +3868,7 @@
         }
         const outputBlob = await convertImageBlob(blob, targetFormat);
 
-        const ext = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+        const ext = getOutputExtension(targetFormat);
         const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
         const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
         downloadBlob(outputBlob, fileName);
