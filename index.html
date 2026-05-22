@@ -139,7 +139,7 @@
         window.iroResources = { loaded: false, loading: false, failed: false };
 
         try {
-            if (localStorage.getItem('localStorageEnabled') === 'false' || localStorage.getItem('iroJs') !== 'false') {
+            if (localStorage.getItem('iroJs') !== 'false') {
                 loadScriptWithFallback(
                     'iro', window.iroResources,
                     'https://fastly.jsdelivr.net/npm/@jaames/iro@5.5.2/dist/iro.min.js',
@@ -1130,8 +1130,14 @@
         window.viewerLoadPromise = null;
 
         function getViewerLoadPromise() {
-            if (window.viewerLoadPromise) return window.viewerLoadPromise;
             const R = window.viewerResources;
+
+            // 入口处检查：若所有资源已在调用前完成加载，直接返回已解析Promise，避免竞态
+            if (window.Viewer && R.jsLoaded && R.cssLoaded) {
+                return Promise.resolve();
+            }
+
+            if (window.viewerLoadPromise) return window.viewerLoadPromise;
 
             window.viewerLoadPromise = new Promise(function(resolve, reject) {
                 if (R.jsLoaded && R.cssLoaded && window.Viewer) { resolve(); return; }
@@ -1380,7 +1386,7 @@
                 <div class="setting-section">
                     <div class="setting-info">
                         <h4>背景色</h4>
-                        <p>用于 JEPG、BMP 等无透明通道的格式的背景填充</p>
+                        <p>用于 JPEG、BMP 等无透明通道的格式的背景填充</p>
                     </div>
                     <div class="setting-controls">
                         <!-- 颜色选择器容器 -->
@@ -2678,13 +2684,13 @@
         try {
             const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(bitmap, 0, 0);
 
             if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
                 ctx.fillStyle = opts.fillColor || opaqueBackgroundColor;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(bitmap, 0, 0);
             }
+
+            ctx.drawImage(bitmap, 0, 0);
 
             if (targetFormat === 'png') {
                 return await new Promise(r => canvas.toBlob(r, 'image/png'));
@@ -3097,6 +3103,7 @@
      * @type {Map<string, HTMLCanvasElement[]>}
      */
     const canvasPoolBySize = new Map();
+    const recentCanvasSizes = new Map(); // key: "WxH", value: 最近使用次数
     
     /**
      * 从Canvas池获取指定尺寸的Canvas对象
@@ -3109,6 +3116,10 @@
      */
     function getCanvasFromPool(width, height) {
         const key = `${width}x${height}`;
+
+        // 记录实际请求的尺寸，用于页面可见时的智能预创建
+        recentCanvasSizes.set(key, (recentCanvasSizes.get(key) || 0) + 1);
+
         let pool = canvasPoolBySize.get(key);
         
         if (!pool) {
@@ -3158,18 +3169,11 @@
      * 保留部分常用尺寸的Canvas，避免频繁重建影响性能
      */
     function smartClearCanvasPools() {
-        const COMMON_SIZES = [
-            '256x256',   // 常见小图
-            '512x512',   // 中等尺寸
-            '1024x1024', // 常见大图
-            '1920x1080', // 1080p
-            '3840x2160'  // 4K
-        ];
-        
+        // 使用近期实际处理过的尺寸作为保留依据，而非硬编码尺寸
         const RETAIN_COUNT_PER_SIZE = 2; // 每个尺寸保留2个Canvas
-        
+
         canvasPoolBySize.forEach((pool, key) => {
-            if (COMMON_SIZES.includes(key)) {
+            if (recentCanvasSizes.has(key)) {
                 // 对于常用尺寸，保留部分Canvas
                 if (pool.length > RETAIN_COUNT_PER_SIZE) {
                     const canvasesToKeep = pool.slice(0, RETAIN_COUNT_PER_SIZE);
@@ -3213,32 +3217,33 @@
      * 在页面重新可见时提前创建可能需要的Canvas
      */
     function preCreateCommonCanvases() {
-        const COMMON_SIZES = [
-            { width: 256, height: 256 },
-            { width: 512, height: 512 },
-            { width: 1024, height: 1024 },
-            { width: 1920, height: 1080 }
-        ];
-        
-        COMMON_SIZES.forEach(size => {
-            const key = `${size.width}x${size.height}`;
+        // 基于近期实际处理的图片尺寸预创建，而非固定硬编码尺寸
+        if (recentCanvasSizes.size === 0) return;
+
+        // 按使用频率排序，取前4个最常用尺寸
+        const topSizes = [...recentCanvasSizes.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4);
+
+        topSizes.forEach(([key]) => {
+            const [w, h] = key.split('x').map(Number);
             let pool = canvasPoolBySize.get(key);
-            
+
             if (!pool) {
                 pool = [];
                 canvasPoolBySize.set(key, pool);
             }
-            
+
             // 确保每个常用尺寸至少有2个Canvas
             while (pool.length < 2) {
                 const canvas = document.createElement('canvas');
-                canvas.width = size.width;
-                canvas.height = size.height;
+                canvas.width = w;
+                canvas.height = h;
                 pool.push(canvas);
             }
         });
-        
-        logLog('预创建常用Canvas完成');
+
+        logLog(`预创建常用Canvas完成 (${topSizes.length} 种尺寸)`);
     }
     
     /**
@@ -3256,6 +3261,7 @@
             pool.length = 0;
         });
         canvasPoolBySize.clear();
+        recentCanvasSizes.clear();
         logLog('已清理所有Canvas池');
     }
 
@@ -3384,6 +3390,7 @@
                     if (settled) return;
                     settled = true;
                     URL.revokeObjectURL(blobUrl);
+                    worker.terminate();
                     resolve(e.data);
                 };
 
