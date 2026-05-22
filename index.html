@@ -1209,34 +1209,34 @@
 
             // ========== 关闭逻辑（统一定义在前） ==========
 
-            const closeBtnClickHandler = (e) => {
+            const handleCloseClick = (e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 closeBasicViewer();
             };
 
-            const closeBtnKeyHandler = (e) => {
+            const handleCloseKey = (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     closeBasicViewer();
                 }
             };
 
-            const escHandler = (e) => {
+            const handleEscapeKey = (e) => {
                 if (e.key === 'Escape') {
                     closeBasicViewer();
                 }
             };
 
-            const closeBtnHoverIn = () => {
+            const handleCloseHoverIn = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
             };
 
-            const closeBtnHoverOut = () => {
+            const handleCloseHoverOut = () => {
                 closeBtn.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
             };
 
-            const imgStopPropagation = (e) => e.stopPropagation();
+            const handleImageStopPropagation = (e) => e.stopPropagation();
 
             function closeBasicViewer() {
                 // 防止重复关闭
@@ -1244,13 +1244,13 @@
                 closeBasicViewer._called = true;
 
                 // 移除按钮事件
-                closeBtn.removeEventListener('click', closeBtnClickHandler);
-                closeBtn.removeEventListener('keydown', closeBtnKeyHandler);
-                closeBtn.removeEventListener('mouseenter', closeBtnHoverIn);
-                closeBtn.removeEventListener('mouseleave', closeBtnHoverOut);
+                closeBtn.removeEventListener('click', handleCloseClick);
+                closeBtn.removeEventListener('keydown', handleCloseKey);
+                closeBtn.removeEventListener('mouseenter', handleCloseHoverIn);
+                closeBtn.removeEventListener('mouseleave', handleCloseHoverOut);
 
                 // 移除全局键盘事件
-                document.removeEventListener('keydown', escHandler);
+                document.removeEventListener('keydown', handleEscapeKey);
 
                 // 淡出动画，完成后移除 DOM 并释放资源
                 viewerContainer.style.opacity = '0';
@@ -1292,14 +1292,14 @@
 
             // ========== 绑定事件 ==========
 
-            closeBtn.addEventListener('click', closeBtnClickHandler);
-            closeBtn.addEventListener('keydown', closeBtnKeyHandler);
-            closeBtn.addEventListener('mouseenter', closeBtnHoverIn);
-            closeBtn.addEventListener('mouseleave', closeBtnHoverOut);
-            document.addEventListener('keydown', escHandler);
+            closeBtn.addEventListener('click', handleCloseClick);
+            closeBtn.addEventListener('keydown', handleCloseKey);
+            closeBtn.addEventListener('mouseenter', handleCloseHoverIn);
+            closeBtn.addEventListener('mouseleave', handleCloseHoverOut);
+            document.addEventListener('keydown', handleEscapeKey);
 
             viewerContainer.onclick = closeBasicViewer;
-            img.onclick = imgStopPropagation;
+            img.onclick = handleImageStopPropagation;
 
             // ========== 图片加载回调 ==========
 
@@ -1916,7 +1916,7 @@
                     added++;
                     // 更新进度
                     const progress = Math.round((i + 1) / imageFiles.length * 100);
-                    statusDiv.innerHTML = `正在添加图片 ${i + 1}/${imageFiles.length} (${progress}%)${progressBarHTML(progress)}`;
+                    statusDiv.innerHTML = `正在添加图片 ${i + 1}/${imageFiles.length} (${progress}%)${progressBarHtml(progress)}`;
                     await new Promise(resolve => setTimeout(resolve, 0));
                 } catch (e) {
                     errors.push({ name: imageFiles[i].name, error: e.message });
@@ -2006,7 +2006,7 @@
 
                 // 更新进度
                 const progress = Math.round((i + 1) / targetIds.length * 100);
-                statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHTML(progress)}`;
+                statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHtml(progress)}`;
                 await new Promise(resolve => setTimeout(resolve, 0));
 
             } catch (error) {
@@ -2590,7 +2590,7 @@
     }
 
     /** 生成进度条 HTML 片段 */
-    function progressBarHTML(progress) {
+    function progressBarHtml(progress) {
         return `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
     }
 
@@ -2690,7 +2690,7 @@
             const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMightHaveTransparency(currentType)) {
+            if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMayHaveTransparency(currentType)) {
                 ctx.fillStyle = opts.fillColor || opaqueBackgroundColor;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
@@ -2700,7 +2700,7 @@
             if (targetFormat === 'png') {
                 return await new Promise(r => canvas.toBlob(r, 'image/png'));
             } else if (targetFormat === 'bmp') {
-                const bmpData = await canvasToBMPAsync(canvas);
+                const bmpData = await canvasToBmpAsync(canvas);
                 return new Blob([bmpData], { type: 'image/bmp' });
             } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
                 return await new Promise(r => canvas.toBlob(r, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality));
@@ -2735,7 +2735,7 @@
         } else {
             currentViewMode = 'grid';
         }
-        updateViewModeButtonUI();
+        updateViewModeButtonUi();
     }
 
     /**
@@ -2748,7 +2748,7 @@
     /**
      * 更新切换按钮的图标高亮状态
      */
-    function updateViewModeButtonUI() {
+    function updateViewModeButtonUi() {
         const gridIcon = document.getElementById('grid-view-icon');
         const listIcon = document.getElementById('list-view-icon');
         if (!gridIcon || !listIcon) return;
@@ -2774,7 +2774,7 @@
      * ./img/placeholder.svg
      * @returns {string} SVG 字符串
      */
-    function getPlaceholderSVG() {
+    function getPlaceholderSvg() {
         return '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="198" viewBox="0 0 252 198"><path fill="#fa4" d="M222.6,53.625c0,13.669-11.2824,24.75-25.2,24.75s-25.2-11.081-25.2-24.75,11.2824-24.75,25.2-24.75,25.2,11.081,25.2,24.75Z"/><path fill="#1a6" d="M91.476,87.615c-11.0428-9.638-27.6811-9.638-38.724,0L9,127.3013v61.6987h83.1633l55.5927-50.4-56.28-50.985Z"/><path fill="#fa4" d="M160.188,127.2975h0s-12.4321,11.3024-12.4321,11.3024l-55.5927,50.4h150.8368v-24.8636l-40.8122-36.8388c-12.0145-10.3562-29.9854-10.3563-41.9998,0Z"/><path fill="#4d4d4d" d="M242.9981,0H9.0019C4.0303,0,0,4.0303,0,9.0019v179.9962c0,4.9716,4.0303,9.0019,9.0019,9.0019h233.9962c4.9716,0,9.0019-4.0303,9.0019-9.0019V9.0019c0-4.9716-4.0303-9.0019-9.0019-9.0019ZM243,189H9V9h234v180Z"/></svg>';
     }
     
@@ -2788,7 +2788,7 @@
             // 切换模式
             currentViewMode = currentViewMode === 'grid' ? 'list' : 'grid';
             saveViewModePreference();
-            updateViewModeButtonUI();
+            updateViewModeButtonUi();
 
             // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
             const items = document.querySelectorAll('.image-item');
@@ -2835,7 +2835,7 @@
                     if (!placeholder) {
                         placeholder = document.createElement('div');
                         placeholder.className = 'thumbnail-placeholder';
-                        placeholder.innerHTML = getPlaceholderSVG();
+                        placeholder.innerHTML = getPlaceholderSvg();
                         placeholder.title = '点击预览图片';
                         thumbnailContainer.innerHTML = '';
                         thumbnailContainer.appendChild(placeholder);
@@ -2888,7 +2888,7 @@
         logLog(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
-    function avgCacheFrequency() {
+    function averageCacheFrequency() {
         if (curveCache.size === 0) return 1;
         let sum = 0;
         for (const entry of curveCache.values()) sum += entry.frequency;
@@ -2915,7 +2915,7 @@
         if (logLevel === 'log') cacheMisses++;
         // 未命中：生成新的曲线数据及映射表
         const totalPixels = width * height;
-        const curve = hilbert2d(width, height);
+        const curve = hilbert2D(width, height);
         const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
         const shiftedCurve = new Uint32Array(totalPixels);
         for (let i = 0; i < totalPixels; i++) {
@@ -2924,14 +2924,14 @@
 
         if (curveCache.size >= MAX_CACHE_SIZE) {
             ageFrequencies();
-            evictLFUCacheEntry();
+            evictLfuCacheEntry();
             cacheEvictions++;
         }
 
         const newData = { curve, shiftedCurve };
         curveCache.set(key, {
             data: newData,
-            frequency: avgCacheFrequency(),
+            frequency: averageCacheFrequency(),
             lastAccess: accessCounter
         });
 
@@ -2944,7 +2944,7 @@
      * 淘汰频率最低的条目，频率相同时淘汰最久未访问的
      * （ageFrequencies 右移老化后大量条目频率→1，统一走频率+时间判断，语义一致）
      */
-    function evictLFUCacheEntry() {
+    function evictLfuCacheEntry() {
         let minFreq = Infinity;
         for (const entry of curveCache.values()) {
             if (entry.frequency < minFreq) minFreq = entry.frequency;
@@ -2966,7 +2966,7 @@
      * @param {number} height - 图像高度
      * @returns {Uint32Array} 按曲线顺序排列的像素线性索引
      */
-    function hilbert2d(width, height) {
+    function hilbert2D(width, height) {
         const w = width;
         const total = width * height;
         const order = new Uint32Array(total);
@@ -3279,9 +3279,9 @@
      */
     /**
      * 将 RGBA 像素数据编码为 BMP 24位格式
-     * 供同步 canvasToBMP 和异步 Web Worker 共用，消除维护双份代码的风险
+     * 供同步 canvasToBmp 和异步 Web Worker 共用，消除维护双份代码的风险
      */
-    function encodeBMPData(width, height, imageData) {
+    function encodeBmpData(width, height, imageData) {
         const bytesPerPixel = 3;
         const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4;
         const rowSize = width * bytesPerPixel + rowPadding;
@@ -3334,10 +3334,10 @@
         return result;
     }
 
-    function canvasToBMP(canvas) {
+    function canvasToBmp(canvas) {
         const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        return encodeBMPData(canvas.width, canvas.height, imageData.data).buffer;
+        return encodeBmpData(canvas.width, canvas.height, imageData.data).buffer;
     }
     
     /**
@@ -3347,12 +3347,12 @@
      * 
      * 对于大图(>2MB)使用Web Worker避免主线程阻塞
      */
-    async function canvasToBMPAsync(canvas) {
+    async function canvasToBmpAsync(canvas) {
         const dataSize = canvas.width * canvas.height * 4;
         
         // 小图直接同步处理
         if (dataSize <= 2 * 1024 * 1024) {  // 2MB阈值
-            return canvasToBMP(canvas);
+            return canvasToBmp(canvas);
         }
         
         // 大图使用Web Worker处理
@@ -3369,12 +3369,12 @@
             }
 
             try {
-                // 创建内联Worker处理大图（复用 encodeBMPData，消除双份维护）
+                // 创建内联Worker处理大图（复用 encodeBmpData，消除双份维护）
                 const workerCode = `
-                    ${encodeBMPData.toString()}
+                    ${encodeBmpData.toString()}
                     self.onmessage = function(e) {
                         const { width, height, imageData } = e.data;
-                        const result = encodeBMPData(width, height, imageData);
+                        const result = encodeBmpData(width, height, imageData);
                         self.postMessage(result.buffer, [result.buffer]);
                         self.close();
                     };
@@ -3413,7 +3413,7 @@
                 logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
                 if (worker) worker.terminate();
                 if (blobUrl) URL.revokeObjectURL(blobUrl);
-                resolve(canvasToBMP(canvas));
+                resolve(canvasToBmp(canvas));
             }
         });
     }
@@ -3462,7 +3462,7 @@
         return closeOnScroll;
     }
 
-    function cleanupImageFromUI(imageId, skipUI = false) {
+    function cleanupImageFromUi(imageId, skipUI = false) {
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (item) item.remove();
         if (imageLazyLoader) imageLazyLoader.unobserve(imageId);
@@ -3771,7 +3771,7 @@
 
                     // 更新进度显示
                     const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} 张图片 (${progress}%)${progressBarHTML(progress)}`;
+                    statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} 张图片 (${progress}%)${progressBarHtml(progress)}`;
 
                     // 让出控制权，避免阻塞UI
                     await new Promise(resolve => setTimeout(resolve, 0));
@@ -3843,7 +3843,7 @@
 
                     // 更新进度
                     const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `正在保存 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHTML(progress)}`;
+                    statusDiv.innerHTML = `正在保存 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHtml(progress)}`;
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
@@ -4128,7 +4128,7 @@
             placeholder.title = '加载中…';
         } else {
             // 列表模式：显示占位符图标
-            placeholder.innerHTML = getPlaceholderSVG();
+            placeholder.innerHTML = getPlaceholderSvg();
             placeholder.title = '点击预览图片';
         }
         thumbnailContainer.appendChild(placeholder);
@@ -4395,7 +4395,7 @@
         }
             
         // 从 DOM 和数据中移除选中的图片（批量删除，跳过逐项 UI 更新）
-        idsToDelete.forEach(id => cleanupImageFromUI(id, true));
+        idsToDelete.forEach(id => cleanupImageFromUi(id, true));
         // 批量操作完成后一次性更新 UI
         selectedImages.clear();
         updateSaveButtonText();
@@ -4434,7 +4434,7 @@
             await storage.delete(`current_${imageId}`);
             await storage.delete(`thumb_${imageId}`);
             logLog(`已删除存储数据：original_${imageId}, current_${imageId}, thumb_${imageId}`);
-            cleanupImageFromUI(imageId);
+            cleanupImageFromUi(imageId);
             if (images.length === 0) {
                 await storage.clear();
                 logLog('所有图片已删除：已清除全部缓存');
@@ -4634,7 +4634,7 @@
      * 根据 Blob MIME 类型判断图片是否可能包含透明通道
      * JPEG/BMP 格式不支持 alpha 通道
      */
-    function blobMightHaveTransparency(type) {
+    function blobMayHaveTransparency(type) {
         return type === 'image/png' || type === 'image/webp';
     }
 
@@ -4997,7 +4997,7 @@
                 cleanupViewerResources(galleryContainer);
                 return;
             }
-            await initializeViewerWithBestPractices(imageData, galleryContainer, imageId, token);
+            await initViewerWithBestPractices(imageData, galleryContainer, imageId, token);
         } catch (error) {
             if (isPreviewStale(token)) {
                 cleanupViewerResources(galleryContainer);
@@ -5154,7 +5154,7 @@
      * @param {string} targetImageId - 目标图片 ID
      * @param {number} token - 并发控制令牌
      */
-    async function initializeViewerWithBestPractices(imageData, container, targetImageId, token) {
+    async function initViewerWithBestPractices(imageData, container, targetImageId, token) {
         // 最终检查是否被新调用取代
         if (isPreviewStale(token)) {
             logLog('预览操作已被取代，跳过 Viewer 实例创建');
@@ -5578,7 +5578,7 @@
                 
                 // 更新进度显示
                 const progress = Math.round((i + 1) / totalCount * 100);
-                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)${progressBarHTML(progress)}`;
+                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)${progressBarHtml(progress)}`;
                 
                 // 让出控制权，避免阻塞UI
                 await new Promise(resolve => setTimeout(resolve, 10));
