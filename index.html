@@ -3694,26 +3694,41 @@
      * 使用 ImageBitmap 将 Blob 绘制到 canvas 缩略图
      */
     async function updateThumbnail(imageId, blob) {
-        if (currentViewMode === 'list') return;
-
-        const item = document.querySelector(`[data-id="${imageId}"]`);
-        if (!item) return;
-        const canvas = item.querySelector('.thumbnail-canvas');
-        if (!canvas) return;
-
-        const container = item.querySelector('.thumbnail-container');
-        if (!container) return;
-
         let bitmap;
         try {
             bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
-            const size = getThumbnailSize(container, bitmap.width, bitmap.height);
-            drawThumbnail(canvas, bitmap, size.width, size.height);
-            updateImageInfo(imageId);
+
+            // 1. 始终更新存储缓存（用离屏 canvas，不依赖 DOM 状态）
+            //    避免未滚动到的缩略图在处理后缓存未刷新，导致懒加载时显示旧图
+            const offscreen = document.createElement('canvas');
+            const maxDim = 250 * (window.devicePixelRatio || 1);
+            let { width, height } = bitmap;
+            if (width > height) {
+                if (width > maxDim) { height *= maxDim / width; width = maxDim; }
+            } else {
+                if (height > maxDim) { width *= maxDim / height; height = maxDim; }
+            }
+            offscreen.width = Math.round(width);
+            offscreen.height = Math.round(height);
+            drawThumbnail(offscreen, bitmap, offscreen.width, offscreen.height);
 
             const [mime, quality] = await getThumbnailEncodeParams();
-            const thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+            const thumbBlob = await new Promise(resolve => offscreen.toBlob(resolve, mime, quality));
             await storage.set(`thumb_${imageId}`, thumbBlob);
+
+            // 2. 若 DOM 中存在缩略图 canvas，同步更新视觉显示
+            if (currentViewMode !== 'list') {
+                const item = document.querySelector(`[data-id="${imageId}"]`);
+                if (item) {
+                    const canvas = item.querySelector('.thumbnail-canvas');
+                    const container = item.querySelector('.thumbnail-container');
+                    if (canvas && container) {
+                        const size = getThumbnailSize(container, bitmap.width, bitmap.height);
+                        drawThumbnail(canvas, bitmap, size.width, size.height);
+                        updateImageInfo(imageId);
+                    }
+                }
+            }
         } catch (e) {
             logWarn('图片处理', `更新缩略图失败: ${e.message || e}`);
         } finally {
