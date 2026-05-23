@@ -10,8 +10,8 @@ const PRECACHE_URLS = [
     './assets/viewerjs/viewer.min.js',
     './assets/irojs/iro.js',
     './assets/fflate/fflate.js',
-    './img/icons/pwa-192.png',
-    './img/icons/pwa-512.png'
+    './img/icons/favicon/PWA/pwa-192.png',
+    './img/icons/favicon/PWA/pwa-512.png'
 ];
 
 // ---- Install: 预缓存所有静态资源 ----
