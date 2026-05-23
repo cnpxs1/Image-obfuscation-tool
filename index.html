@@ -2175,7 +2175,15 @@
     let isProcessing = false;
     /** @type {boolean} 首次导入文件标志 */
     let hasImportedFiles = false;
-    /** @type {Object|null} Viewer.js 实例 */
+    /**
+     * @typedef {Object} ViewerInstance
+     * @property {function(): void} destroy - 销毁实例
+     * @property {function(): void} show - 显示查看器
+     * @property {function(number): void} view - 切换到指定索引的图片
+     * @property {Array<{dataset: Object}>} images - 图片元素列表
+     */
+
+    /** @type {ViewerInstance|null} Viewer.js 实例 */
     let viewerInstance = null;
     /** @type {number} 预览取消标志 */
     let previewNonce = 0;
@@ -2683,7 +2691,7 @@
      * 将图片 Blob 转换为目标格式
      * @param {Blob} blob - 原始图片 Blob
      * @param {string} targetFormat - 目标格式 (png/jpg/jpeg/bmp/webp)
-     * @param {Object} [opts] - 选项
+     * @param {{fillColor?: string, quality?: number, lossless?: boolean}} [opts] - 选项
      * @returns {Promise<Blob>} 转换后的 Blob
      */
     async function convertImageBlob(blob, targetFormat, opts = {}) {
@@ -4689,8 +4697,15 @@
     let imageQuality = 1.0;
     
     /**
+     * @typedef {Object} IroColorPicker
+     * @property {function(string, function): void} on - 绑定事件
+     * @property {function(string, function): void} off - 解绑事件
+     * @property {{hexString: string, hsv: Object, rgb: {r: number, g: number, b: number}}} color - 当前颜色对象
+     */
+
+    /**
      * iro.js 颜色选择器实例
-     * @type {Object|null}
+     * @type {IroColorPicker|null}
      */
     let colorPickerInstance = null;
 
@@ -4712,7 +4727,7 @@
     /**
      * 创建颜色选择器实例并绑定事件
      * @param {Object} options - iro.js ColorPicker 配置
-     * @returns {Object} ColorPicker 实例
+     * @returns {IroColorPicker} ColorPicker 实例
      */
     function createColorPicker(options) {
         const instance = new iro.ColorPicker('#color-picker-box', options);
@@ -5066,8 +5081,12 @@
     }
 
     /**
+     * @typedef {HTMLElement & {_loadPromises?: Promise<any>, _cleanedUp?: boolean, _timeoutIds?: Array<number>}} GalleryContainer
+     */
+
+    /**
      * 创建图片画廊容器
-     * @returns {Promise<HTMLElement>} 容器元素
+     * @returns {Promise<GalleryContainer>} 容器元素
      */
     async function createImageGalleryContainer() {
         const container = document.createElement('div');
@@ -5183,7 +5202,7 @@
     /**
      * 按照最佳实践初始化 Viewer.js
      * @param {Object} imageData - 图片数据
-     * @param {HTMLElement} container - 容器元素
+     * @param {HTMLElement & {_loadPromises?: Promise<any>}} container - 容器元素
      * @param {string} targetImageId - 目标图片 ID
      * @param {number} token - 并发控制令牌
      */
@@ -5411,7 +5430,7 @@
 
     /**
      * 清理 Viewer.js 相关资源
-     * @param {HTMLElement} container - 容器元素
+     * @param {GalleryContainer} container - 容器元素
      * @param {boolean} [skipViewerDestroy=false] - 跳过 Viewer 实例销毁（批量清理时由调用方统一销毁）
      */
     function cleanupViewerResources(container, skipViewerDestroy = false) {
