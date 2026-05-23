@@ -90,7 +90,7 @@
 
     <!-- Viewer.js CSS 加载 | 许可证：MIT License -->
     <!-- 第一级：bootcdn CSS -->
-    <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true;window.viewerResources.currentCDN='bootcdn';window.viewerResources._notifyReady();}" onerror="loadCDNFallback('css','bootcdn')">
+    <link id="viewer-css" href="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css" rel="stylesheet" onload="if(window.viewerResources){window.viewerResources.cssLoaded=true;window.viewerResources.currentCDN='bootcdn';window.viewerResources._notifyReady();}" onerror="if(window.viewerResources){loadCDNFallback('css','bootcdn')}">
     <!-- 通用 CDN 回退加载函数 -->
     <script>
         // 早期日志存根 — 在日志系统初始化前安全降级到 console
@@ -101,6 +101,18 @@
         let logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); };
 
         function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, onAllFailed) {
+            function tryNext(failedUrl, nextIndex) {
+                logWarn(globalName, '加载失败: ' + failedUrl);
+                stateObj.loading = false;
+                if (nextIndex < fallbackUrls.length) {
+                    load(fallbackUrls[nextIndex], nextIndex + 1);
+                } else {
+                    stateObj.failed = true;
+                    logError(globalName, '所有源均加载失败');
+                    if (onAllFailed) onAllFailed();
+                }
+            }
+
             function load(cdnUrl, index = 0) {
                 if (stateObj.loaded || stateObj.loading) return;
                 stateObj.loading = true;
@@ -114,21 +126,10 @@
                         logLog(globalName + ' 加载成功:', cdnUrl);
                     } else {
                         logWarn(globalName, '脚本加载但未定义，视为失败');
-                        stateObj.loading = false;
-                        script.onerror(globalName + ' is not defined');
+                        tryNext(cdnUrl, index + 1);
                     }
                 };
-                script.onerror = () => {
-                    logWarn(globalName, '加载失败: ' + cdnUrl);
-                    stateObj.loading = false;
-                    if (index < fallbackUrls.length) {
-                        load(fallbackUrls[index], index + 1);
-                    } else {
-                        stateObj.failed = true;
-                        logError(globalName, '所有源均加载失败');
-                        if (onAllFailed) onAllFailed();
-                    }
-                };
+                script.onerror = () => tryNext(cdnUrl, index + 1);
                 document.head.appendChild(script);
             }
             load(primaryUrl, 0);
