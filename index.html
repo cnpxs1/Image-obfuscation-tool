@@ -935,6 +935,10 @@
             width: 14px;
             height: 14px;
         }
+        #close-settings-btn svg {
+            width: 1rem;
+            height: 1rem;
+        }
         .log-panel-close:hover {
             background: #f5f5f5;
         }
@@ -1356,7 +1360,7 @@
     <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
         <!-- 关闭按钮./img/icons/close.svg -->
         <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
         </button>
         <!-- 设置内容 -->
         <div style="padding: 10px;">
@@ -1842,6 +1846,13 @@
                 });
             }
         }
+
+        /** 删除指定图片的所有关联数据（原始、当前、缩略图） */
+        async deleteImageData(id) {
+            await this.delete(`original_${id}`);
+            await this.delete(`current_${id}`);
+            await this.delete(`thumb_${id}`);
+        }
     }
 
     // ==================== ZIP 文件处理功能 ====================
@@ -1924,9 +1935,7 @@
                     await addImage(imageFiles[i]);
                     added++;
                     // 更新进度
-                    const progress = Math.round((i + 1) / imageFiles.length * 100);
-                    statusDiv.innerHTML = `正在添加图片 ${i + 1}/${imageFiles.length} (${progress}%)${progressBarHtml(progress)}`;
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                    await updateProgressStatus(statusDiv, i + 1, imageFiles.length, '添加图片');
                 } catch (e) {
                     errors.push({ name: imageFiles[i].name, error: e.message });
                     logError(imageFiles[i].name, `添加失败: ${e.message}`);
@@ -2014,9 +2023,7 @@
                 successCount++;
 
                 // 更新进度
-                const progress = Math.round((i + 1) / targetIds.length * 100);
-                statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHtml(progress)}`;
-                await new Promise(resolve => setTimeout(resolve, 0));
+                await updateProgressStatus(statusDiv, i + 1, targetIds.length, '处理');
 
             } catch (error) {
                 failureCount++;
@@ -2349,6 +2356,9 @@
         info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#1296db" stroke-width="81" fill="none"/><line x1="512" y1="300" x2="512" y2="580" stroke="#1296db" stroke-width="81" stroke-linecap="round"/><circle cx="512" cy="720" r="47" fill="#1296db"/></svg>'
     };
 
+    /** 通用关闭按钮 × 图标 SVG */
+    const CLOSE_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>';
+
     // ---- UI 状态 ----
 
     let logPanelVisible = false;
@@ -2599,6 +2609,15 @@
             : images.map(img => img.id);
     }
 
+    /** 处理中守卫：阻止并发操作，提示用户等待 */
+    function guardProcessing() {
+        if (isProcessing) {
+            alert('正在处理中，请稍后...');
+            return true;
+        }
+        return false;
+    }
+
     /** 在 batchStatus 区域显示临时消息，默认 2 秒后清除 */
     function showTempStatus(message, duration = 2000) {
         const statusDiv = document.getElementById('batchStatus');
@@ -2609,6 +2628,13 @@
     /** 生成进度条 HTML 片段 */
     function progressBarHtml(progress) {
         return `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
+    }
+
+    /** 更新进度状态并返回 yield Promise，统一 progress 计算 + timeout 模式 */
+    function updateProgressStatus(statusDiv, current, total, actionText, delay = 0) {
+        const pct = Math.round(current / total * 100);
+        statusDiv.innerHTML = `正在${actionText} ${current}/${total} (${pct}%)${progressBarHtml(pct)}`;
+        return new Promise(resolve => setTimeout(resolve, delay));
     }
 
     /** 释放单个 img 元素的 Blob URL，避免内存泄漏 */
@@ -3554,18 +3580,9 @@
             const maxWidth = (container?.clientWidth || 250) * dpr;
             const maxHeight = (container?.clientHeight || 150) * dpr;
 
-            const offscreen = document.createElement('canvas');
-            await withImageBitmap(fullBlob, async (bitmap) => {
-                const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
-                const width = Math.round(bitmap.width * scale);
-                const height = Math.round(bitmap.height * scale);
-                offscreen.width = width;
-                offscreen.height = height;
-                drawThumbnail(offscreen, bitmap, width, height);
-            });
-
-            const [mime, quality] = await getThumbnailEncodeParams();
-            const thumbBlob = await new Promise(resolve => offscreen.toBlob(resolve, mime, quality));
+            const thumbBlob = await withImageBitmap(fullBlob, bitmap =>
+                generateThumbnailBlob(bitmap, maxWidth, maxHeight)
+            );
             await storage.set(`thumb_${imageData.id}`, thumbBlob);
         } catch (e) {
             // 预缓存失败不阻塞主流程，滚动时会走正常的缓存未命中路径
@@ -3697,6 +3714,23 @@
     }
 
     /**
+     * 将 ImageBitmap 缩放后编码为缩略图 Blob
+     * @param {ImageBitmap} bitmap
+     * @param {number} maxWidth
+     * @param {number} maxHeight
+     * @returns {Promise<Blob>}
+     */
+    async function generateThumbnailBlob(bitmap, maxWidth, maxHeight) {
+        const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+        const width = Math.round(bitmap.width * scale);
+        const height = Math.round(bitmap.height * scale);
+        const canvas = document.createElement('canvas');
+        drawThumbnail(canvas, bitmap, width, height);
+        const [mime, quality] = await getThumbnailEncodeParams();
+        return await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+    }
+
+    /**
      * 获取缩略图编码参数（WebP 0.8 优先，否则 JPEG 0.9 兼容）
      * @returns {Promise<[string, number]>} [mime, quality]
      */
@@ -3718,22 +3752,9 @@
         try {
             bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
 
-            // 1. 始终更新存储缓存（用离屏 canvas，不依赖 DOM 状态）
-            //    避免未滚动到的缩略图在处理后缓存未刷新，导致懒加载时显示旧图
-            const offscreen = document.createElement('canvas');
+            // 1. 始终更新存储缓存
             const maxDim = 250 * (window.devicePixelRatio || 1);
-            let { width, height } = bitmap;
-            if (width > height) {
-                if (width > maxDim) { height *= maxDim / width; width = maxDim; }
-            } else {
-                if (height > maxDim) { width *= maxDim / height; height = maxDim; }
-            }
-            offscreen.width = Math.round(width);
-            offscreen.height = Math.round(height);
-            drawThumbnail(offscreen, bitmap, offscreen.width, offscreen.height);
-
-            const [mime, quality] = await getThumbnailEncodeParams();
-            const thumbBlob = await new Promise(resolve => offscreen.toBlob(resolve, mime, quality));
+            const thumbBlob = await generateThumbnailBlob(bitmap, maxDim, maxDim);
             await storage.set(`thumb_${imageId}`, thumbBlob);
 
             // 2. 若 DOM 中存在缩略图 canvas，同步更新视觉显示
@@ -3805,11 +3826,7 @@
                     }
 
                     // 更新进度显示
-                    const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `正在处理 ${i + 1}/${targetIds.length} 张图片 (${progress}%)${progressBarHtml(progress)}`;
-
-                    // 让出控制权，避免阻塞UI
-                    await new Promise(resolve => setTimeout(resolve, 0));
+                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '处理');
                 }
             }
 
@@ -3823,18 +3840,9 @@
     }
 
     /**
-     * 保存图片到本地
-     * @param {string} format - 保存格式：'png'|'bmp'
-     *
-     * 支持PNG和BMP两种格式
-     * 自动处理文件名和状态信息
-     */
-    /**
-     * 保存图片到本地
-     * 支持选择特定图片或处理所有图片
-     * 使用公共函数saveImageInFormat进行实际的图片保存操作
+     * 保存图片到本地，支持选择特定图片或处理所有图片，可选 ZIP 打包下载
      * @param {string} format - 保存格式：'png'|'bmp'|'jpg'|'jpeg'|'webp'
-     * @returns {Promise<void>} 无返回值的Promise
+     * @returns {Promise<void>}
      */
     async function saveImages(format) {
         // 检查打包下载开关状态
@@ -3877,9 +3885,7 @@
                     }
 
                     // 更新进度
-                    const progress = Math.round((i + 1) / targetIds.length * 100);
-                    statusDiv.innerHTML = `正在保存 ${i + 1}/${targetIds.length} (${progress}%)${progressBarHtml(progress)}`;
-                    await new Promise(resolve => setTimeout(resolve, 50));
+                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '保存', 50);
                 }
 
                 showBatchStatus(successCount, failureCount, '保存');
@@ -4426,25 +4432,20 @@
      * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
      */
     async function deleteSelectedImages() {
-        if (isProcessing) {
-            alert('正在处理中，请稍后...');
-            return;
-        }
-            
+        if (guardProcessing()) return;
+
         // 如果没有选中的图片，提示用户
         if (selectedImages.size === 0) {
             showTempStatus('⚠️ 请先选择要删除的图片');
             return;
         }
-            
+
         // 复制选中的 ID 集合，避免在迭代时修改集合
         const idsToDelete = Array.from(selectedImages);
-            
+
         // 清理存储中的数据
         for (const id of idsToDelete) {
-            await storage.delete(`original_${id}`);
-            await storage.delete(`current_${id}`);
-            await storage.delete(`thumb_${id}`);
+            await storage.deleteImageData(id);
         }
             
         // 从 DOM 和数据中移除选中的图片（批量删除，跳过逐项 UI 更新）
@@ -4468,25 +4469,17 @@
      * 从数组和 DOM 中移除图片，同时释放 Blob URL 资源
      */
     async function deleteSingleImage(imageId) {
-        if (isProcessing) {
-            alert('正在处理中，请稍后...');
-            return;
-        }
-        
+        if (guardProcessing()) return;
+
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
             logWarn('图片删除', `未找到要删除的图片: ${imageId}`);
             return;
         }
-        
-        // 直接删除，不弹出确认对话框
-                
+
         try {
-            // 清理存储：删除原始图片、当前图片和缩略图缓存
-            await storage.delete(`original_${imageId}`);
-            await storage.delete(`current_${imageId}`);
-            await storage.delete(`thumb_${imageId}`);
-            logLog(`已删除存储数据：original_${imageId}, current_${imageId}, thumb_${imageId}`);
+            await storage.deleteImageData(imageId);
+            logLog(`已删除存储数据：${imageId}`);
             cleanupImageFromUi(imageId);
             if (images.length === 0) {
                 await storage.clear();
@@ -5646,11 +5639,7 @@
                 }
                 
                 // 更新进度显示
-                const progress = Math.round((i + 1) / totalCount * 100);
-                statusDiv.innerHTML = `正在刷新缩略图 ${i + 1}/${totalCount} (${progress}%)${progressBarHtml(progress)}`;
-                
-                // 让出控制权，避免阻塞UI
-                await new Promise(resolve => setTimeout(resolve, 10));
+                await updateProgressStatus(statusDiv, i + 1, totalCount, '刷新缩略图', 10);
             }
             
             showBatchStatus(successCount, failureCount, '刷新');
@@ -5982,6 +5971,10 @@
 
     // 页面加载完成后绑定事件（统一入口）
     document.addEventListener('DOMContentLoaded', function() {
+        // 统一设置关闭按钮图标
+        document.getElementById('close-settings-btn').innerHTML = CLOSE_ICON_SVG;
+        document.getElementById('logPanelClose').innerHTML = CLOSE_ICON_SVG;
+
         // ---- 日志面板事件 ----
         const fab = document.getElementById('logFab');
         const overlay = document.getElementById('logPanelOverlay');
