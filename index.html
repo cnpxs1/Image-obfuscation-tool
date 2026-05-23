@@ -1954,12 +1954,11 @@
     }
 
     /**
-     * 打包下载选中的图片为 ZIP 文件
+     * 打包下载选中的图片为 ZIP 文件（流式压缩，逐张处理避免内存堆积）
      * @param {string} format - 保存格式：'png'|'jpg'|'bmp'|'webp'
      * @returns {Promise<void>}
      */
     async function saveImagesAsZip(format) {
-        // 防御性检测：检查 fflate 是否可用
         if (typeof fflate === 'undefined') {
             logError('fflate', 'fflate 未加载，ZIP 打包功能不可用');
             showTempStatus('❌ ZIP 打包功能不可用（fflate 库未加载）', 3000);
@@ -1976,12 +1975,17 @@
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
 
-        // 提前检测 WebP 支持并统一目标格式（避免循环内重复计算）
         const targetFormat = format.toLowerCase();
         const webpSupported = targetFormat === 'webp' ? await isWebPSupported() : false;
 
-        // 收集所有图片 Blob 并转换为目标格式
-        const filesToZip = [];
+        // 流式 ZIP：数据通过 ZipDeflate 逐张推入，不在内存中保留所有图片原始数据
+        const zipChunks = [];
+        let streamError = null;
+        const zip = new fflate.Zip((err, data) => {
+            if (err) { streamError = err; return; }
+            zipChunks.push(data);
+        });
+
         let successCount = 0;
         let failureCount = 0;
 
@@ -1994,7 +1998,7 @@
             }
 
             try {
-                const blob = await storage.get(`current_${imageData.id}`);
+                let blob = await storage.get(`current_${imageData.id}`);
                 if (!blob) {
                     failureCount++;
                     logError(imageData.name, '图片数据不存在');
@@ -2008,27 +2012,53 @@
                 }
 
                 const outputBlob = await convertImageBlob(blob, targetFormat);
+                blob = null;
 
-                // 生成文件名（使用 getStatusSuffix 基于 scrambleLevel）
                 const ext = getOutputExtension(targetFormat);
                 const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
                 const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
 
-                // 读取为 Uint8Array 供 fflate 使用
                 const arrayBuffer = await outputBlob.arrayBuffer();
-                filesToZip.push({
-                    name: fileName,
-                    data: new Uint8Array(arrayBuffer)
-                });
+                const fileData = new Uint8Array(arrayBuffer);
+
+                // 大文件用 AsyncZipDeflate（Web Worker，不阻塞主线程），小文件用 ZipDeflate
+                if (fileData.length >= 160000) {
+                    await new Promise((resolve, reject) => {
+                        const entry = new fflate.AsyncZipDeflate(fileName, { level: 1 });
+                        zip.add(entry);
+                        const zipOndata = entry.ondata;
+                        entry.ondata = function(err, chunk, final_) {
+                            zipOndata.call(this, err, chunk, final_);
+                            if (err) reject(err);
+                            else if (final_) resolve();
+                        };
+                        entry.push(fileData, true);
+                    });
+                } else {
+                    const entry = new fflate.ZipDeflate(fileName, { level: 1 });
+                    zip.add(entry);
+                    entry.push(fileData, true);
+                }
+
                 successCount++;
 
-                // 更新进度
-                await updateProgressStatus(statusDiv, i + 1, targetIds.length, '处理');
+                // 每 5 张让出主线程并更新进度（已压缩数据保留在 zipChunks 中）
+                if ((i + 1) % 5 === 0 || i === targetIds.length - 1) {
+                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '压缩');
+                }
 
             } catch (error) {
                 failureCount++;
                 logError(imageData.name, `打包失败: ${error.message || '未知错误'}`);
             }
+
+            // 流错误不可恢复，立即终止循环
+            if (streamError) break;
+        }
+
+        if (streamError) {
+            showTempStatus('❌ ZIP 流写入错误，打包中断', 3000);
+            return;
         }
 
         if (successCount === 0) {
@@ -2036,27 +2066,23 @@
             return;
         }
 
-        // 使用 fflate 创建 ZIP
-        statusDiv.innerHTML = `<div class="loading"></div> 正在创建 ZIP 文件...`;
+        statusDiv.innerHTML = `<div class="loading"></div> 正在完成 ZIP 文件...`;
         await new Promise(resolve => setTimeout(resolve, 10));
 
         try {
-            // 构建 zip 数据对象
-            const zipObj = {};
-            for (const file of filesToZip) {
-                zipObj[file.name] = file.data;
+            // 结束 ZIP 流（写入中央目录）
+            zip.end();
+
+            // 合并所有压缩块
+            const totalLength = zipChunks.reduce((sum, c) => sum + c.length, 0);
+            const zipData = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const chunk of zipChunks) {
+                zipData.set(chunk, offset);
+                offset += chunk.length;
             }
+            zipChunks.length = 0;
 
-            // 压缩为 ZIP (level: 1 - 最快压缩)
-            /** @type {Uint8Array} */
-            const zipData = await new Promise((resolve, reject) => {
-                fflate.zip(zipObj, { level: 1 }, (err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
-            });
-
-            // 下载 ZIP 文件
             const zipBlob = new Blob([zipData], { type: 'application/zip' });
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
             downloadBlob(zipBlob, `混淆图片_${timestamp}.zip`);
@@ -2634,7 +2660,10 @@
     function updateProgressStatus(statusDiv, current, total, actionText, delay = 0) {
         const pct = Math.round(current / total * 100);
         statusDiv.innerHTML = `正在${actionText} ${current}/${total} (${pct}%)${progressBarHtml(pct)}`;
-        return new Promise(resolve => setTimeout(resolve, delay));
+        if (delay > 0) {
+            return new Promise(resolve => setTimeout(resolve, delay));
+        }
+        return Promise.resolve();
     }
 
     /** 释放单个 img 元素的 Blob URL，避免内存泄漏 */
@@ -3754,22 +3783,25 @@
         try {
             bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
 
-            // 1. 始终更新存储缓存
-            const maxDim = 250 * (window.devicePixelRatio || 1);
-            const thumbBlob = await generateThumbnailBlob(bitmap, maxDim, maxDim);
+            // 1. 获取实际容器尺寸（响应式网格下宽度可变，高度固定 150px）
+            const dpr = window.devicePixelRatio || 1;
+            const item = document.querySelector(`[data-id="${imageId}"]`);
+            const container = item?.querySelector('.thumbnail-container');
+            const rect = container?.getBoundingClientRect();
+            const maxWidth = (rect?.width || 250) * dpr;
+            const maxHeight = (rect?.height || 150) * dpr;
+
+            // 2. 基于实际容器尺寸生成缩略图缓存
+            const thumbBlob = await generateThumbnailBlob(bitmap, maxWidth, maxHeight);
             await storage.set(`thumb_${imageId}`, thumbBlob);
 
-            // 2. 若 DOM 中存在缩略图 canvas，同步更新视觉显示
-            if (currentViewMode !== 'list') {
-                const item = document.querySelector(`[data-id="${imageId}"]`);
-                if (item) {
-                    const canvas = item.querySelector('.thumbnail-canvas');
-                    const container = item.querySelector('.thumbnail-container');
-                    if (canvas && container) {
-                        const size = getThumbnailSize(container, bitmap.width, bitmap.height);
-                        drawThumbnail(canvas, bitmap, size.width, size.height);
-                        updateImageInfo(imageId);
-                    }
+            // 3. 非列表模式下，同步更新 DOM 中的 canvas 显示
+            if (currentViewMode !== 'list' && container) {
+                const canvas = container.querySelector('.thumbnail-canvas');
+                if (canvas) {
+                    const size = getThumbnailSize(container, bitmap.width, bitmap.height);
+                    drawThumbnail(canvas, bitmap, size.width, size.height);
+                    updateImageInfo(imageId);
                 }
             }
         } catch (e) {
