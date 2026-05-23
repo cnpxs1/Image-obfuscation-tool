@@ -1,4 +1,3 @@
-<?xml version="1.0" standalone="no"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="200" height="200">
-  <path d="M100 100L924 924M924 100L100 924" stroke="#333333" stroke-width="150" stroke-linecap="round" fill="none"/>
+  <path d="M100 100L924 924M924 100L100 924" stroke="#333" stroke-width="150" stroke-linecap="round" fill="none"/>
 </svg>
