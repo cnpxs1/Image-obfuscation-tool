@@ -3530,17 +3530,18 @@
             const fullBlob = await storage.get(`current_${imageData.id}`);
             if (!fullBlob) return;
 
+            // 自适应：测量实际缩略图容器尺寸，而非硬编码固定值
+            const item = document.querySelector(`[data-id="${imageData.id}"]`);
+            const container = item?.querySelector('.thumbnail-container');
+            const dpr = window.devicePixelRatio || 1;
+            const maxWidth = (container?.clientWidth || 250) * dpr;
+            const maxHeight = (container?.clientHeight || 150) * dpr;
+
             const offscreen = document.createElement('canvas');
             await withImageBitmap(fullBlob, async (bitmap) => {
-                const maxDim = 250 * (window.devicePixelRatio || 1);
-                let { width, height } = bitmap;
-                if (width > height) {
-                    if (width > maxDim) { height *= maxDim / width; width = maxDim; }
-                } else {
-                    if (height > maxDim) { width *= maxDim / height; height = maxDim; }
-                }
-                width = Math.round(width);
-                height = Math.round(height);
+                const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
+                const width = Math.round(bitmap.width * scale);
+                const height = Math.round(bitmap.height * scale);
                 offscreen.width = width;
                 offscreen.height = height;
                 drawThumbnail(offscreen, bitmap, width, height);
@@ -3652,8 +3653,10 @@
      * @returns {{width: number, height: number}}
      */
     function getThumbnailSize(container, imgWidth, imgHeight) {
-        const maxWidth = container.clientWidth || 256;
-        const maxHeight = container.clientHeight || 256;
+        // getBoundingClientRect 比 clientWidth/clientHeight 更可靠，会触发布局重算
+        const rect = container.getBoundingClientRect();
+        const maxWidth = rect.width || 250;
+        const maxHeight = rect.height || 150;
         const scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
         return {
             width: Math.round(imgWidth * scale),
@@ -4015,6 +4018,7 @@
         /** @param {{ rootMargin?: string, threshold?: number }} [options] */
         constructor(options = {}) {
             this.loaded = new Set();
+            this.loading = new Set();
             this.queued = new Map();
             this.rootMargin = options.rootMargin || '200px';
             this.threshold = options.threshold || 0.01;
@@ -4039,7 +4043,7 @@
          */
         observe(item, imageData) {
             const id = imageData.id;
-            if (this.loaded.has(id)) return;
+            if (this.loaded.has(id) || this.loading.has(id)) return;
             this.queued.set(id, { item, imageData });
             this.observer.observe(item);
         }
@@ -4050,6 +4054,7 @@
          */
         unobserve(imageId) {
             this.loaded.delete(imageId);
+            this.loading.delete(imageId);
             const entry = this.queued.get(imageId);
             if (entry) {
                 this.observer.unobserve(entry.item);
@@ -4063,6 +4068,7 @@
         disconnect() {
             this.observer.disconnect();
             this.loaded.clear();
+            this.loading.clear();
             this.queued.clear();
         }
 
@@ -4080,7 +4086,7 @@
         /** @private */
         async _loadItem(item) {
             const imageId = item.dataset.id;
-            if (!imageId || this.loaded.has(imageId)) return;
+            if (!imageId || this.loaded.has(imageId) || this.loading.has(imageId)) return;
 
             const entry = this.queued.get(imageId);
             if (!entry) return;
@@ -4095,21 +4101,24 @@
             // 检查是否已有缩略图 canvas
             if (thumbnailContainer.querySelector('.thumbnail-canvas')) return;
 
-            // 先标记已加载，再异步创建缩略图
+            // 标记加载中，取消观察
             this.observer.unobserve(item);
             this.queued.delete(imageId);
-            this.loaded.add(imageId);
-
-            // 移除占位符
-            const placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
-            if (placeholder) placeholder.remove();
+            this.loading.add(imageId);
 
             try {
                 const canvas = await createAndDrawThumbnail(thumbnailContainer, imageData);
+                // 加载成功：替换占位符为缩略图
+                const placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
+                if (placeholder) placeholder.remove();
                 thumbnailContainer.appendChild(canvas);
                 item.dataset.lazyLoaded = 'true';
+                this.loaded.add(imageId);
             } catch (e) {
                 logWarn('懒加载', `缩略图加载失败: ${imageData.name} - ${e.message}`);
+                // 保留 placeholder，允许视图切换后重新加载
+            } finally {
+                this.loading.delete(imageId);
             }
         }
     }
