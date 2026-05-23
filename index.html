@@ -2853,20 +2853,22 @@
 
                 // 根据当前模式重新构建缩略图内容
                 if (currentViewMode === 'grid') {
-                    // 网格模式：清除列表模式占位符，放置加载中占位符，注册到懒加载器
+                    // 网格模式：无已加载缩略图则强制重置懒加载状态并重新注册
                     const existingCanvas = thumbnailContainer.querySelector('.thumbnail-canvas');
-                    const existingPlaceholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
-                    if (!existingCanvas && !existingPlaceholder) {
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'thumbnail-placeholder';
-                        placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
-                        placeholder.title = '加载中…';
-                        thumbnailContainer.innerHTML = '';
-                        thumbnailContainer.appendChild(placeholder);
-                    }
-                    // 注册到懒加载器（如果尚未加载）
-                    if (imageLazyLoader && item.dataset.lazyLoaded !== 'true') {
-                        imageLazyLoader.observe(item, imageData);
+                    if (!existingCanvas) {
+                        if (!thumbnailContainer.querySelector('.thumbnail-placeholder')) {
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'thumbnail-placeholder';
+                            placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
+                            placeholder.title = '加载中…';
+                            thumbnailContainer.innerHTML = '';
+                            thumbnailContainer.appendChild(placeholder);
+                        }
+                        delete item.dataset.lazyLoaded;
+                        if (imageLazyLoader) {
+                            imageLazyLoader.unobserve(imageId);
+                            imageLazyLoader.observe(item, imageData);
+                        }
                     }
                 } else {
                     // 列表模式：显示占位符，取消懒加载观察，清除懒加载标记
