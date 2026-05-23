@@ -1,0 +1,139 @@
+"""使用 gzip 压缩的本地静态服务器"""
+import http.server
+import gzip
+import os
+import io
+import webbrowser
+import sys
+import time
+
+PORT = 8080
+COMPRESSIBLE = {".html", ".css", ".js", ".json", ".svg", ".xml", ".txt"}
+
+
+class GzipHandler(http.server.SimpleHTTPRequestHandler):
+    @staticmethod
+    def log_message(fmt, *args):
+        print(fmt % args)
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        super().end_headers()
+
+    def do_GET(self):  # noqa: N802 (stdlib override)
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            for index in ("index.html", "index.htm"):
+                p = os.path.join(path, index)
+                if os.path.isfile(p):
+                    path = p
+                    break
+
+        ext = os.path.splitext(path)[1].lower()
+        accept = self.headers.get("Accept-Encoding", "")
+
+        if ext in COMPRESSIBLE and "gzip" in accept and os.path.isfile(path):
+            with open(path, "rb") as fh:
+                content = fh.read()
+
+            compressed = io.BytesIO()
+            with gzip.GzipFile(fileobj=compressed, mode="wb", compresslevel=6) as gz:
+                gz.write(content)
+            gz_data = compressed.getvalue()
+
+            if len(gz_data) < len(content):
+                self.send_response(200)
+                self.send_content_type(ext)
+                self.send_header("Content-Encoding", "gzip")
+                self.send_header("Content-Length", str(len(gz_data)))
+                self.send_header("Vary", "Accept-Encoding")
+                self.end_headers()
+                self.wfile.write(gz_data)
+                print(
+                    f"  gzip: {len(content):,} -> {len(gz_data):,} bytes "
+                    f"({(1 - len(gz_data) / len(content)) * 100:.0f}% saved) - {self.path}"
+                )
+                return
+
+        super().do_GET()
+
+    def send_content_type(self, ext):
+        mapping = {
+            ".html": "text/html; charset=utf-8",
+            ".css": "text/css; charset=utf-8",
+            ".js": "application/javascript; charset=utf-8",
+            ".json": "application/json; charset=utf-8",
+            ".svg": "image/svg+xml",
+            ".xml": "application/xml; charset=utf-8",
+            ".txt": "text/plain; charset=utf-8",
+        }
+        ct = mapping.get(ext)
+        if ct:
+            self.send_header("Content-Type", ct)
+
+
+def prompt_yn(message, timeout=5):
+    """显示提示并实时倒计时，超时内等待单字符输入，返回 'y'/'n'/None（超时）"""
+    if sys.platform == "win32":
+        import msvcrt
+
+        def try_read():
+            if not msvcrt.kbhit():
+                return None
+            key = msvcrt.getwch()
+            if key == "\x03":
+                raise KeyboardInterrupt
+            return key
+    else:
+        import select
+
+        def try_read():
+            if not select.select([sys.stdin], [], [], 0.0)[0]:
+                return None
+            return sys.stdin.read(1)
+
+    start = time.time()
+    last_remain = None
+    chars = []
+    while True:
+        remain = timeout - int(time.time() - start)
+        if remain < 0:
+            remain = 0
+        if remain != last_remain:
+            print(f"\r{message} ({remain}s): ", end="", flush=True)
+            last_remain = remain
+        if remain <= 0:
+            print()
+            return None
+
+        ch = try_read()
+        if ch is None:
+            time.sleep(0.05)
+            continue
+        if ch in ("\r", "\n"):
+            continue
+        chars.append(ch)
+        print(ch, end="", flush=True)
+        return "".join(chars).strip().lower()
+
+
+
+if __name__ == "__main__":
+    server = http.server.HTTPServer(("", PORT), GzipHandler)
+    url = f"http://localhost:{PORT}"
+    print(f"服务已启动于 {url}（gzip 已启用）") #Server running at {url} (gzip enabled)
+
+    answer = prompt_yn(f"是否在浏览器打开 {url}？(y/n)") #Open {url} in browser?
+
+    if answer == "y":
+        print("正在打开浏览器...") #Opening browser...
+        webbrowser.open(url)
+    elif answer == "n":
+        print("已取消。") #Cancelled.
+    else:
+        print("已超时，跳过。") #Timed out, skipping.
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer stopped.")
