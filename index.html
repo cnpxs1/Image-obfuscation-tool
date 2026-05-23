@@ -1967,8 +1967,9 @@
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
 
-        // 提前检测 WebP 支持（避免循环内重复 await）
-        const webpSupported = format.toLowerCase() === 'webp' ? await isWebPSupported() : false;
+        // 提前检测 WebP 支持并统一目标格式（避免循环内重复计算）
+        const targetFormat = format.toLowerCase();
+        const webpSupported = targetFormat === 'webp' ? await isWebPSupported() : false;
 
         // 收集所有图片 Blob 并转换为目标格式
         const filesToZip = [];
@@ -1991,7 +1992,6 @@
                     continue;
                 }
 
-                const targetFormat = format.toLowerCase();
                 if (targetFormat === 'webp' && !webpSupported) {
                     failureCount++;
                     logError(imageData.name, '浏览器不支持 WebP');
