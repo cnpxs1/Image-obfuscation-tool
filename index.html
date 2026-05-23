@@ -4110,13 +4110,25 @@
 
             const { imageData } = entry;
             const thumbnailContainer = item.querySelector('.thumbnail-container');
-            if (!thumbnailContainer) return;
+            if (!thumbnailContainer) {
+                this.observer.unobserve(item);
+                this.queued.delete(imageId);
+                return;
+            }
 
             // 列表模式下跳过，不标记 loaded（等切回网格时重新 observe）
-            if (currentViewMode === 'list') return;
+            if (currentViewMode === 'list') {
+                this.observer.unobserve(item);
+                this.queued.delete(imageId);
+                return;
+            }
 
             // 检查是否已有缩略图 canvas
-            if (thumbnailContainer.querySelector('.thumbnail-canvas')) return;
+            if (thumbnailContainer.querySelector('.thumbnail-canvas')) {
+                this.observer.unobserve(item);
+                this.queued.delete(imageId);
+                return;
+            }
 
             // 标记加载中，取消观察
             this.observer.unobserve(item);
@@ -5486,6 +5498,11 @@
         if (resizeDebounceTimer) {
             clearTimeout(resizeDebounceTimer);
             resizeDebounceTimer = null;
+        }
+
+        // 断开懒加载观察器
+        if (imageLazyLoader) {
+            imageLazyLoader.disconnect();
         }
 
         // 清理所有Canvas池
