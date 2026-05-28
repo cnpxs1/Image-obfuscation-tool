@@ -116,7 +116,7 @@
                     load(fallbackUrls[nextIndex], nextIndex + 1);
                 } else {
                     stateObj.failed = true;
-                    stateObj._reject?.(new Error(globalName + ' 所有源均加载失败'));
+                    if (typeof stateObj._reject === 'function') { stateObj._reject(new Error(globalName + ' 所有源均加载失败')); }
                     logError(globalName, '所有源均加载失败');
                     if (onAllFailed) onAllFailed();
                 }
@@ -132,7 +132,7 @@
                     if (window[globalName] !== undefined) {
                         stateObj.loaded = true;
                         stateObj.loading = false;
-                        stateObj._resolve?.();
+                        if (typeof stateObj._resolve === 'function') { stateObj._resolve(); }
                         logLog(globalName + ' 加载成功:', cdnUrl);
                     } else {
                         logWarn(globalName, '脚本加载但未定义，视为失败');
@@ -147,7 +147,7 @@
     </script>
     <!-- iro.js 颜色选择器库加载 | 许可证：MIT License -->
     <script>
-        window.iroResources = { loaded: false, loading: false, failed: false };
+        window.iroResources = { loaded: false, loading: false, failed: false, _resolve: null, _reject: null };
 
         try {
             if (localStorage.getItem('iroJs') !== 'false') {
