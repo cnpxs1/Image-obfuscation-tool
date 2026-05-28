@@ -116,6 +116,7 @@
                     load(fallbackUrls[nextIndex], nextIndex + 1);
                 } else {
                     stateObj.failed = true;
+                    stateObj._reject?.(new Error(globalName + ' 所有源均加载失败'));
                     logError(globalName, '所有源均加载失败');
                     if (onAllFailed) onAllFailed();
                 }
@@ -131,6 +132,7 @@
                     if (window[globalName] !== undefined) {
                         stateObj.loaded = true;
                         stateObj.loading = false;
+                        stateObj._resolve?.();
                         logLog(globalName + ' 加载成功:', cdnUrl);
                     } else {
                         logWarn(globalName, '脚本加载但未定义，视为失败');
@@ -165,7 +167,11 @@
     </script>
     <!-- fflate 库加载 - ZIP 压缩/解压 | 许可证：MIT License -->
     <script>
-        window.fflateResources = { loaded: false, loading: false, failed: false };
+        window.fflateResources = { loaded: false, loading: false, failed: false, _resolve: null, _reject: null };
+        window.fflateResources.promise = new Promise((resolve, reject) => {
+            window.fflateResources._resolve = resolve;
+            window.fflateResources._reject = reject;
+        });
 
         function disableZipToggle() {
             const zipToggle = document.getElementById('zip-download-toggle');
@@ -1849,9 +1855,11 @@
 
         /** 删除指定图片的所有关联数据（原始、当前、缩略图） */
         async deleteImageData(id) {
-            await this.delete(`original_${id}`);
-            await this.delete(`current_${id}`);
-            await this.delete(`thumb_${id}`);
+            await Promise.all([
+                this.delete(`original_${id}`),
+                this.delete(`current_${id}`),
+                this.delete(`thumb_${id}`)
+            ]);
         }
     }
 
@@ -1863,13 +1871,11 @@
      * @returns {Promise<{added: number, errors: Array}>}
      */
     async function extractZipAndAddImages(zipFile) {
-        // 等待 fflate 加载完成（最多 5 秒）
+        // 等待 fflate 加载（由 loadScriptWithFallback 中的 Promise 管理）
         if (typeof fflate === 'undefined') {
-            for (let i = 0; i < 50; i++) {
-                await new Promise(r => setTimeout(r, 100));
-                if (typeof fflate !== 'undefined') break;
-            }
-            if (typeof fflate === 'undefined') {
+            try {
+                await window.fflateResources.promise;
+            } catch (e) {
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
                 return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
             }
@@ -2699,15 +2705,27 @@
         setTimeout(() => { statusDiv.innerHTML = ''; }, duration);
     }
 
-    /** 生成进度条 HTML 片段 */
-    function progressBarHtml(progress) {
-        return `<div class="progress-bar"><div class="progress-fill" style="width: ${progress}%"></div></div>`;
-    }
-
-    /** 更新进度状态并返回 yield Promise，统一 progress 计算 + timeout 模式 */
+    /** 首次创建进度 DOM 或复用已创建的节点，仅更新文本和宽度 */
     function updateProgressStatus(statusDiv, current, total, actionText, delay = 0) {
         const pct = Math.round(current / total * 100);
-        statusDiv.innerHTML = `正在${actionText} ${current}/${total} (${pct}%)${progressBarHtml(pct)}`;
+        const cached = statusDiv._progressEls;
+        if (cached && cached.fill.isConnected) {
+            cached.text.nodeValue = `正在${actionText} ${current}/${total} (${pct}%)`;
+            cached.fill.style.width = `${pct}%`;
+        } else {
+            const text = document.createTextNode('');
+            const bar = document.createElement('div');
+            bar.className = 'progress-bar';
+            const fill = document.createElement('div');
+            fill.className = 'progress-fill';
+            bar.appendChild(fill);
+            text.nodeValue = `正在${actionText} ${current}/${total} (${pct}%)`;
+            fill.style.width = `${pct}%`;
+            statusDiv.textContent = '';
+            statusDiv.appendChild(text);
+            statusDiv.appendChild(bar);
+            statusDiv._progressEls = { text, fill };
+        }
         if (delay > 0) {
             return new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -3068,13 +3086,12 @@
      */
     function evictLfuCacheEntry() {
         let minFreq = Infinity;
-        for (const entry of curveCache.values()) {
-            if (entry.frequency < minFreq) minFreq = entry.frequency;
-        }
         let oldestAccess = Infinity;
         let evictionKey = null;
         for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency === minFreq && entry.lastAccess < oldestAccess) {
+            if (entry.frequency < minFreq
+                || (entry.frequency === minFreq && entry.lastAccess < oldestAccess)) {
+                minFreq = entry.frequency;
                 oldestAccess = entry.lastAccess;
                 evictionKey = key;
             }
@@ -3904,9 +3921,10 @@
         let failureCount = 0;
 
         try {
+            const imageMap = new Map(images.map(img => [img.id, img]));
             for (let i = 0; i < targetIds.length; i++) {
                 const imageId = targetIds[i];
-                const imageData = images.find(img => img.id === imageId);
+                const imageData = imageMap.get(imageId);
                 if (imageData) {
                     const item = document.querySelector(`[data-id="${imageId}"]`);
                     let overlay = item ? showProcessingOverlay(item) : null;
@@ -3964,9 +3982,10 @@
             statusDiv.innerHTML = `<div class="loading"></div> 正在保存 ${targetIds.length} 张图片...`;
 
             try {
+                const imageMap = new Map(images.map(img => [img.id, img]));
                 for (let i = 0; i < targetIds.length; i++) {
                     const imageId = targetIds[i];
-                    const imageData = images.find(img => img.id === imageId);
+                    const imageData = imageMap.get(imageId);
                     if (!imageData) {
                         failureCount++;
                         continue;
@@ -4487,17 +4506,16 @@
      */
     function selectAll() {
         selectedImages.clear();
-        images.forEach(img => {
-            selectedImages.add(img.id);
-            const item = document.querySelector(`[data-id="${img.id}"]`);
-            if (item) {
-                item.classList.add('selected');
-                const checkbox = item.querySelector('.select-checkbox');
-                if (checkbox) checkbox.checked = true;
-            }
-        });
-        
-        // 更新保存按钮文字
+        const items = document.querySelectorAll('.image-item');
+        for (const item of items) {
+            const id = item.dataset.id;
+            if (!id) continue;
+            selectedImages.add(id);
+            item.classList.add('selected');
+            const checkbox = item.querySelector('.select-checkbox');
+            if (checkbox) checkbox.checked = true;
+        }
+
         updateSaveButtonText();
     }
 
@@ -4507,18 +4525,14 @@
      * 取消所有图片的选择状态
      */
     function clearSelection() {
-        // 使用Array.from创建快照，避免在遍历时直接修改Set
-        Array.from(selectedImages).forEach(imageId => {
-            const item = document.querySelector(`[data-id="${imageId}"]`);
-            if (item) {
-                item.classList.remove('selected');
-                const checkbox = item.querySelector('.select-checkbox');
-                if (checkbox) checkbox.checked = false;
-            }
-        });
+        const selectedItems = document.querySelectorAll('.image-item.selected');
+        for (const item of selectedItems) {
+            item.classList.remove('selected');
+            const checkbox = item.querySelector('.select-checkbox');
+            if (checkbox) checkbox.checked = false;
+        }
         selectedImages.clear();
-        
-        // 更新保存按钮文字
+
         updateSaveButtonText();
     }
 
@@ -4777,7 +4791,7 @@
      * JPEG/BMP 格式不支持 alpha 通道
      */
     function blobMayHaveTransparency(type) {
-        return type === 'image/png' || type === 'image/webp';
+        return type === 'image/png' || type === 'image/webp' || type === 'image/gif';
     }
 
 
