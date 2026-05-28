@@ -2265,6 +2265,8 @@
      * 统一管理三级日志的添加、查询和清理
      */
     const LogManager = {
+        _counts: { error: 0, warn: 0, info: 0 },
+
         add(fileName, reason, level, metadata = {}) {
             const timestamp = new Date();
             const logEntry = {
@@ -2280,8 +2282,12 @@
                 metadata: metadata,
             };
             logs.push(logEntry);
+            if (level in this._counts) this._counts[level]++;
             if (logs.length > MAX_LOGS) {
                 const removedLogs = logs.splice(0, logs.length - MAX_LOGS);
+                for (const rl of removedLogs) {
+                    if (rl.level in this._counts) this._counts[rl.level]--;
+                }
                 this.cleanupLogs(removedLogs);
             }
             return logEntry;
@@ -2305,6 +2311,7 @@
             const index = logs.findIndex(log => log.id === logId);
             if (index !== -1) {
                 const removedLog = logs.splice(index, 1)[0];
+                if (removedLog.level in this._counts) this._counts[removedLog.level]--;
                 this.cleanupLogs([removedLog]);
                 return true;
             }
@@ -2312,6 +2319,7 @@
         },
 
         clear() {
+            this._counts = { error: 0, warn: 0, info: 0 };
             this.cleanupLogs();
             logs = [];
         },
@@ -2322,11 +2330,7 @@
         },
 
         getCounts() {
-            return {
-                error: logs.filter(l => l.level === 'error').length,
-                warn: logs.filter(l => l.level === 'warn').length,
-                info: logs.filter(l => l.level === 'info').length
-            };
+            return { ...this._counts };
         },
 
         /** 返回最高严重级别，无日志时返回 null */
@@ -3525,7 +3529,7 @@
                     width: canvas.width,
                     height: canvas.height,
                     imageData: imageData.data
-                }, [imageData.data.buffer]);
+                });
 
             } catch (error) {
                 logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
@@ -3809,10 +3813,14 @@
         const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
         const width = Math.round(bitmap.width * scale);
         const height = Math.round(bitmap.height * scale);
-        const canvas = document.createElement('canvas');
-        drawThumbnail(canvas, bitmap, width, height);
-        const [mime, quality] = await getThumbnailEncodeParams();
-        return await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+        const canvas = getCanvasFromPool(width, height);
+        try {
+            drawThumbnail(canvas, bitmap, width, height);
+            const [mime, quality] = await getThumbnailEncodeParams();
+            return await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+        } finally {
+            releaseCanvasToPool(canvas);
+        }
     }
 
     /**
