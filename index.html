@@ -2132,6 +2132,7 @@
                 document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
                 document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
                 cacheIndicatorTouchListeners = null;
+                indicator._touchDismissListener = null;
             }
 
             // 移动端点击事件
@@ -3518,6 +3519,13 @@
     // =============================================
 
     function addTouchScrollDismiss(element, removeEdgeClasses = false) {
+        // 先移除该元素上已绑定的旧监听器，避免重复累积
+        if (element._touchDismissListener) {
+            document.removeEventListener('touchstart', element._touchDismissListener);
+            document.removeEventListener('touchmove', element._touchDismissListener);
+            element._touchDismissListener = null;
+        }
+
         let startY = 0;
         const closeOnScroll = (e) => {
             if (!element.classList.contains('tooltip-active')) return;
@@ -3533,6 +3541,9 @@
         };
         document.addEventListener('touchstart', closeOnScroll, { passive: true });
         document.addEventListener('touchmove', closeOnScroll, { passive: true });
+
+        // 将监听器引用存储在元素自身上，便于后续清理
+        element._touchDismissListener = closeOnScroll;
         return closeOnScroll;
     }
 
@@ -5550,6 +5561,8 @@
             document.removeEventListener('touchstart', cacheIndicatorTouchListeners);
             document.removeEventListener('touchmove', cacheIndicatorTouchListeners);
             cacheIndicatorTouchListeners = null;
+            const indicator = document.getElementById('cacheIndicator');
+            if (indicator) indicator._touchDismissListener = null;
         }
         if (mobileTooltipCloser) {
             mobileTooltipCloser.unbind();
@@ -6063,6 +6076,13 @@
         // ---- 全局 resize 监听 ----
         window.addEventListener('resize', handleWindowResize);
             
+        // 本地存储开关（必须在所有 loadSetting 调用前初始化）
+        try {
+            localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
+        } catch (e) {
+            localStorageEnabled = true;
+        }
+
         // 加载视图模式偏好
         loadViewModePreference();
         
@@ -6322,12 +6342,7 @@
         const webpTooltip = document.querySelector('.text-tooltip');
         if (webpTooltip) initTextTooltip(webpTooltip);
 
-        // 本地存储开关（必须在所有 bindToggle 前初始化，确保 loadSetting 正确判断）
-        try {
-            localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
-        } catch (e) {
-            localStorageEnabled = true;
-        }
+        // 本地存储开关 UI 绑定
         const lsToggle = document.getElementById('localstorage-toggle');
         if (lsToggle) {
             lsToggle.checked = localStorageEnabled;

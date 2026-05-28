@@ -105,34 +105,34 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ```plaintext
 Image-obfuscation-tool/
-├── index.html          # 核心主文件，集成UI界面、算法逻辑、功能交互
-├── server.py           # Gzip 压缩本地静态服务（Python）
-├── sw.js               # Service Worker，PWA离线缓存服务
-├── manifest.json       # PWA应用清单，定义应用名称、图标、主题
-├── favicon.svg         # 网站图标（SVG格式）
-├── README.md           # 项目说明文档
-├── LICENSE             # MIT开源许可证文件
-├── .gitignore          # Git忽略规则配置
-├── assets/             # 第三方静态资源
-│   ├── viewerjs/       # viewer.js静态资源
-│   ├── fflate/         # fflate静态资源
-│   └── irojs/          # iro.js静态资源
-└── img/                # 图标素材
-    ├── placeholder.svg # 图片占位图
-    ├── img-error.svg   # 图片加载失败占位图
-    └── icons/          # SVG图标资源目录
-        ├── close.svg   # 关闭
-        ├── error.svg   # 错误
-        ├── grid.svg    # 网格模式
-        ├── info.svg    # 信息
-        ├── list.svg    # 列表模式
-        ├── refresh.svg # 刷新
-        ├── settings.svg# 设置
-        ├── warn.svg    # 警告
-        └── favicon/    # 网站图标（Favicon）
-            ├── RGB/    # 标准色域图标
-            ├── RGBA/   # 透明通道图标
-            └── PWA/    # PWA可安装图标
+├── index.html            # 核心主文件，集成UI界面、算法逻辑、功能交互
+├── server.py             # Gzip 压缩本地静态服务（Python）
+├── sw.js                 # Service Worker，PWA离线缓存服务
+├── manifest.json         # PWA应用清单，定义应用名称、图标、主题
+├── favicon.svg           # 网站图标（SVG格式）
+├── README.md             # 项目说明文档
+├── LICENSE               # MIT开源许可证文件
+├── .gitignore            # Git忽略规则配置
+├── assets/               # 第三方静态资源
+│   ├── viewerjs/         # viewer.js静态资源
+│   ├── fflate/           # fflate静态资源
+│   └── irojs/            # iro.js静态资源
+└── img/                  # 图标素材
+    ├── placeholder.svg   # 图片占位图
+    ├── img-error.svg     # 图片加载失败占位图
+    └── icons/            # SVG图标资源目录
+        ├── close.svg     # 关闭
+        ├── error.svg     # 错误
+        ├── grid.svg      # 网格模式
+        ├── info.svg      # 信息
+        ├── list.svg      # 列表模式
+        ├── refresh.svg   # 刷新
+        ├── settings.svg  # 设置
+        ├── warn.svg      # 警告
+        └── favicon/      # 网站图标（Favicon）
+            ├── RGB/      # 标准色域图标
+            ├── RGBA/     # 透明通道图标
+            └── PWA/      # PWA可安装图标
 
 ```
 
