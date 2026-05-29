@@ -23,6 +23,13 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):  # noqa: N802 (stdlib override)
+        try:
+            self._do_GET()
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            # 客户端提前关闭连接（关闭页面、取消请求等），静默忽略
+            pass
+
+    def _do_GET(self):
         path = self.translate_path(self.path)
         if os.path.isdir(path):
             for index in ("index.html", "index.htm"):
@@ -49,7 +56,7 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
 
             if len(gz_data) < len(content):
                 self.send_response(200)
-                self.send_content_type(ext)
+                self.send_content_type(ext, basename)
                 self.send_header("Content-Encoding", "gzip")
                 self.send_header("Content-Length", str(len(gz_data)))
                 self.send_header("Vary", "Accept-Encoding")
@@ -63,7 +70,7 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
 
         super().do_GET()
 
-    def send_content_type(self, ext):
+    def send_content_type(self, ext, basename=""):
         mapping = {
             ".html": "text/html; charset=utf-8",
             ".css": "text/css; charset=utf-8",
@@ -74,6 +81,9 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
             ".txt": "text/plain; charset=utf-8",
         }
         ct = mapping.get(ext)
+        # 无扩展名但在已知文本文件列表中 → 作为纯文本发送
+        if ct is None and ext == "" and basename in COMPRESSIBLE_NAMES:
+            ct = "text/plain; charset=utf-8"
         if ct:
             self.send_header("Content-Type", ct)
 
