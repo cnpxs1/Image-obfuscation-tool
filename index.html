@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="基于希尔伯特曲线的在线图片混淆工具，支持批量处理、ZIP导入导出">
     <title>图片混淆工具</title>
+    <link rel="preconnect" href="https://cdn.bootcdn.net">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="icon" href="./favicon.svg" type="image/svg+xml">
     <!-- PWA -->
     <meta name="theme-color" content="#0091ff">
@@ -1738,14 +1740,7 @@
             // 降级到 IndexedDB
             await this._initIndexedDB();
             // 启动时清空所有旧数据
-            await new Promise((resolve, reject) => {
-                const transaction = this.db.transaction([this.storeName], 'readwrite');
-                const store = transaction.objectStore(this.storeName);
-                const request = store.clear();
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = () => reject(transaction.error);
-                request.onerror = () => reject(request.error);
-            });
+            await this._dbTransaction('readwrite', store => store.clear());
             logLog('使用 IndexedDB');
             logLog('已清理旧数据');
             // 更新 UI 指示器
@@ -1778,14 +1773,7 @@
                     });
                     await this.backend.put(key, response);
                 } else {
-                    await new Promise((resolve, reject) => {
-                        const transaction = this.db.transaction([this.storeName], 'readwrite');
-                        const store = transaction.objectStore(this.storeName);
-                        const request = store.put(blob, key);
-                        transaction.onerror = () => reject(transaction.error);
-                        request.onerror = () => reject(request.error);
-                        request.onsuccess = () => resolve();
-                    });
+                    await this._dbTransaction('readwrite', store => store.put(blob, key));
                 }
             } catch (err) {
                 const name = (err && err.name) || '';
@@ -1809,14 +1797,7 @@
                 if (!response) return null;
                 return await response.blob();
             } else {
-                return new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([this.storeName], 'readonly');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.get(key);
-                    transaction.onerror = () => reject(transaction.error);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve(request.result || null);
-                });
+                return this._dbTransaction('readonly', store => store.get(key));
             }
         }
     
@@ -1825,14 +1806,7 @@
             if (this.backend) {
                 await this.backend.delete(key);
             } else {
-                return new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.delete(key);
-                    transaction.onerror = () => reject(transaction.error);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve();
-                });
+                return this._dbTransaction('readwrite', store => store.delete(key));
             }
         }
     
@@ -1842,15 +1816,20 @@
                 await caches.delete(this.cacheName);
                 this.backend = await caches.open(this.cacheName);
             } else {
-                return new Promise((resolve, reject) => {
-                    const transaction = this.db.transaction([this.storeName], 'readwrite');
-                    const store = transaction.objectStore(this.storeName);
-                    const request = store.clear();
-                    transaction.onerror = () => reject(transaction.error);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => resolve();
-                });
+                return this._dbTransaction('readwrite', store => store.clear());
             }
+        }
+
+        /** IndexedDB 事务 Promise 封装，消除重复的事务样板代码 */
+        _dbTransaction(mode, operationFn) {
+            return new Promise((resolve, reject) => {
+                const transaction = this.db.transaction([this.storeName], mode);
+                const store = transaction.objectStore(this.storeName);
+                const request = operationFn(store);
+                transaction.onerror = () => reject(transaction.error);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+            });
         }
 
         /** 删除指定图片的所有关联数据（原始、当前、缩略图） */
@@ -1978,12 +1957,8 @@
             return;
         }
 
-        const targetIds = getTargetImageIds();
-
-        if (targetIds.length === 0) {
-            showTempStatus('⚠️ 请先选择图片');
-            return;
-        }
+        const targetIds = guardEmptySelection();
+        if (!targetIds) return;
 
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
@@ -2836,16 +2811,16 @@
             ctx.drawImage(bitmap, 0, 0);
 
             if (targetFormat === 'png') {
-                return await new Promise(r => canvas.toBlob(r, 'image/png'));
+                return await canvasToBlobPromise(canvas, 'image/png');
             } else if (targetFormat === 'bmp') {
                 const bmpData = await canvasToBmpAsync(canvas);
                 return new Blob([bmpData], { type: 'image/bmp' });
             } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                return await new Promise(r => canvas.toBlob(r, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality));
+                return await canvasToBlobPromise(canvas, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality);
             } else if (targetFormat === 'webp') {
                 const webpLossless = opts.lossless != null ? opts.lossless : document.getElementById('webp-lossless-toggle')?.checked;
                 const webpQuality = webpLossless ? 1.0 : (opts.quality != null ? opts.quality : imageQuality);
-                return await new Promise(r => canvas.toBlob(r, 'image/webp', webpQuality));
+                return await canvasToBlobPromise(canvas, 'image/webp', webpQuality);
             }
             return blob;
         } finally {
@@ -3473,6 +3448,21 @@
         return result;
     }
 
+    /** canvas.toBlob 的 Promise 封装，消除重复的 new Promise 样板代码 */
+    function canvasToBlobPromise(canvas, mime, quality) {
+        return new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+    }
+
+    /** Canvas 绘制 bitmap 的标准三步操作：getContext + clearRect + drawImage */
+    function drawBitmapToCanvas(canvas, bitmap, opts = {}) {
+        const ctxOptions = { premultipliedAlpha: false };
+        if (opts.willReadFrequently) ctxOptions.willReadFrequently = true;
+        const ctx = canvas.getContext('2d', ctxOptions);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0);
+        return ctx;
+    }
+
     function canvasToBmp(canvas) {
         const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -3624,6 +3614,14 @@
         }
     }
 
+    /** 从 Blob 绘制缩略图到画布，封装 withImageBitmap + getThumbnailSize + drawThumbnail 标准流程 */
+    async function drawThumbnailFromBlob(canvas, blob, container) {
+        await withImageBitmap(blob, async (bitmap) => {
+            const { width, height } = getThumbnailSize(container, bitmap.width, bitmap.height);
+            drawThumbnail(canvas, bitmap, width, height);
+        });
+    }
+
     // 缩略图绘制：智能缓存 + WebP 0.8 优先 + JPEG 0.9 兼容
     async function createAndDrawThumbnail(thumbnailContainer, imageData) {
         const canvas = document.createElement('canvas');
@@ -3639,23 +3637,17 @@
                 const fullBlob = await storage.get(`current_${imageData.id}`);
                 if (!fullBlob) return canvas;
 
-                await withImageBitmap(fullBlob, async (bitmap) => {
-                    const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                    drawThumbnail(canvas, bitmap, width, height);
-                });
+                await drawThumbnailFromBlob(canvas, fullBlob, thumbnailContainer);
 
                 // 3. 导出为压缩格式（WebP 优先）
                 const [mime, quality] = await getThumbnailEncodeParams();
-                thumbBlob = await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+                thumbBlob = await canvasToBlobPromise(canvas, mime, quality);
 
                 // 4. 缓存压缩结果，供后续直接使用
                 await storage.set(`thumb_${imageData.id}`, thumbBlob);
             } else {
                 // 5. 缓存命中：用压缩缩略图绘制（跳过原图解码）
-                await withImageBitmap(thumbBlob, async (bitmap) => {
-                    const { width, height } = getThumbnailSize(thumbnailContainer, bitmap.width, bitmap.height);
-                    drawThumbnail(canvas, bitmap, width, height);
-                });
+                await drawThumbnailFromBlob(canvas, thumbBlob, thumbnailContainer);
             }
         } catch (e) {
             logWarn('图片处理', `缩略图绘制失败: ${e.message}`);
@@ -3746,10 +3738,7 @@
         const bitmap = await createImageBitmap(sourceBlob, { premultiplyAlpha: 'none' });
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
         try {
-            const ctx = canvas.getContext('2d', { willReadFrequently: true, premultipliedAlpha: false });
-            // 清除旧内容，避免透明图层残留
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(bitmap, 0, 0);
+            const ctx = drawBitmapToCanvas(canvas, bitmap, { willReadFrequently: true });
 
             // 获取像素数据
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -3770,7 +3759,7 @@
             ctx.putImageData(newImageData, 0, 0);
 
             // 生成新 Blob (PNG 格式存储)
-            const newBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+            const newBlob = await canvasToBlobPromise(canvas, 'image/png');
             await storage.set(`current_${imageData.id}`, newBlob);
 
             imageData.format = 'PNG';
@@ -3834,7 +3823,7 @@
         try {
             drawThumbnail(canvas, bitmap, width, height);
             const [mime, quality] = await getThumbnailEncodeParams();
-            return await new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+            return await canvasToBlobPromise(canvas, mime, quality);
         } finally {
             releaseCanvasToPool(canvas);
         }
@@ -3894,6 +3883,49 @@
     // 批量操作函数
     // =============================================
 
+    /** 空选择守卫，无选中图片时提示并返回 null */
+    function guardEmptySelection() {
+        const targetIds = getTargetImageIds();
+        if (targetIds.length === 0) {
+            showTempStatus('⚠️ 请先选择图片');
+            return null;
+        }
+        return targetIds;
+    }
+
+    /**
+     * 批量遍历目标图片的通用循环骨架，消除 processBatch / saveImages 中的重复代码
+     * @param {string} actionLabel - 操作名称（处理/保存）
+     * @param {number|undefined} delayMs - 进度更新的延时
+     * @param {Function} processorFn - (imageData, imageId) => Promise<void>
+     * @returns {Promise<{successCount: number, failureCount: number}|null>}
+     */
+    async function forEachTargetImage(actionLabel, delayMs, processorFn) {
+        const targetIds = guardEmptySelection();
+        if (!targetIds) return null;
+
+        const statusDiv = document.getElementById('batchStatus');
+        statusDiv.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
+
+        const imageMap = new Map(images.map(img => [img.id, img]));
+        let successCount = 0, failureCount = 0;
+        for (let i = 0; i < targetIds.length; i++) {
+            const imageId = targetIds[i];
+            const imageData = imageMap.get(imageId);
+            if (!imageData) { failureCount++; continue; }
+            try {
+                await processorFn(imageData, imageId, i);
+                successCount++;
+            } catch (error) {
+                failureCount++;
+                logError(imageData.name, `${actionLabel}失败: ${error.message || '未知错误'}`);
+            }
+            await updateProgressStatus(statusDiv, i + 1, targetIds.length, actionLabel, delayMs);
+        }
+        showBatchStatus(successCount, failureCount, actionLabel);
+        return { successCount, failureCount };
+    }
+
     /**
      * 批量处理图片（混淆/解混淆/还原）
      * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
@@ -3903,48 +3935,17 @@
      */
     async function processBatch(operation) {
         if (isProcessing) return;
-
-        // 确定目标图片ID：优先使用选中的图片，否则处理所有图片
-        const targetIds = getTargetImageIds();
-
-        if (targetIds.length === 0) {
-            showTempStatus('⚠️ 请先选择图片');
-            return;
-        }
-
         isProcessing = true;
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = `<div class="loading"></div> 正在处理 ${targetIds.length} 张图片...`;
-
-        // 统计成功和失败数量
-        let successCount = 0;
-        let failureCount = 0;
-
         try {
-            const imageMap = new Map(images.map(img => [img.id, img]));
-            for (let i = 0; i < targetIds.length; i++) {
-                const imageId = targetIds[i];
-                const imageData = imageMap.get(imageId);
-                if (imageData) {
-                    const item = document.querySelector(`[data-id="${imageId}"]`);
-                    let overlay = item ? showProcessingOverlay(item) : null;
-
-                    try {
-                        await processSingleImage(imageData, operation);
-                        successCount++;
-                    } catch (error) {
-                        failureCount++;
-                        logError(imageData.name, `处理失败: ${error.message || '未知错误'}`);
-                    } finally {
-                        overlay?.remove();
-                    }
-
-                    // 更新进度显示
-                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '处理');
+            await forEachTargetImage('处理', undefined, async (imageData, imageId) => {
+                const item = document.querySelector(`[data-id="${imageId}"]`);
+                const overlay = item ? showProcessingOverlay(item) : null;
+                try {
+                    await processSingleImage(imageData, operation);
+                } finally {
+                    overlay?.remove();
                 }
-            }
-
-            showBatchStatus(successCount, failureCount, '处理');
+            });
         } catch (error) {
             logError('批量处理', `批量处理失败: ${error.message || error}`);
             showTempStatus('❌ 处理失败');
@@ -3967,43 +3968,11 @@
             // 使用 ZIP 打包下载
             await saveImagesAsZip(format);
         } else {
-            // 原有的逐个下载逻辑
-            const targetIds = getTargetImageIds();
-
-            if (targetIds.length === 0) {
-                showTempStatus('⚠️ 请先选择图片');
-                return;
-            }
-
-            let successCount = 0;
-            let failureCount = 0;
-
-            const statusDiv = document.getElementById('batchStatus');
-            statusDiv.innerHTML = `<div class="loading"></div> 正在保存 ${targetIds.length} 张图片...`;
-
+            // 逐个下载
             try {
-                const imageMap = new Map(images.map(img => [img.id, img]));
-                for (let i = 0; i < targetIds.length; i++) {
-                    const imageId = targetIds[i];
-                    const imageData = imageMap.get(imageId);
-                    if (!imageData) {
-                        failureCount++;
-                        continue;
-                    }
-
-                    try {
-                        await saveImageInFormat(imageData, format);
-                        successCount++;
-                    } catch (error) {
-                        failureCount++;
-                        logError(imageData.name, `保存失败: ${error.message || '未知错误'}`);
-                    }
-
-                    // 更新进度
-                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '保存', 50);
-                }
-
-                showBatchStatus(successCount, failureCount, '保存');
+                await forEachTargetImage('保存', 50, async (imageData) => {
+                    await saveImageInFormat(imageData, format);
+                });
             } catch (error) {
                 logError('批量保存', `保存失败: ${error.message || error}`);
                 showTempStatus('❌ 保存失败');
@@ -4034,6 +4003,15 @@
     // 图片管理函数
     // =============================================
 
+
+    /** 存储错误统一处理，消除重复的 quota / 通用错误弹窗 */
+    function handleStorageError(storageErr) {
+        if (storageErr.type === 'quota') {
+            alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
+        } else {
+            alert(`图片存储失败: ${storageErr.message}`);
+        }
+    }
 
     /**
      * 添加图片到应用
@@ -4067,11 +4045,8 @@
                     // 将 ImageBitmap 绘制到 canvas 并导出为 PNG Blob
                     const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
                     try {
-                        const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
-                        // 清除旧内容，避免透明图层残留
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        ctx.drawImage(bitmap, 0, 0);
-                        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                        drawBitmapToCanvas(canvas, bitmap);
+                        blob = await canvasToBlobPromise(canvas, 'image/png');
                     } finally {
                         bitmap.close();
                         releaseCanvasToPool(canvas);
@@ -4089,11 +4064,7 @@
         try {
             await storage.set(`original_${id}`, blob);
         } catch (storageErr) {
-            if (storageErr.type === 'quota') {
-                alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
-            } else {
-                alert(`图片存储失败: ${storageErr.message}`);
-            }
+            handleStorageError(storageErr);
             throw storageErr;
         }
         try {
@@ -4101,11 +4072,7 @@
         } catch (storageErr) {
             // 回滚已存的 original 数据
             await storage.delete(`original_${id}`).catch(() => {});
-            if (storageErr.type === 'quota') {
-                alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
-            } else {
-                alert(`图片存储失败: ${storageErr.message}`);
-            }
+            handleStorageError(storageErr);
             throw storageErr;
         }
 
@@ -4208,17 +4175,6 @@
             this.loaded.clear();
             this.loading.clear();
             this.queued.clear();
-        }
-
-        /**
-         * 立即加载所有待加载项
-         */
-        loadAllPending() {
-            // 快照避免遍历时 _loadItem 修改 queued
-            const pending = [...this.queued.values()];
-            for (const { item } of pending) {
-                this._loadItem(item);
-            }
         }
 
         /** @private */
