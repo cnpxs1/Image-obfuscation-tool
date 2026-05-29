@@ -9,6 +9,8 @@ import time
 
 PORT = 8080
 COMPRESSIBLE = {".html", ".css", ".js", ".json", ".svg", ".xml", ".txt"}
+# 无扩展名的常见纯文本文件名（如 LICENSE、README 等）
+COMPRESSIBLE_NAMES = {"license", "readme", "makefile", "dockerfile", "changelog", "copying", "authors", "contributors", "news", "todo", "install", "notice"}
 
 
 class GzipHandler(http.server.SimpleHTTPRequestHandler):
@@ -30,9 +32,13 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
                     break
 
         ext = os.path.splitext(path)[1].lower()
+        basename = os.path.splitext(os.path.basename(path))[0].lower()
         accept = self.headers.get("Accept-Encoding", "")
 
-        if ext in COMPRESSIBLE and "gzip" in accept and os.path.isfile(path):
+        # 判断是否需要压缩：扩展名在可压缩列表中，或文件名（无扩展名）在已知文本文件列表中
+        compressible = ext in COMPRESSIBLE or (ext == "" and basename in COMPRESSIBLE_NAMES)
+
+        if compressible and "gzip" in accept and os.path.isfile(path):
             with open(path, "rb") as fh:
                 content = fh.read()
 
