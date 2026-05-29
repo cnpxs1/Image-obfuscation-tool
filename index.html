@@ -2611,24 +2611,25 @@
      */
     function createClickOutsideCloser(el, classList) {
         let listener = null;
+        function remove() {
+            if (listener) {
+                document.removeEventListener('click', listener);
+                listener = null;
+            }
+        }
         return {
             bind() {
-                if (listener) document.removeEventListener('click', listener);
+                remove();
                 listener = (ev) => {
                     if (!el.contains(ev.target)) {
                         el.classList.remove(...classList);
-                        document.removeEventListener('click', listener);
-                        listener = null;
+                        remove();
                     }
                 };
-                setTimeout(() => document.addEventListener('click', listener), 0);
+                const fn = listener;
+                setTimeout(() => document.addEventListener('click', fn), 0);
             },
-            unbind() {
-                if (listener) {
-                    document.removeEventListener('click', listener);
-                    listener = null;
-                }
-            }
+            unbind: remove
         };
     }
 
