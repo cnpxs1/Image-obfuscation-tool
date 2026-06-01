@@ -135,24 +135,24 @@ def prompt_yn(message, timeout=5):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(
-        ("", PORT),
-        lambda request, client_address, srv: GzipHandler(request, client_address, srv),
-    )
-    url = f"http://localhost:{PORT}"
-    print(f"服务已启动于 {url}（gzip 已启用）") #Server running at {url} (gzip enabled)
-
-    answer = prompt_yn(f"是否在浏览器打开 {url}？(y/n)") #Open {url} in browser?
-
-    if answer == "y":
-        print("正在打开浏览器...") #Opening browser...
-        webbrowser.open(url)
-    elif answer == "n":
-        print("已取消。") #Cancelled.
-    else:
-        print("已超时，跳过。") #Timed out, skipping.
-
     try:
+        server = http.server.HTTPServer(
+            ("", PORT),
+            lambda request, client_address, srv: GzipHandler(request, client_address, srv),
+        )
+        url = f"http://localhost:{PORT}"
+        print(f"服务已启动于 {url}（gzip 已启用）") #Server running at {url} (gzip enabled)
+
+        answer = prompt_yn(f"是否在浏览器打开 {url}？(y/n)") #Open {url} in browser?
+
+        if answer == "y":
+            print("正在打开浏览器...") #Opening browser...
+            webbrowser.open(url)
+        elif answer == "n":
+            print("已取消。") #Cancelled.
+        else:
+            print("已超时，跳过。") #Timed out, skipping.
+
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nServer stopped.")
