@@ -3,6 +3,7 @@ import http.server
 import gzip
 import os
 import io
+import re
 import webbrowser
 import sys
 import time
@@ -14,9 +15,22 @@ COMPRESSIBLE_NAMES = {"license", "readme", "makefile", "dockerfile", "changelog"
 
 
 class GzipHandler(http.server.SimpleHTTPRequestHandler):
+    _STATUS_RE = re.compile(r'"\s+([1-5]\d{2})\b')
+
     @staticmethod
     def log_message(fmt, *args):
-        print(fmt % args)
+        msg = fmt % args
+        # 提取 HTTP 状态码，按级别着色
+        m = GzipHandler._STATUS_RE.search(msg)
+        if m:
+            code = int(m.group(1))
+            if code >= 400:
+                # 4xx/5xx 错误 → 红色
+                msg = f"\033[91m{msg}\033[0m"
+            elif code >= 300:
+                # 3xx 重定向 → 黄色警告
+                msg = f"\033[93m{msg}\033[0m"
+        print(msg)
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
