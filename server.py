@@ -24,12 +24,12 @@ class GzipHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_GET(self):  # noqa: N802 (stdlib override)
         try:
-            self._do_GET()
+            self._do_get()
         except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
             # 客户端提前关闭连接（关闭页面、取消请求等），静默忽略
             pass
 
-    def _do_GET(self):
+    def _do_get(self):
         path = self.translate_path(self.path)
         if os.path.isdir(path):
             for index in ("index.html", "index.htm"):
@@ -135,7 +135,10 @@ def prompt_yn(message, timeout=5):
 
 
 if __name__ == "__main__":
-    server = http.server.HTTPServer(("", PORT), GzipHandler)
+    server = http.server.HTTPServer(
+        ("", PORT),
+        lambda request, client_address, srv: GzipHandler(request, client_address, srv),
+    )
     url = f"http://localhost:{PORT}"
     print(f"服务已启动于 {url}（gzip 已启用）") #Server running at {url} (gzip enabled)
 
