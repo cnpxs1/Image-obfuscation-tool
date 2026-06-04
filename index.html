@@ -1472,6 +1472,13 @@
                                 </label>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">处理计时</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="timer-toggle" class="setting-switch" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 <label for="log-level-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</label>
                                 <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
                                     <option value="off">off</option>
@@ -2189,8 +2196,24 @@
     let images = [];
     /** @type {Set<string>} 存储选中图片 ID 的集合 */
     let selectedImages = new Set();
-    /** @type {boolean} 处理状态标志，防止重复处理 */
-    let isProcessing = false;
+    let isProcessing = false, processingTimer = null, timerEnabled = false;
+    const OP = { encrypt: '混淆', decrypt: '解混淆', restore: '还原' };
+
+    function startProcessingTimer(n, op) { processingTimer = { s: performance.now(), n, op: OP[op] }; }
+
+    function stopProcessingTimer() {
+        if (!timerEnabled) return; const t = processingTimer; if (!t) return;
+        const e = performance.now() - t.s;
+        logLog(`[处理计时] ${t.op ? '[' + t.op + '] ' : ''}处理 ${t.n} 张图片，总耗时 ${e < 1e3 ? Math.round(e) + 'ms' : e < 6e4 ? (e / 1e3).toFixed(2) + 's' : Math.floor(e / 6e4) + 'min ' + ((e % 6e4) / 1e3).toFixed(1) + 's'}`);
+        processingTimer = null;
+    }
+
+    function syncTimerToggle() {
+        const t = document.getElementById('timer-toggle'); if (!t) return;
+        t.disabled = logLevel !== 'log'; timerEnabled = t.disabled ? false : loadSetting('processingTimer') === 'true';
+        t.checked = timerEnabled;
+    }
+
     /** @type {boolean} 首次导入文件标志 */
     let hasImportedFiles = false;
     /**
@@ -3941,6 +3964,9 @@
     async function processBatch(operation) {
         if (isProcessing) return;
         isProcessing = true;
+        // 启动处理计时器
+        const targetIds = getTargetImageIds();
+        if (targetIds.length > 0) startProcessingTimer(targetIds.length, operation);
         try {
             await forEachTargetImage('处理', undefined, async (imageData, imageId) => {
                 const item = document.querySelector(`[data-id="${imageId}"]`);
@@ -3955,6 +3981,8 @@
             logError('批量处理', `批量处理失败: ${error.message || error}`);
             showTempStatus('❌ 处理失败');
         } finally {
+            // 停止处理计时器并输出耗时
+            stopProcessingTimer();
             isProcessing = false;
         }
     }
@@ -4569,8 +4597,12 @@
         if (isProcessing) return;
 
         isProcessing = true;
+        // 处理类操作启动计时器（保存操作不计时）
+        if (operation !== 'save') startProcessingTimer(1, operation);
+
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
+            stopProcessingTimer();
             isProcessing = false;
             return;
         }
@@ -4592,6 +4624,8 @@
             showTempStatus(`❌ "${imageData.name}" 处理失败`);
         } finally {
             overlay?.remove();
+            // 停止处理计时器并输出耗时
+            stopProcessingTimer();
             isProcessing = false;
         }
     }
@@ -6414,9 +6448,22 @@
         bindToggle('webp-lossless-toggle', 'webpLossless');
         bindToggle('zip-download-toggle', 'zipDownload');
         bindSelect('save-format-select', 'saveFormat');
-        bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; });
+        bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; syncTimerToggle(); });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+
+        (function() {
+            const tt = document.getElementById('timer-toggle');
+            if (!tt) return;
+            tt.addEventListener('change', () => {
+                if (!localStorageEnabled || tt.disabled) return;
+                saveSetting('processingTimer', tt.checked);
+                timerEnabled = tt.checked;
+            });
+            const saved = loadSetting('processingTimer');
+            if (saved !== null) { tt.checked = saved === 'true'; timerEnabled = tt.checked; }
+        })();
+        syncTimerToggle();
 
         // 清除 localStorage 按钮
         document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
