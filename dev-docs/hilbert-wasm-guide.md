@@ -39,32 +39,32 @@ cargo install wasm-pack
 
 ---
 
-## 三、Rust SIMD128 实现（std::arch::wasm32）
+## 三、正式版 Rust SIMD128 实现（`assets/hilbert-simd/`）
 
 ### 1. 项目结构
 
 ```
-hilbert-wasm/
+assets/hilbert-simd/
 ├── Cargo.toml
+├── .cargo/
+│   └── config.toml      ← 固化 simd128 target feature
 └── src/
     └── lib.rs
 ```
 
 ### 2. Cargo.toml
 
-> 使用 stable Rust（1.68+），无需 nightly。`wee_alloc` 若遇到兼容性问题，可替换为 `dlmalloc` 或直接使用标准分配器（需引入 `std`）。
+> 零外部 crate 依赖，使用 Rust std 自带分配器。`wee_alloc` 长期未维护（2019），正式版已移除。
 
 ```toml
 [package]
 name = "hilbert-simd128"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+description = "WASM SIMD128 希尔伯特曲线生成 + 像素置换引擎（稳定版 Rust）"
 
 [lib]
 crate-type = ["cdylib"]
-
-[dependencies]
-wee_alloc = "0.4.5"
 
 [profile.release]
 opt-level = "z"
@@ -74,62 +74,85 @@ strip = true
 codegen-units = 1
 ```
 
-### 3. src/lib.rs（完整 SIMD128 实现 + 像素置换）
+### 3. .cargo/config.toml（固化 SIMD128 编译标志）
 
-> **设计说明**：使用 `std::arch::wasm32` 提供的 WASM SIMD128 内联函数。`v128` 为 128 位宽向量，可容纳 4 个 `u32`。相比 `portable_simd` 的 512 位/16 路并行，SIMD128 以 4 路并行处理——仍远优于标量循环，且可在稳定版 Rust 编译。
+```toml
+[target.wasm32-unknown-unknown]
+rustflags = ["-C", "target-feature=+simd128"]
+```
+
+### 4. src/lib.rs（正式版完整实现）
 
 ```rust
-#![no_std]
-#![cfg(target_arch = "wasm32")]
+//! WASM SIMD128 希尔伯特曲线引擎（含像素置换）
+//!
+//! 编译目标：wasm32-unknown-unknown
+//! 编译命令：cargo build --target wasm32-unknown-unknown --release
+//!
+//! 导出函数（供 JS 通过 WebAssembly.instantiate 调用）：
+//!   alloc(count)          - 在 Wasm 线性内存中分配 count 个 u32
+//!   generate_hilbert(w,h) - 生成宽度为 w、高度为 h 的希尔伯特曲线索引
+//!   generate_shifted(curve, offset, total) - 生成偏移曲线（黄金比例偏移）
+//!   permute(src, dst, indices, count) - 按索引置换像素
+//!   free_buf(ptr, len)    - 释放由 alloc/generate_* 返回的缓冲区
 
-use core::arch::wasm32::*;
-use core::ptr;
+use std::arch::wasm32::*;
+use std::mem;
+use std::ptr;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-extern crate wee_alloc;
+// ──────────────────────────────────────
+// 辅助：SIMD128 安全写入
+// ──────────────────────────────────────
 
-// ========== 辅助分配函数 ==========
+/// 将 4 个 u32 组合为 v128，以 write_unaligned 写入目标位置。
+/// wasm32 线性内存天然支持非对齐 SIMD 访问，无需 16 字节对齐。
+#[inline(always)]
+unsafe fn store_u32x4(dst: *mut u32, vals: [u32; 4]) {
+    let v: v128 = mem::transmute(vals);
+    ptr::write_unaligned(dst as *mut v128, v);
+}
 
-/// 分配 `count` 个 u32（4 字节/个），返回裸指针
+// ──────────────────────────────────────
+// 内存分配
+// ──────────────────────────────────────
+
+/// 在 Wasm 线性内存中分配 `count` 个 u32（即 count × 4 字节）。
+/// 返回指向已分配缓冲区的裸指针，调用方负责最终调用 `free_buf` 释放。
 #[no_mangle]
 pub extern "C" fn alloc(count: usize) -> *mut u32 {
     let mut v: Vec<u32> = Vec::with_capacity(count);
     unsafe { v.set_len(count); }
     let ptr = v.as_mut_ptr();
-    core::mem::forget(v);
+    mem::forget(v);
     ptr
 }
 
-// ========== 曲线生成 ==========
+// ──────────────────────────────────────
+// 曲线生成（栈式递归细分 + SIMD128 批量写入）
+// ──────────────────────────────────────
 
-/// 将 4 个 u32 组合为 v128，并以 write_unaligned 写入目标位置
-/// wasm32 线性内存支持非对齐 SIMD 访问，无需 16 字节对齐。
-#[inline(always)]
-unsafe fn store_u32x4(dst: *mut u32, vals: [u32; 4]) {
-    let v: v128 = core::mem::transmute(vals);
-    core::ptr::write_unaligned(dst as *mut v128, v);
-}
-
+/// 生成希尔伯特曲线索引数组。
+///
+/// 返回的数组中，`curve[i]` 表示第 i 步访问的像素在展平一维数组中的线性索引。
 #[no_mangle]
 pub extern "C" fn generate_hilbert(width: u32, height: u32) -> *mut u32 {
     let total = (width * height) as usize;
     let mut curve: Vec<u32> = Vec::with_capacity(total);
     unsafe { curve.set_len(total); }
-    let mut idx = 0usize;
+    let mut idx: usize = 0;
 
-    let max_depth = (core::cmp::max(width, height).ilog2() * 2 + 4) as usize;
-    let mut stack = vec![0i32; 6 * max_depth];
-    let mut sp = 0usize;
+    let max_depth = ((width.max(height) as f64).log2().ceil() as usize) * 2 + 4;
+    let mut stack: Vec<i32> = vec![0i32; 6 * max_depth];
+    let mut sp: usize;
 
     if width >= height {
         stack[0] = 0; stack[1] = 0;
         stack[2] = width as i32; stack[3] = 0;
-        stack[4] = 0; stack[5] = height as i32;
+        stack[4] = 0;             stack[5] = height as i32;
     } else {
         stack[0] = 0; stack[1] = 0;
         stack[2] = 0; stack[3] = height as i32;
-        stack[4] = width as i32; stack[5] = 0;
+        stack[4] = width as i32;  stack[5] = 0;
     }
     sp = 6;
 
@@ -144,27 +167,20 @@ pub extern "C" fn generate_hilbert(width: u32, height: u32) -> *mut u32 {
 
         let cell_w = (dx1.abs() + dy1.abs()) as u32;
         let cell_h = (dx2.abs() + dy2.abs()) as u32;
-
         let sx1 = dx1.signum();
         let sy1 = dy1.signum();
         let sx2 = dx2.signum();
         let sy2 = dy2.signum();
 
-        // SIMD128 批量写入：每次 4 个像素索引
+        // 叶节点：SIMD128 每次批量写入 4 个像素索引
         if cell_h == 1 {
             let step = (sx1 + sy1 * width as i32) as isize;
-            let mut p   = (y0 * width as i32 + x0) as isize;
+            let mut p = (y0 * width as i32 + x0) as isize;
             let end = idx + cell_w as usize;
             while idx + 4 <= end {
-                let vals = [
-                    p as u32,
-                    (p + step) as u32,
-                    (p + 2 * step) as u32,
-                    (p + 3 * step) as u32,
-                ];
+                let vals = [p as u32, (p+step) as u32, (p+2*step) as u32, (p+3*step) as u32];
                 unsafe { store_u32x4(curve.as_mut_ptr().add(idx), vals); }
-                idx += 4;
-                p += step * 4;
+                idx += 4; p += step * 4;
             }
             while idx < end { curve[idx] = p as u32; p += step; idx += 1; }
             continue;
@@ -172,170 +188,153 @@ pub extern "C" fn generate_hilbert(width: u32, height: u32) -> *mut u32 {
 
         if cell_w == 1 {
             let step = (sx2 + sy2 * width as i32) as isize;
-            let mut p   = (y0 * width as i32 + x0) as isize;
+            let mut p = (y0 * width as i32 + x0) as isize;
             let end = idx + cell_h as usize;
             while idx + 4 <= end {
-                let vals = [
-                    p as u32,
-                    (p + step) as u32,
-                    (p + 2 * step) as u32,
-                    (p + 3 * step) as u32,
-                ];
+                let vals = [p as u32, (p+step) as u32, (p+2*step) as u32, (p+3*step) as u32];
                 unsafe { store_u32x4(curve.as_mut_ptr().add(idx), vals); }
-                idx += 4;
-                p += step * 4;
+                idx += 4; p += step * 4;
             }
             while idx < end { curve[idx] = p as u32; p += step; idx += 1; }
             continue;
         }
 
-        let mut hx1 = dx1 >> 1;
-        let mut hy1 = dy1 >> 1;
-        let mut hx2 = dx2 >> 1;
-        let mut hy2 = dy2 >> 1;
-
+        // 内部节点：递归细分
+        let mut hx1 = dx1 >> 1; let mut hy1 = dy1 >> 1;
+        let mut hx2 = dx2 >> 1; let mut hy2 = dy2 >> 1;
         let half_w = (hx1.abs() + hy1.abs()) as u32;
         let half_h = (hx2.abs() + hy2.abs()) as u32;
 
         if 2 * cell_w > 3 * cell_h {
             if (half_w & 1) != 0 && cell_w > 2 { hx1 += sx1; hy1 += sy1; }
-            stack[sp] = x0 + hx1; stack[sp+1] = y0 + hy1;
-            stack[sp+2] = dx1 - hx1; stack[sp+3] = dy1 - hy1;
-            stack[sp+4] = dx2; stack[sp+5] = dy2; sp += 6;
-            stack[sp] = x0; stack[sp+1] = y0;
-            stack[sp+2] = hx1; stack[sp+3] = hy1;
-            stack[sp+4] = dx2; stack[sp+5] = dy2; sp += 6;
+            stack[sp]=x0+hx1; stack[sp+1]=y0+hy1; stack[sp+2]=dx1-hx1;
+            stack[sp+3]=dy1-hy1; stack[sp+4]=dx2; stack[sp+5]=dy2; sp+=6;
+            stack[sp]=x0; stack[sp+1]=y0; stack[sp+2]=hx1;
+            stack[sp+3]=hy1; stack[sp+4]=dx2; stack[sp+5]=dy2; sp+=6;
         } else {
             if (half_h & 1) != 0 && cell_h > 2 { hx2 += sx2; hy2 += sy2; }
-            stack[sp]   = x0 + (dx1 - sx1) + (hx2 - sx2);
-            stack[sp+1] = y0 + (dy1 - sy1) + (hy2 - sy2);
-            stack[sp+2] = -hx2; stack[sp+3] = -hy2;
-            stack[sp+4] = -(dx1 - hx1); stack[sp+5] = -(dy1 - hy1); sp += 6;
-            stack[sp] = x0 + hx2; stack[sp+1] = y0 + hy2;
-            stack[sp+2] = dx1; stack[sp+3] = dy1;
-            stack[sp+4] = dx2 - hx2; stack[sp+5] = dy2 - hy2; sp += 6;
-            stack[sp] = x0; stack[sp+1] = y0;
-            stack[sp+2] = hx2; stack[sp+3] = hy2;
-            stack[sp+4] = hx1; stack[sp+5] = hy1; sp += 6;
+            stack[sp]=x0+(dx1-sx1)+(hx2-sx2); stack[sp+1]=y0+(dy1-sy1)+(hy2-sy2);
+            stack[sp+2]=-hx2; stack[sp+3]=-hy2; stack[sp+4]=-(dx1-hx1);
+            stack[sp+5]=-(dy1-hy1); sp+=6;
+            stack[sp]=x0+hx2; stack[sp+1]=y0+hy2; stack[sp+2]=dx1;
+            stack[sp+3]=dy1; stack[sp+4]=dx2-hx2; stack[sp+5]=dy2-hy2; sp+=6;
+            stack[sp]=x0; stack[sp+1]=y0; stack[sp+2]=hx2;
+            stack[sp+3]=hy2; stack[sp+4]=hx1; stack[sp+5]=hy1; sp+=6;
         }
     }
 
     let ptr = curve.as_mut_ptr();
-    core::mem::forget(curve);
+    mem::forget(curve);
     ptr
 }
 
 /// 生成偏移曲线：shifted[i] = curve[(i + offset) % total]
-/// SIMD128 每次收集 4 个散列像素，组合为 v128 后写入。
 #[no_mangle]
 pub extern "C" fn generate_shifted(
-    curve_ptr: *const u32,
-    offset: u32,
-    total: u32,
+    curve_ptr: *const u32, offset: u32, total: u32,
 ) -> *mut u32 {
-    let total = total as usize;
-    let mut shifted: Vec<u32> = Vec::with_capacity(total);
-    unsafe { shifted.set_len(total); }
+    let total_usize = total as usize;
+    let mut shifted: Vec<u32> = Vec::with_capacity(total_usize);
+    unsafe { shifted.set_len(total_usize); }
     let offset = offset as usize;
 
-    let mut i = 0usize;
-    while i + 4 <= total {
+    let mut i: usize = 0;
+    while i + 4 <= total_usize {
         let mut gathered = [0u32; 4];
         for j in 0..4 {
-            gathered[j] = unsafe { *curve_ptr.add((i + j + offset) % total) };
+            gathered[j] = unsafe { *curve_ptr.add((i + j + offset) % total_usize) };
         }
         unsafe { store_u32x4(shifted.as_mut_ptr().add(i), gathered); }
         i += 4;
     }
-    while i < total {
-        shifted[i] = unsafe { *curve_ptr.add((i + offset) % total) };
+    while i < total_usize {
+        shifted[i] = unsafe { *curve_ptr.add((i + offset) % total_usize) };
         i += 1;
     }
 
     let ptr = shifted.as_mut_ptr();
-    core::mem::forget(shifted);
+    mem::forget(shifted);
     ptr
 }
 
-// ========== 像素置换（加密 / 解密） ==========
+// ──────────────────────────────────────
+// 像素置换（加密 / 解密共用）
+// ──────────────────────────────────────
 
 /// dst[i] = src[indices[i]]
-/// 加密传入 shiftedCurve 作为 indices，解密传入 curve 作为 indices
-/// SIMD128 做法：v128_load 加载 4 个连续索引，逐通道聚集源像素，组合为 v128 后存储。
+/// 加密传入 shiftedCurve，解密传入 curve。
+/// SIMD128：加载 4 个连续索引 → 逐通道聚集源像素 → 组合 v128 写出。
 #[no_mangle]
 pub unsafe extern "C" fn permute(
-    src: *const u32,
-    dst: *mut u32,
-    indices: *const u32,
-    count: usize,
+    src: *const u32, dst: *mut u32, indices: *const u32, count: usize,
 ) {
-    let mut i = 0usize;
+    let mut i: usize = 0;
+
     while i + 4 <= count {
-        // 1. 一次性加载 4 个索引（连续内存，可利用 SIMD 加载）
-        let idx_v = v128_load(indices.add(i) as *const v128);
-        // 2. 提取各通道并聚集读取源像素
+        // 1. read_unaligned 加载 4 个连续索引（对齐安全）
+        let idx_v: v128 = ptr::read_unaligned(indices.add(i) as *const v128);
+        // 2. 逐通道提取索引并聚集源像素
         let idx0 = i32x4_extract_lane::<0>(idx_v) as u32 as usize;
         let idx1 = i32x4_extract_lane::<1>(idx_v) as u32 as usize;
         let idx2 = i32x4_extract_lane::<2>(idx_v) as u32 as usize;
         let idx3 = i32x4_extract_lane::<3>(idx_v) as u32 as usize;
         let gathered: [u32; 4] = [
-            *src.add(idx0),
-            *src.add(idx1),
-            *src.add(idx2),
-            *src.add(idx3),
+            *src.add(idx0), *src.add(idx1), *src.add(idx2), *src.add(idx3),
         ];
-        // 3. 组合为 v128 并写出
-        let result: v128 = core::mem::transmute(gathered);
-        v128_store(dst.add(i) as *mut v128, result);
+        // 3. transmute 为 v128 + write_unaligned 写出
+        ptr::write_unaligned(dst.add(i) as *mut v128, mem::transmute(gathered));
         i += 4;
     }
-    // 尾部标量处理
+
     for j in i..count {
         *dst.add(j) = *src.add(*indices.add(j) as usize);
     }
 }
 
-// ========== 内存释放 ==========
+// ──────────────────────────────────────
+// 内存释放
+// ──────────────────────────────────────
 
+/// 释放由 alloc / generate_hilbert / generate_shifted 返回的缓冲区。
 #[no_mangle]
-pub extern "C" fn free_buf(ptr: *mut u32, len: usize) {
+pub unsafe extern "C" fn free_buf(ptr: *mut u32, len: usize) {
     if !ptr.is_null() {
-        unsafe { drop(Vec::from_raw_parts(ptr, len, len)); }
+        drop(Vec::from_raw_parts(ptr, len, len));
     }
 }
 ```
 
-> **修正说明（与旧版相同，已整合至代码中）**
-> 
-> 1. `free_buf(ptr, len)` 调用方须传入实际长度，避免内存泄漏。
-> 2. `stack` 使用 `vec!` 动态分配，避免 `no_std` 下常量表达式限制。
-> 3. `alloc` 导出函数供 Worker 在 Wasm 内存中分配缓冲区。
-> 4. **新增** `store_u32x4` 辅助函数：封装 `transmute` + `write_unaligned`，消除对齐顾虑——wasm32 线性内存天然支持非对齐 SIMD 访问，无需手动管理 16 字节边界。
+> **与旧版（portable_simd / wee_alloc）的差异**
+>
+> 1. 移除 `#![no_std]` 和 `wee_alloc`：使用 Rust std 默认分配器，不再依赖外部 crate。
+> 2. 全面使用 `ptr::read_unaligned` / `ptr::write_unaligned`：消除 `v128_load`/`v128_store` 的对齐风险。
+> 3. 移除 `#![cfg(target_arch = "wasm32")]`：此文件只会在 wasm32 目标编译，无需条件编译指令。
+> 4. Wasm 体积从 ~2 KB 增加到 ~18 KB（std 开销），但换来更好的维护性和兼容性。
 
 ---
 
-## 四、编译与生成 Uint8Array
+## 四、编译与构建
 
-### 1. 编译 Wasm（需显式启用 SIMD128）
+### 1. 编译 Wasm
+
+项目已配置 `.cargo/config.toml` 固化 `simd128` target feature，直接构建即可：
 
 ```bash
-RUSTFLAGS='-C target-feature=+simd128' wasm-pack build --target web --release --no-typescript --out-dir ./dist
+cd assets/hilbert-simd
+cargo build --target wasm32-unknown-unknown --release
 ```
 
-> 也可在项目根目录创建 `.cargo/config.toml` 固化配置：
-> ```toml
-> [target.wasm32-unknown-unknown]
-> rustflags = ["-C", "target-feature=+simd128"]
-> ```
-> 配置后直接 `wasm-pack build --target web --release` 即可。
+产物位于 `assets/hilbert-simd/target/wasm32-unknown-unknown/release/hilbert_simd128.wasm`（~18 KB）。
 
-### 2. 生成 Uint8Array 字面量
+> 无需 `wasm-pack`，`cargo build` 直接生成纯 `.wasm` 文件（无 JS 胶水代码）。加载时使用 `WebAssembly.instantiateStreaming(fetch('...'))` 即可。
 
-在 `dist/` 目录下创建 `generate_uint8array.js`：
+### 2. （可选）生成 Uint8Array 内嵌版本
+
+若未来需要改回内嵌模式，用以下 Node.js 脚本将 `.wasm` 转为 `Uint8Array` 字面量：
 
 ```js
 const fs = require('fs');
-const wasmBuffer = fs.readFileSync('./hilbert_simd_bg.wasm');
+const wasmBuffer = fs.readFileSync('./hilbert_simd128.wasm');
 
 let output = 'const HILBERT_WASM_BYTES = new Uint8Array([\n  ';
 for (let i = 0; i < wasmBuffer.length; i++) {
@@ -351,26 +350,22 @@ fs.writeFileSync('./wasm_uint8array.js', output);
 console.log(`生成完成，原始 Wasm 大小：${wasmBuffer.length} 字节`);
 ```
 
-### 3. 运行脚本
-
 ```bash
 node generate_uint8array.js
 ```
 
 ---
 
-## 五、嵌入到 HTML（完整方案）
+## 五、外部 Wasm 加载方案（正式版）
+
+> **当前策略**：`.wasm` 文件独立部署于 `assets/hilbert-simd/`，通过 `fetch` + `WebAssembly.instantiateStreaming` 异步加载，利用浏览器 HTTP 缓存。暂不使用内嵌 `Uint8Array` 方式。
 
 ### 1. Wasm 初始化与引擎代码（放在 `<script>` 顶部）
 
 ```js
 // =============================================
-// WebAssembly SIMD 希尔伯特曲线引擎（含置换）
+// WebAssembly SIMD128 希尔伯特曲线引擎（外部 .wasm 加载）
 // =============================================
-const HILBERT_WASM_BYTES = new Uint8Array([
-  // 将 wasm_uint8array.js 中的数组内容复制粘贴到此处
-]);
-
 let wasmInstance = null;
 let wasmMemory  = null;
 let wasmReady   = false;
@@ -378,16 +373,20 @@ let wasmReady   = false;
 async function initWasm() {
   if (wasmInstance) return wasmInstance;
   try {
-    const { instance } = await WebAssembly.instantiate(HILBERT_WASM_BYTES, {
-      env: {
-        memory: new WebAssembly.Memory({ initial: 16, maximum: 64 }),
-        abort: () => console.error('Wasm runtime error')
+    // 从外部加载 .wasm 文件（利用浏览器缓存 + 流式编译）
+    const { instance } = await WebAssembly.instantiateStreaming(
+      fetch('assets/hilbert-simd/hilbert_simd128.wasm'),
+      {
+        env: {
+          memory: new WebAssembly.Memory({ initial: 16, maximum: 64 }),
+          abort: () => console.error('Wasm runtime error')
+        }
       }
-    });
+    );
     wasmInstance = instance;
     wasmMemory   = instance.exports.memory;
     wasmReady    = true;
-    console.log('Wasm SIMD 引擎初始化成功');
+    console.log('Wasm SIMD128 引擎初始化成功');
     return wasmInstance;
   } catch (err) {
     console.error('Wasm 初始化失败，回退到纯 JS 模式', err.message);
@@ -398,6 +397,8 @@ async function initWasm() {
 // 页面加载完成后异步预热，不阻塞首屏
 document.addEventListener('DOMContentLoaded', () => setTimeout(initWasm, 100));
 ```
+
+> **备选方案**：若未来需要内嵌，可执行第四节中的 `generate_uint8array.js` 脚本生成 `Uint8Array` 字面量，然后替换上述 `fetch` 调用为 `WebAssembly.instantiate(HILBERT_WASM_BYTES, ...)`。
 
 ### 2. getCachedCurve 函数（异步升级版）
 
@@ -617,15 +618,16 @@ const PRECOMPILED_CURVES = {
 ## 九、完整文件结构
 
 ```
-index.html                ← 主页面，内嵌 HILBERT_WASM_BYTES
-worker.js                 ← Web Worker（内联为 Blob URL）
-hilbert-wasm/
-  src/lib.rs              ← Rust 源码
-  Cargo.toml              ← 项目配置
-dist/
-  hilbert_simd_bg.wasm    ← 编译产物（用于生成 Uint8Array 后可删除）
-  wasm_uint8array.js      ← 生成的 Uint8Array 字面量
-  generate_uint8array.js  ← 生成脚本
+index.html                              ← 主页面，外部加载 .wasm
+assets/
+  hilbert-simd/
+    hilbert_simd128.wasm                ← 编译产物（cargo build --release）
+    src/lib.rs                          ← Rust 源码
+    Cargo.toml                          ← 项目配置
+    .cargo/config.toml                  ← simd128 target feature 固化配置
+    target/
+      wasm32-unknown-unknown/release/   ← 构建输出目录
+worker.js                               ← Web Worker（通过 Blob URL 内联）
 ```
 
 ---
