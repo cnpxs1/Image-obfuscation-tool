@@ -17,11 +17,11 @@ COMPRESSIBLE_NAMES = {"license", "readme", "makefile", "dockerfile", "changelog"
 class GzipHandler(http.server.SimpleHTTPRequestHandler):
     _STATUS_RE = re.compile(r'"\s+([1-5]\d{2})\b')
 
-    @staticmethod
-    def log_message(fmt, *args):
+    @classmethod
+    def log_message(cls, fmt, *args):
         msg = fmt % args
         # 提取 HTTP 状态码，按级别着色
-        m = GzipHandler._STATUS_RE.search(msg)
+        m = cls._STATUS_RE.search(msg)
         if m:
             code = int(m.group(1))
             if code >= 400:

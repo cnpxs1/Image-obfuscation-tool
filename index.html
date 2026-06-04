@@ -274,11 +274,7 @@
             /* 移动端时缓存指示器相对于 main-content 定位，在其上层并随内容滚动 */
             #cacheIndicator {
                 position: absolute;
-                top: 5px;
-                right: 5px;
                 margin-bottom: 10px;
-                padding: 5px 8px;
-                max-width: 75px;
                 cursor: pointer; /* 允许点击 */
             }
 
@@ -2712,6 +2708,8 @@
     function releaseImgBlob(img) {
         if (img && img.dataset.blobUrl && img.dataset.blobUrl.startsWith('blob:')) {
             URL.revokeObjectURL(img.dataset.blobUrl);
+            img.onerror = null;  // 避免清空 src 时触发虚假的"图片加载失败"日志
+            img.src = '';
             delete img.dataset.blobUrl;
         }
     }
@@ -3617,7 +3615,7 @@
         if (!skipUI) {
             updateSaveButtonText();
             updateImageCounter();
-            if (images.length === 0) showEmptyState();
+            if (images.length === 0) toggleEmptyState(true);
         }
     }
 
@@ -4106,7 +4104,7 @@
         images.push(imageData);
         await renderImageItem(imageData);
         updateImageCounter();
-        hideEmptyState();
+        toggleEmptyState(false);
 
         if (!hasImportedFiles) {
             hasImportedFiles = true;
@@ -4404,22 +4402,10 @@
      *
      * 当有图片时隐藏"暂无图片"提示
      */
-    function hideEmptyState() {
+    function toggleEmptyState(visible) {
         const emptyState = document.getElementById('emptyState');
         if (emptyState) {
-            emptyState.style.display = 'none';
-        }
-    }
-
-    /**
-     * 显示空状态提示
-     *
-     * 当没有图片时显示"暂无图片"提示
-     */
-    function showEmptyState() {
-        const emptyState = document.getElementById('emptyState');
-        if (emptyState) {
-            emptyState.style.display = 'block';
+            emptyState.style.display = visible ? 'block' : 'none';
         }
     }
 
@@ -4500,6 +4486,29 @@
     }
 
     /**
+     * 内部函数：删除指定 ID 的图片（批量或单张）
+     * @param {string[]} imageIds - 要删除的图片 ID 数组
+     * @param {boolean} isBatch - 是否为批量操作（批量时跳过逐项 UI 更新）
+     */
+    async function _deleteImagesByIds(imageIds, isBatch) {
+        for (const id of imageIds) {
+            await storage.deleteImageData(id);
+        }
+        imageIds.forEach(id => cleanupImageFromUi(id, true));  // 统一跳过内部 UI 更新，由本函数集中控制
+
+        if (!isBatch) {
+            updateSaveButtonText();
+            updateImageCounter();
+        }
+
+        if (images.length === 0) {
+            toggleEmptyState(true);
+            await storage.clear();
+            logLog('所有图片已删除：已清除全部缓存');
+        }
+    }
+
+    /**
      * 删除选中的图片
      *
      * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
@@ -4507,38 +4516,24 @@
     async function deleteSelectedImages() {
         if (guardProcessing()) return;
 
-        // 如果没有选中的图片，提示用户
         if (selectedImages.size === 0) {
             showTempStatus('⚠️ 请先选择要删除的图片');
             return;
         }
 
-        // 复制选中的 ID 集合，避免在迭代时修改集合
         const idsToDelete = Array.from(selectedImages);
+        await _deleteImagesByIds(idsToDelete, true);
 
-        // 清理存储中的数据
-        for (const id of idsToDelete) {
-            await storage.deleteImageData(id);
-        }
-            
-        // 从 DOM 和数据中移除选中的图片（批量删除，跳过逐项 UI 更新）
-        idsToDelete.forEach(id => cleanupImageFromUi(id, true));
-        // 批量操作完成后一次性更新 UI
         selectedImages.clear();
         updateSaveButtonText();
         updateImageCounter();
-        if (images.length === 0) {
-            showEmptyState();
-            await storage.clear();
-            logLog('所有图片已删除：已清除全部缓存');
-        }
         logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
     /**
      * 删除单张图片
      * @param {string} imageId - 要删除的图片 ID
-     * 
+     *
      * 从数组和 DOM 中移除图片，同时释放 Blob URL 资源
      */
     async function deleteSingleImage(imageId) {
@@ -4551,13 +4546,7 @@
         }
 
         try {
-            await storage.deleteImageData(imageId);
-            logLog(`已删除存储数据：${imageId}`);
-            cleanupImageFromUi(imageId);
-            if (images.length === 0) {
-                await storage.clear();
-                logLog('所有图片已删除：已清除全部缓存');
-            }
+            await _deleteImagesByIds([imageId], false);
             logLog('已删除图片:', imageData.name);
         } catch (error) {
             logError('图片删除', `删除图片时出错: ${error.message || error}`);
@@ -6470,8 +6459,8 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
-                .then(reg => console.log('[PWA] Service Worker 已注册:', reg.scope))
-                .catch(err => console.warn('[PWA] Service Worker 注册失败:', err));
+                .then(reg => logLog('[PWA] Service Worker 已注册:', reg.scope))
+                .catch(err => logWarn('PWA', `Service Worker 注册失败: ${err.message || err}`));
         });
     }
 </script>
