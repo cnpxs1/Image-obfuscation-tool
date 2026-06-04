@@ -3964,7 +3964,6 @@
     async function processBatch(operation) {
         if (isProcessing) return;
         isProcessing = true;
-        // 启动处理计时器
         const targetIds = getTargetImageIds();
         if (targetIds.length > 0) startProcessingTimer(targetIds.length, operation);
         try {
@@ -3981,7 +3980,6 @@
             logError('批量处理', `批量处理失败: ${error.message || error}`);
             showTempStatus('❌ 处理失败');
         } finally {
-            // 停止处理计时器并输出耗时
             stopProcessingTimer();
             isProcessing = false;
         }
@@ -4597,7 +4595,7 @@
         if (isProcessing) return;
 
         isProcessing = true;
-        // 处理类操作启动计时器（保存操作不计时）
+        // 保存操作不计时
         if (operation !== 'save') startProcessingTimer(1, operation);
 
         const imageData = images.find(img => img.id === imageId);
@@ -4624,7 +4622,6 @@
             showTempStatus(`❌ "${imageData.name}" 处理失败`);
         } finally {
             overlay?.remove();
-            // 停止处理计时器并输出耗时
             stopProcessingTimer();
             isProcessing = false;
         }
