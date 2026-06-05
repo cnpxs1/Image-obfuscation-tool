@@ -2182,12 +2182,6 @@
         processingTimer = null;
     }
 
-    function syncTimerToggle() {
-        const t = document.getElementById('timer-toggle'); if (!t) return;
-        t.disabled = logLevel !== 'log'; timerEnabled = t.disabled ? false : loadSetting('processingTimer') === 'true';
-        t.checked = timerEnabled;
-    }
-
     /** @type {boolean} 首次导入文件标志 */
     let hasImportedFiles = false;
     /**
@@ -2711,19 +2705,10 @@
         }
     }
 
-    /** 释放容器中所有图片元素的 Blob URL */
+    /** 释放容器中所有图片元素的 Blob URL（复用 releaseImgBlob 逻辑） */
     function revokeBlobUrls(container) {
         if (!container) return;
-        const imgs = container.querySelectorAll('img');
-        imgs.forEach(img => {
-            const url = img.dataset.blobUrl;
-            if (url && url.startsWith('blob:')) {
-                URL.revokeObjectURL(url);
-                img.onerror = null; // 避免清空 src 时触发虚假的"图片加载失败"日志
-                img.src = '';
-                delete img.dataset.blobUrl;
-            }
-        });
+        container.querySelectorAll('img').forEach(img => releaseImgBlob(img));
     }
 
     /** 触发浏览器下载 Blob */
@@ -2998,14 +2983,14 @@
         const isLog = logLevel === 'log',
             shouldLog = isLog && accessCounter % (MAX_CACHE_SIZE * 2) === 0;
         if (curveCache.has(key)) {
-            cacheHits += isLog;
+            cacheHits++;
             const entry = curveCache.get(key);
             entry.frequency++;
             entry.lastAccess = accessCounter;
             if (shouldLog) logCacheStats();
             return entry.data;
         }
-        cacheMisses += isLog;
+        cacheMisses++;
         const total = width * height,
             curve = hilbert2D(width, height),
             offset = Math.round((Math.sqrt(5) - 1) / 2 * total),
@@ -3016,13 +3001,14 @@
             for (const [k, e] of curveCache) {
                 e.frequency >>= 1;  // 老化
                 if (e.frequency < m || (e.frequency === m && e.lastAccess < o))
-                    [m, o, v] = [e.frequency, e.lastAccess, k];
+                    { m = e.frequency; o = e.lastAccess; v = k; }
             }
             v !== null && curveCache.delete(v);
-            cacheEvictions += isLog;
+            cacheEvictions++;
         }
-        const s = [...curveCache.values()].reduce((a, e) => a + e.frequency, 0),
-            n = curveCache.size;
+        let s = 0;
+        for (const e of curveCache.values()) s += e.frequency;
+        const n = curveCache.size;
         curveCache.set(key, { data: { curve, shiftedCurve }, frequency: n ? Math.max(1, Math.ceil(s / n)) : 1, lastAccess: accessCounter });
         if (shouldLog) logCacheStats();
         return { curve, shiftedCurve };
@@ -4706,9 +4692,9 @@
                 logError(validImages[i].name, `添加失败: ${err.message || '未知错误'}`);
                 errorCount++;
             }
-            // 每张图更新一次进度（延迟 50ms 让 UI 刷新，但最后一张不等）
+            // 每张图更新一次进度（短暂延迟让浏览器刷新 UI，同时避免 I/O 争用）
             if (i < totalImages - 1) {
-                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片', 50);
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片', 16);
             } else {
                 await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片');
             }
@@ -6433,22 +6419,10 @@
         bindToggle('webp-lossless-toggle', 'webpLossless');
         bindToggle('zip-download-toggle', 'zipDownload');
         bindSelect('save-format-select', 'saveFormat');
-        bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; syncTimerToggle(); });
+        bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
-
-        (function() {
-            const tt = document.getElementById('timer-toggle');
-            if (!tt) return;
-            tt.addEventListener('change', () => {
-                if (!localStorageEnabled || tt.disabled) return;
-                saveSetting('processingTimer', tt.checked);
-                timerEnabled = tt.checked;
-            });
-            const saved = loadSetting('processingTimer');
-            if (saved !== null) { tt.checked = saved === 'true'; timerEnabled = tt.checked; }
-        })();
-        syncTimerToggle();
+        bindToggle('timer-toggle', 'processingTimer', (v) => { timerEnabled = v; });
 
         // 清除 localStorage 按钮
         document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
