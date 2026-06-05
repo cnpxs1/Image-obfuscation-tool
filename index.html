@@ -3007,20 +3007,15 @@
      * 通过黄金分割比例计算偏移量实现混淆效果
      */
     // 希尔伯特曲线缓存 — LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
-    const curveCache = new Map(); // key -> {data: {curve, shiftedCurve}, frequency, lastAccess}
+    const curveCache = new Map();
     const MAX_CACHE_SIZE = 20;
     let accessCounter = 0, cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
 
     function logCacheStats() {
-        const total = cacheHits + cacheMisses;
-        if (!total) return;
-        let minF = Infinity, maxF = 0;
-        for (const e of curveCache.values()) {
-            if (e.frequency < minF) minF = e.frequency;
-            if (e.frequency > maxF) maxF = e.frequency;
-        }
-        if (!curveCache.size) minF = 0;
-        logLog(`曲线缓存: 命中率 ${(cacheHits / total * 100).toFixed(1)}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+        const q = cacheHits + cacheMisses, s = curveCache.size;
+        if (!q) return;
+        const f = [...curveCache.values()].map(e => e.frequency);
+        logLog(`曲线缓存: 命中率 ${(cacheHits/q*100).toFixed(1)}% (${cacheHits}/${q}) | 条目 ${s}/${MAX_CACHE_SIZE} | 频率 ${s?Math.min(...f):0}~${s?Math.max(...f):0} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
     function getCachedCurve(width, height) {
@@ -3043,21 +3038,20 @@
             shiftedCurve = new Uint32Array(total);
         for (let i = 0; i < total; i++) shiftedCurve[i] = curve[(i + offset) % total];
         if (curveCache.size >= MAX_CACHE_SIZE) {
-            for (const e of curveCache.values()) e.frequency >>= 1;
-            let minF = Infinity, old = Infinity, evict = null;
-            for (const [k, e] of curveCache.entries())
-                if (e.frequency < minF || (e.frequency === minF && e.lastAccess < old))
-                    [minF, old, evict] = [e.frequency, e.lastAccess, k];
-            if (evict !== null) curveCache.delete(evict);
+            let m = Infinity, o = Infinity, v = null;
+            for (const [k, e] of curveCache) {
+                e.frequency >>= 1;  // 老化
+                if (e.frequency < m || (e.frequency === m && e.lastAccess < o))
+                    [m, o, v] = [e.frequency, e.lastAccess, k];
+            }
+            v !== null && curveCache.delete(v);
             cacheEvictions += isLog;
         }
-        let sum = 0;
-        for (const e of curveCache.values()) sum += e.frequency;
-        const avgFreq = curveCache.size ? Math.max(1, Math.ceil(sum / curveCache.size)) : 1,
-            data = { curve, shiftedCurve };
-        curveCache.set(key, { data, frequency: avgFreq, lastAccess: accessCounter });
+        const s = [...curveCache.values()].reduce((a, e) => a + e.frequency, 0),
+            n = curveCache.size;
+        curveCache.set(key, { data: { curve, shiftedCurve }, frequency: n ? Math.max(1, Math.ceil(s / n)) : 1, lastAccess: accessCounter });
         if (shouldLog) logCacheStats();
-        return data;
+        return { curve, shiftedCurve };
     }
 
     /**
@@ -4662,38 +4656,72 @@
      * 处理通过拖拽或文件选择添加的图片文件
      */
     async function handleFiles(files) {
-        let addedCount = 0;
+        // ========== 第一趟：分离 ZIP / 预统计有效图片数量 ==========
+        const validImages = [];   // 普通图片（已验证）
+        const zipFiles = [];      // ZIP 文件（保持原有逻辑不变）
         let errorCount = 0;
 
         for (const file of files) {
-            // 检查是否为 ZIP 文件
-            const isZip = file.type === 'application/zip' || 
+            const isZip = file.type === 'application/zip' ||
                           file.name.toLowerCase().endsWith('.zip');
-            
             if (isZip) {
-                // 处理 ZIP 文件
-                const result = await extractZipAndAddImages(file);
-                addedCount += result.added;
-                errorCount += result.errors.length;
+                zipFiles.push(file);
                 continue;
             }
-            
-            // 原有图片处理逻辑
+            // 普通图片：先校验格式，统计有效数量
             if (!isValidImageFile(file)) {
                 logWarn(file.name, '不是支持/有效的图片文件');
                 errorCount++;
                 continue;
             }
+            validImages.push(file);
+        }
 
+        const totalImages = validImages.length;
+        const totalZips = zipFiles.length;
+        const statusDiv = document.getElementById('batchStatus');
+
+        // 展示预统计结果
+        if (totalImages > 0 || totalZips > 0) {
+            const parts = [];
+            if (totalImages > 0) parts.push(`${totalImages} 张图片`);
+            if (totalZips > 0) parts.push(`${totalZips} 个 ZIP 文件`);
+            statusDiv.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')} 张图片`;
+        } else if (errorCount > 0) {
+            showTempStatus(`⚠️ 所有 ${errorCount} 个文件都不支持`, 3000);
+            return;
+        } else {
+            return;
+        }
+
+        // ========== 第二趟：批量导入 ==========
+        let addedCount = 0;
+
+        // 图片分支：带进度条逐张导入
+        for (let i = 0; i < totalImages; i++) {
             try {
-                await addImage(file);
+                await addImage(validImages[i]);
                 addedCount++;
-            } catch (error) {
-                logError(file.name, `添加失败: ${error.message || '未知错误'}`);
+            } catch (err) {
+                logError(validImages[i].name, `添加失败: ${err.message || '未知错误'}`);
                 errorCount++;
+            }
+            // 每张图更新一次进度（延迟 50ms 让 UI 刷新，但最后一张不等）
+            if (i < totalImages - 1) {
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '添加图片', 50);
+            } else {
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '添加图片');
             }
         }
 
+        // ZIP 分支：保持原有逻辑不变（extractZipAndAddImages 内部自带进度）
+        for (const zipFile of zipFiles) {
+            const result = await extractZipAndAddImages(zipFile);
+            addedCount += result.added;
+            errorCount += result.errors.length;
+        }
+
+        // ========== 结果汇总 ==========
         let message = '';
         if (addedCount > 0 && errorCount > 0) {
             message = ` 已添加 ${addedCount} 张图片， ${errorCount} 个文件被拒绝或读取失败`;
