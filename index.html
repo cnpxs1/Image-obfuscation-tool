@@ -3006,100 +3006,58 @@
      * 希尔伯特曲线是一种空间填充曲线，能够保持像素的空间相关性
      * 通过黄金分割比例计算偏移量实现混淆效果
      */
-    // =============================================
-    // 希尔伯特曲线缓存（LRU淘汰策略）
-    // =============================================
-    
-    // 希尔伯特曲线缓存 - LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
-    // 同时缓存 shiftedCurve（加密解密映射表），避免循环内取模运算
-    const curveCache = new Map(); // key -> {curve: Uint32Array, shiftedCurve: Uint32Array, frequency: number, lastAccess: number}
+    // 希尔伯特曲线缓存 — LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
+    const curveCache = new Map(); // key -> {data: {curve, shiftedCurve}, frequency, lastAccess}
     const MAX_CACHE_SIZE = 20;
-    let accessCounter = 0;
-    const STATS_INTERVAL = MAX_CACHE_SIZE * 2; // 每 40 次访问输出一次监控
-
-    // 命中率监控（仅在 log 级别统计，其他级别完全跳过计算）
-    let cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
+    let accessCounter = 0, cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
 
     function logCacheStats() {
-        if (logLevel !== 'log') return;
         const total = cacheHits + cacheMisses;
-        if (total === 0) return;
-        const rate = (cacheHits / total * 100).toFixed(1);
-        const freqs = [...curveCache.values()].map(e => e.frequency);
-        const minF = freqs.length ? Math.min(...freqs) : 0;
-        const maxF = freqs.length ? Math.max(...freqs) : 0;
-        logLog(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
-    }
-
-    function averageCacheFrequency() {
-        if (curveCache.size === 0) return 1;
-        let sum = 0;
-        for (const entry of curveCache.values()) sum += entry.frequency;
-        return Math.max(1, Math.ceil(sum / curveCache.size));
-    }
-
-    function ageFrequencies() {
-        for (const entry of curveCache.values()) entry.frequency >>= 1;
+        if (!total) return;
+        let minF = Infinity, maxF = 0;
+        for (const e of curveCache.values()) {
+            if (e.frequency < minF) minF = e.frequency;
+            if (e.frequency > maxF) maxF = e.frequency;
+        }
+        if (!curveCache.size) minF = 0;
+        logLog(`曲线缓存: 命中率 ${(cacheHits / total * 100).toFixed(1)}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
-
+        const isLog = logLevel === 'log',
+            shouldLog = isLog && accessCounter % (MAX_CACHE_SIZE * 2) === 0;
         if (curveCache.has(key)) {
-            if (logLevel === 'log') cacheHits++;
-            const cacheEntry = curveCache.get(key);
-            cacheEntry.frequency++;
-            cacheEntry.lastAccess = accessCounter;
-            if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
-            return cacheEntry.data;
+            cacheHits += isLog;
+            const entry = curveCache.get(key);
+            entry.frequency++;
+            entry.lastAccess = accessCounter;
+            if (shouldLog) logCacheStats();
+            return entry.data;
         }
-
-        if (logLevel === 'log') cacheMisses++;
-        // 未命中：生成新的曲线数据及映射表
-        const totalPixels = width * height;
-        const curve = hilbert2D(width, height);
-        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
-        const shiftedCurve = new Uint32Array(totalPixels);
-        for (let i = 0; i < totalPixels; i++) {
-            shiftedCurve[i] = curve[(i + offset) % totalPixels];
-        }
-
+        cacheMisses += isLog;
+        const total = width * height,
+            curve = hilbert2D(width, height),
+            offset = Math.round((Math.sqrt(5) - 1) / 2 * total),
+            shiftedCurve = new Uint32Array(total);
+        for (let i = 0; i < total; i++) shiftedCurve[i] = curve[(i + offset) % total];
         if (curveCache.size >= MAX_CACHE_SIZE) {
-            ageFrequencies();
-            evictLfuCacheEntry();
-            cacheEvictions++;
+            for (const e of curveCache.values()) e.frequency >>= 1;
+            let minF = Infinity, old = Infinity, evict = null;
+            for (const [k, e] of curveCache.entries())
+                if (e.frequency < minF || (e.frequency === minF && e.lastAccess < old))
+                    [minF, old, evict] = [e.frequency, e.lastAccess, k];
+            if (evict !== null) curveCache.delete(evict);
+            cacheEvictions += isLog;
         }
-
-        const newData = { curve, shiftedCurve };
-        curveCache.set(key, {
-            data: newData,
-            frequency: averageCacheFrequency(),
-            lastAccess: accessCounter
-        });
-
-        if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
-        return newData;
-    }
-
-    /**
-     * LFU-Aging 淘汰策略
-     * 淘汰频率最低的条目，频率相同时淘汰最久未访问的
-     * （ageFrequencies 右移老化后大量条目频率→1，统一走频率+时间判断，语义一致）
-     */
-    function evictLfuCacheEntry() {
-        let minFreq = Infinity;
-        let oldestAccess = Infinity;
-        let evictionKey = null;
-        for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency < minFreq
-                || (entry.frequency === minFreq && entry.lastAccess < oldestAccess)) {
-                minFreq = entry.frequency;
-                oldestAccess = entry.lastAccess;
-                evictionKey = key;
-            }
-        }
-        if (evictionKey !== null) curveCache.delete(evictionKey);
+        let sum = 0;
+        for (const e of curveCache.values()) sum += e.frequency;
+        const avgFreq = curveCache.size ? Math.max(1, Math.ceil(sum / curveCache.size)) : 1,
+            data = { curve, shiftedCurve };
+        curveCache.set(key, { data, frequency: avgFreq, lastAccess: accessCounter });
+        if (shouldLog) logCacheStats();
+        return data;
     }
 
     /**
