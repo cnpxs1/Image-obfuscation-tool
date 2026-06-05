@@ -1853,93 +1853,65 @@
      * @returns {Promise<{added: number, errors: Array}>}
      */
     async function extractZipAndAddImages(zipFile) {
-        // 等待 fflate 加载（由 loadScriptWithFallback 中的 Promise 管理）
         if (typeof fflate === 'undefined') {
-            try {
-                await window.fflateResources.promise;
-            } catch (e) {
+            try { await window.fflateResources.promise; } catch (e) {
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
                 return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
             }
         }
-        
+
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在解析 ZIP 文件...`;
 
         try {
-            // 读取 ZIP 文件为 Uint8Array
-            const arrayBuffer = await zipFile.arrayBuffer();
-            const zipData = new Uint8Array(arrayBuffer);
-
-            // 使用 fflate 解压
+            const zipData = new Uint8Array(await zipFile.arrayBuffer());
             /** @type {Record<string, Uint8Array>} */
-            const unzipped = await new Promise((resolve, reject) => {
-                fflate.unzip(zipData, (err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
-            });
+            const unzipped = await new Promise((resolve, reject) =>
+                fflate.unzip(zipData, (err, data) => err ? reject(err) : resolve(data))
+            );
 
-            const imageFiles = [];
+            // 第一趟：校验并收集有效图片条目
+            const entries = [];
             const errors = [];
-
-            // 遍历 ZIP 中的所有文件
             for (const [filename, fileData] of Object.entries(unzipped)) {
-                // 跳过目录（以 / 结尾的条目）
                 if (filename.endsWith('/')) continue;
-
-                // 检查是否为图片文件（扩展名）
                 const ext = filename.split('.').pop()?.toLowerCase();
                 if (!VALID_EXTENSIONS.includes(ext)) continue;
-
-                // 提取文件名（去掉路径前缀）
                 const baseName = filename.split('/').pop();
                 if (!baseName) continue;
 
-                // 验证文件内容（magic bytes），防止扩展名伪造
                 if (!isValidImageBytes(fileData)) {
                     errors.push({ name: baseName, error: '文件内容不是有效的图片格式' });
                     logWarn(baseName, '文件扩展名与内容不匹配，已跳过');
                     continue;
                 }
-
-                try {
-                    const mime = MIME_MAP[ext] || 'application/octet-stream';
-                    
-                    // 创建 Blob 并转换为 File 对象
-                    const blob = new Blob([fileData], { type: mime });
-                    const file = new File([blob], baseName, { type: blob.type });
-                    imageFiles.push(file);
-                } catch (e) {
-                    errors.push({ name: baseName, error: e.message });
-                    logError(baseName, `ZIP 解压提取失败: ${e.message}`);
-                }
+                entries.push({ fileData, baseName, ext });
             }
 
-            if (imageFiles.length === 0) {
+            if (entries.length === 0) {
                 showTempStatus('⚠️ ZIP 文件中未找到支持的图片格式', 3000);
                 return { added: 0, errors };
             }
 
-            statusDiv.innerHTML = `<div class="loading"></div> 正在添加 ${imageFiles.length} 张图片...`;
-
-            // 逐个添加图片
-            let added = 0;
-            for (let i = 0; i < imageFiles.length; i++) {
+            // 第二趟：逐张准备数据，再批量渲染 DOM
+            statusDiv.innerHTML = `<div class="loading"></div> 正在添加 ${entries.length} 张图片...`;
+            const batch = [];
+            for (let i = 0; i < entries.length; i++) {
+                const { fileData, baseName, ext } = entries[i];
                 try {
-                    await addImage(imageFiles[i]);
-                    added++;
-                    // 更新进度
-                    await updateProgressStatus(statusDiv, i + 1, imageFiles.length, '添加图片');
+                    const mime = MIME_MAP[ext] || 'application/octet-stream';
+                    const file = new File([fileData], baseName, { type: mime });
+                    batch.push(await prepareImageData(file));
                 } catch (e) {
-                    errors.push({ name: imageFiles[i].name, error: e.message });
-                    logError(imageFiles[i].name, `添加失败: ${e.message}`);
+                    errors.push({ name: baseName, error: e.message });
+                    logError(baseName, `添加失败: ${e.message}`);
                 }
+                await updateProgressStatus(statusDiv, i + 1, entries.length, '添加图片');
             }
+            commitImageBatch(batch);
 
-            showTempStatus(`✅ 已从 ZIP 添加 ${added} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
-
-            return { added, errors };
+            showTempStatus(`✅ 已从 ZIP 添加 ${batch.length} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
+            return { added: batch.length, errors };
 
         } catch (error) {
             showTempStatus(`❌ ZIP 解压失败: ${error.message}`, 3000);
@@ -2196,6 +2168,8 @@
     let images = [];
     /** @type {Set<string>} 存储选中图片 ID 的集合 */
     let selectedImages = new Set();
+    /** 批量导入计数器，确保高并发场景下 ID 唯一性 */
+    let _batchIdCounter = 0;
     let isProcessing = false, processingTimer = null, timerEnabled = false;
     const OP = { encrypt: '混淆', decrypt: '解混淆', restore: '还原' };
 
@@ -3997,11 +3971,13 @@
     }
 
     /**
-     * 添加图片到应用
+     * 【Phase 1】准备图片数据：读取文件、存储到 IndexedDB、获取尺寸
+     * 纯异步工作，不涉及任何 DOM 操作，为批量渲染做准备
      * @param {File} file - 图片文件对象
+     * @returns {Promise<Object>} imageData 对象（含 id、尺寸、格式等）
      */
-    async function addImage(file) {
-        const id = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    async function prepareImageData(file) {
+        const id = Date.now().toString(36) + (_batchIdCounter++).toString(36) + Math.random().toString(36).substring(2);
         let blob;
         let originalFormat = file.type.split('/')[1]?.toUpperCase() || 'UNKNOWN';
         try {
@@ -4059,18 +4035,17 @@
             throw storageErr;
         }
 
-        // 先获取图片尺寸
+        // 获取图片尺寸
         const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
-
         const width = bitmap.width;
         const height = bitmap.height;
         bitmap.close();
 
-        const imageData = {
+        return {
             id,
             name: file.name,
             originalName: file.name,
-            scrambleLevel: 0,          // 新增：混淆级别，0=原始，正数=混淆次数，负数=解混淆次数
+            scrambleLevel: 0,
             size: blob.size,
             width: width,
             height: height,
@@ -4079,8 +4054,40 @@
             format: originalFormat,
             processed: false
         };
-        images.push(imageData);
-        await renderImageItem(imageData);
+    }
+
+    /**
+     * 【Phase 2】批量提交图片数据到应用：一次性创建所有 DOM 容器
+     * 使用 DocumentFragment 减少浏览器重排/重绘次数
+     * @param {Object[]} imageDataArray - prepareImageData 返回的 imageData 数组
+     */
+    function commitImageBatch(imageDataArray) {
+        if (!imageDataArray || imageDataArray.length === 0) return;
+
+        const imageList = document.getElementById('imageList');
+        const fragment = document.createDocumentFragment();
+
+        for (const imageData of imageDataArray) {
+            // 加入数据数组
+            images.push(imageData);
+
+            // 使用工厂函数创建 DOM 元素（不单独追加）
+            const item = createImageItemElement(imageData);
+            fragment.appendChild(item);
+
+            // 网格模式：注册到懒加载器
+            if (currentViewMode === 'grid' && imageLazyLoader) {
+                imageLazyLoader.observe(item, imageData);
+            }
+
+            // 后台预生成缩略图缓存
+            schedulePrefetch(imageData);
+        }
+
+        // ===== 一次性插入所有容器，触发单次重排 =====
+        imageList.appendChild(fragment);
+
+        // ===== 统一更新 UI 状态（只执行一次） =====
         updateImageCounter();
         toggleEmptyState(false);
 
@@ -4089,9 +4096,6 @@
             const desc = document.getElementById('description-text');
             if (desc) desc.style.display = 'none';
         }
-        
-        // 更新界面显示
-        updateImageInfo(imageData.id);
     }
 
     // =============================================
@@ -4211,12 +4215,17 @@
             }
         }
     }
-    async function renderImageItem(imageData) {
-        const imageList = document.getElementById('imageList');
+    /**
+     * 创建图片项的 DOM 元素（纯工厂函数，不追加到 DOM）
+     * 将 DOM 创建与挂载分离，支持批量渲染优化
+     * @param {Object} imageData - 图片数据对象
+     * @returns {HTMLDivElement} 完整的 .image-item 元素
+     */
+    function createImageItemElement(imageData) {
         const item = document.createElement('div');
         item.className = `image-item ${currentViewMode === 'list' ? 'list-view' : ''}`;
         item.dataset.id = imageData.id;
-        
+
         // 创建复选框
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -4226,26 +4235,23 @@
             toggleSelect(imageData.id, event);
         });
         item.appendChild(checkbox);
-        
+
         // 创建缩略图容器
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'thumbnail-container';
         thumbnailContainer.onclick = () => showPreview(imageData.id);
-        
+
         // 统一先放置占位符，由懒加载器在进入视口时替换为缩略图
         const placeholder = document.createElement('div');
         placeholder.className = 'thumbnail-placeholder';
         if (currentViewMode === 'grid') {
-            // 网格模式：使用简洁的加载占位符，懒加载器负责后续替换
             placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
             placeholder.title = '加载中…';
         } else {
-            // 列表模式：显示占位符图标
             placeholder.innerHTML = getPlaceholderSvg();
             placeholder.title = '点击预览图片';
         }
         thumbnailContainer.appendChild(placeholder);
-
         item.appendChild(thumbnailContainer);
 
         // 获取状态文本和样式
@@ -4281,8 +4287,6 @@
         `;
         item.appendChild(actionsDiv);
 
-        imageList.appendChild(item);
-
         // 设置选中状态（如果之前已选中）
         if (selectedImages.has(imageData.id)) {
             checkbox.checked = true;
@@ -4296,13 +4300,7 @@
             statusBadge: infoDiv.querySelector('.status-badge')
         };
 
-        // 网格模式：注册到懒加载器
-        if (currentViewMode === 'grid' && imageLazyLoader) {
-            imageLazyLoader.observe(item, imageData);
-        }
-
-        // 后台预生成缩略图缓存，滚动展示时直接命中，避免卡顿
-        schedulePrefetch(imageData);
+        return item;
     }
 
     // =============================================
@@ -4697,10 +4695,12 @@
         // ========== 第二趟：批量导入 ==========
         let addedCount = 0;
 
-        // 图片分支：带进度条逐张导入
+        // 图片分支：先并行准备所有图片数据，再批量渲染 DOM
+        const regularImageDataBatch = [];
         for (let i = 0; i < totalImages; i++) {
             try {
-                await addImage(validImages[i]);
+                const imageData = await prepareImageData(validImages[i]);
+                regularImageDataBatch.push(imageData);
                 addedCount++;
             } catch (err) {
                 logError(validImages[i].name, `添加失败: ${err.message || '未知错误'}`);
@@ -4708,13 +4708,15 @@
             }
             // 每张图更新一次进度（延迟 50ms 让 UI 刷新，但最后一张不等）
             if (i < totalImages - 1) {
-                await updateProgressStatus(statusDiv, i + 1, totalImages, '添加图片', 50);
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片', 50);
             } else {
-                await updateProgressStatus(statusDiv, i + 1, totalImages, '添加图片');
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片');
             }
         }
+        // 批量渲染所有普通图片的 DOM 容器（单次重排）
+        commitImageBatch(regularImageDataBatch);
 
-        // ZIP 分支：保持原有逻辑不变（extractZipAndAddImages 内部自带进度）
+        // ZIP 分支：每个压缩包内部已改为批量渲染（prepareImageData → commitImageBatch）
         for (const zipFile of zipFiles) {
             const result = await extractZipAndAddImages(zipFile);
             addedCount += result.added;
