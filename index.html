@@ -1176,7 +1176,7 @@
             return window.viewerLoadPromise;
         }
         // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
-        function showBasicImageViewer(imageData) {
+        function showBasicViewer(imageData) {
             logLog('启动基础图片查看器');
 
             // 彻底清理可能存在的旧实例（释放事件监听器 + Blob URL + overflow 状态）
@@ -1680,7 +1680,7 @@
      * 清理页面上所有残留的处理中遮罩层
      * 作为异常情况下的最终保障措施
      */
-    function cleanupAllProcessingOverlays() {
+    function clearOverlays() {
         try {
             const allOverlays = document.querySelectorAll('.processing-overlay');
             let cleanedCount = 0;
@@ -1852,7 +1852,7 @@
      * @param {File} zipFile - ZIP 文件对象
      * @returns {Promise<{added: number, errors: Array}>}
      */
-    async function extractZipAndAddImages(zipFile) {
+    async function importZip(zipFile) {
         if (typeof fflate === 'undefined') {
             try { await window.fflateResources.promise; } catch (e) {
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
@@ -2712,7 +2712,7 @@
     }
 
     /** 释放容器中所有图片元素的 Blob URL */
-    function revokeBlobUrlsInContainer(container) {
+    function revokeBlobUrls(container) {
         if (!container) return;
         const imgs = container.querySelectorAll('img');
         imgs.forEach(img => {
@@ -4072,7 +4072,7 @@
             images.push(imageData);
 
             // 使用工厂函数创建 DOM 元素（不单独追加）
-            const item = createImageItemElement(imageData);
+            const item = createImageItem(imageData);
             fragment.appendChild(item);
 
             // 网格模式：注册到懒加载器
@@ -4221,7 +4221,7 @@
      * @param {Object} imageData - 图片数据对象
      * @returns {HTMLDivElement} 完整的 .image-item 元素
      */
-    function createImageItemElement(imageData) {
+    function createImageItem(imageData) {
         const item = document.createElement('div');
         item.className = `image-item ${currentViewMode === 'list' ? 'list-view' : ''}`;
         item.dataset.id = imageData.id;
@@ -4718,7 +4718,7 @@
 
         // ZIP 分支：每个压缩包内部已改为批量渲染（prepareImageData → commitImageBatch）
         for (const zipFile of zipFiles) {
-            const result = await extractZipAndAddImages(zipFile);
+            const result = await importZip(zipFile);
             addedCount += result.added;
             errorCount += result.errors.length;
         }
@@ -4837,7 +4837,7 @@
     /**
      * 断开颜色选择器的 ResizeObserver（面板关闭时调用）
      */
-    function disconnectColorPickerObserver() {
+    function disconnectColorPicker() {
         if (colorPickerResizeObserver) {
             colorPickerResizeObserver.disconnect();
             colorPickerResizeObserver = null;
@@ -5057,14 +5057,14 @@
     /**
      * 为单张图片打开基础查看器（跳过创建全部图片元素）
      */
-    async function openBasicViewerForImage(imageData, token) {
+    async function openBasicViewer(imageData, token) {
         if (isPreviewStale(token)) return;
         logLog('启用基础图片查看器');
         try {
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob && !isPreviewStale(token)) {
                 const url = URL.createObjectURL(blob);
-                showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
+                showBasicViewer({ blobUrl: url, originalName: imageData.name });
             } else if (!blob) {
                 logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
             }
@@ -5085,7 +5085,7 @@
         // 1. 彻底清理所有残留预览容器和实例（含 Blob URL）
         const existingContainers = document.querySelectorAll('.image-gallery-container');
         existingContainers.forEach(container => {
-            revokeBlobUrlsInContainer(container);
+            revokeBlobUrls(container);
             if (container.parentNode) container.parentNode.removeChild(container);
         });
         cleanupExistingViewer();
@@ -5095,7 +5095,7 @@
 
         // 3. 若关闭 Viewer.js 开关，跳过创建全部图片元素，直接用基础查看器
         if (!useViewerJs) {
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
@@ -5111,34 +5111,34 @@
         // 5. Viewer.js 不可用，降级到基础查看器（跳过创建全部图片元素）
         if (!window.Viewer) {
             logError('Viewer.js', 'Viewer.js 不可用');
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
         // 6. Viewer.js 可用，创建画廊容器（含全部图片元素）并初始化
         let galleryContainer;
         try {
-            galleryContainer = await createImageGalleryContainer();
+            galleryContainer = await buildGallery();
         } catch (createError) {
             if (isPreviewStale(token)) return;
             logError('Viewer.js', `创建画廊容器失败: ${createError.message || createError}`);
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
         try {
             if (isPreviewStale(token)) {
-                cleanupViewerResources(galleryContainer);
+                destroyViewer(galleryContainer);
                 return;
             }
-            await initViewerWithBestPractices(imageData, galleryContainer, imageId, token);
+            await initViewer(imageData, galleryContainer, imageId, token);
         } catch (error) {
             if (isPreviewStale(token)) {
-                cleanupViewerResources(galleryContainer);
+                destroyViewer(galleryContainer);
                 return;
             }
             logError('Viewer.js', `初始化失败: ${error.message || error}`);
-            await handleViewerInitializationFailure(galleryContainer, imageData, token);
+            await fallbackViewer(galleryContainer, imageData, token);
         }
     }
 
@@ -5160,9 +5160,9 @@
             }
             viewerInstance = null;
         }
-        // 复用 cleanupViewerResources 清理所有残留容器
+        // 复用 destroyViewer 清理所有残留容器
         document.querySelectorAll('.image-gallery-container').forEach(container => {
-            cleanupViewerResources(container, true);
+            destroyViewer(container, true);
         });
     }
 
@@ -5174,7 +5174,7 @@
      * 创建图片画廊容器
      * @returns {Promise<GalleryContainer>} 容器元素
      */
-    async function createImageGalleryContainer() {
+    async function buildGallery() {
         const container = document.createElement('div');
         container.className = 'image-gallery-container';
         container.style.cssText = `
@@ -5292,11 +5292,11 @@
      * @param {string} targetImageId - 目标图片 ID
      * @param {number} token - 并发控制令牌
      */
-    async function initViewerWithBestPractices(imageData, container, targetImageId, token) {
+    async function initViewer(imageData, container, targetImageId, token) {
         // 最终检查是否被新调用取代
         if (isPreviewStale(token)) {
             logLog('预览操作已被取代，跳过 Viewer 实例创建');
-            cleanupViewerResources(container);
+            destroyViewer(container);
             return;
         }
             
@@ -5328,7 +5328,7 @@
                 // UI组件
                 button: true,
                 navbar: true,
-                toolbar: getOptimizedToolbarConfig(),
+                toolbar: toolbarConfig(),
                 title: false,
                 
                 // 行为配置
@@ -5396,8 +5396,8 @@
                 
                 hidden() {
                     logLog('Viewer.js 已隐藏');
-                    viewerInstance = null; // Viewer.js 已自毁，避免 cleanupViewerResources 重复销毁
-                    cleanupViewerResources(container);
+                    viewerInstance = null; // Viewer.js 已自毁，避免 destroyViewer 重复销毁
+                    destroyViewer(container);
                 },
                 
                 play() {
@@ -5452,7 +5452,7 @@
             
         } catch (error) {
             logError('Viewer.js', `初始化过程中发生错误: ${error.message || error}`);
-            await handleViewerInitializationFailure(container, imageData, token);
+            await fallbackViewer(container, imageData, token);
         }
     }
 
@@ -5460,7 +5460,7 @@
      * 获取优化的工具栏配置
      * @returns {Object} 工具栏配置
      */
-    function getOptimizedToolbarConfig() {
+    function toolbarConfig() {
         return {
             zoomIn: 1,
             zoomOut: 1,
@@ -5486,16 +5486,16 @@
      * @param {Object} imageData - 图片数据
      * @param {number} token - 并发控制令牌
      */
-    async function handleViewerInitializationFailure(container, imageData, token) {
+    async function fallbackViewer(container, imageData, token) {
         // 检查是否被新调用取代
         if (isPreviewStale(token)) {
             logLog('预览操作已被取代，跳过失败处理');
-            cleanupViewerResources(container);
+            destroyViewer(container);
             return;
         }
             
         // 清理容器并释放 Blob URL
-        cleanupViewerResources(container);
+        destroyViewer(container);
             
         // 启用基础图片查看器作为兜底方案
         logLog('启用基础图片查看器作为替代方案');
@@ -5505,7 +5505,7 @@
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob) {
                 const url = URL.createObjectURL(blob);
-                showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
+                showBasicViewer({ blobUrl: url, originalName: imageData.name });
             } else {
                 logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
             }
@@ -5519,7 +5519,7 @@
      * @param {GalleryContainer} container - 容器元素
      * @param {boolean} [skipViewerDestroy=false] - 跳过 Viewer 实例销毁（批量清理时由调用方统一销毁）
      */
-    function cleanupViewerResources(container, skipViewerDestroy = false) {
+    function destroyViewer(container, skipViewerDestroy = false) {
         // 重入防护：destroy() 可能触发 hidden 回调导致递归调用
         if (container && container._cleanedUp) return;
         if (container) container._cleanedUp = true;
@@ -5539,7 +5539,7 @@
                 container._timeoutIds = null;
             }
             // 释放所有临时 blob URL
-            revokeBlobUrlsInContainer(container);
+            revokeBlobUrls(container);
             container.parentNode.removeChild(container);
         }
         logLog('Viewer.js 资源已清理');
@@ -5587,7 +5587,7 @@
         logLog('页面卸载：已重置Viewer加载Promise');
 
         // 清理所有残留的处理遮罩层
-        const cleanedOverlays = cleanupAllProcessingOverlays();
+        const cleanedOverlays = clearOverlays();
         if (cleanedOverlays > 0) {
             logLog(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
@@ -5641,7 +5641,7 @@
             smartClearCanvasPools();
             
             // 清理残留的处理遮罩层
-            cleanupAllProcessingOverlays();
+            clearOverlays();
             
             logLog('页面隐藏：已执行智能Canvas池清理');
         } else {
@@ -6219,7 +6219,7 @@
                     }
                 } else {
                     // 关闭时断开 ResizeObserver，避免不可见时持续响应 resize
-                    disconnectColorPickerObserver();
+                    disconnectColorPicker();
                 }
             });
             
@@ -6229,7 +6229,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     settingsContainer.style.display = 'none';
-                    disconnectColorPickerObserver();
+                    disconnectColorPicker();
                 });
             }
         }
