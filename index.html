@@ -2066,6 +2066,17 @@
     /** @type {Function|null} 缓存指示器 touch 滚动监听器引用（防泄漏） */
     let cacheIndicatorTouchListeners = null;
 
+    /** 关闭除 currentEl 外的所有气泡，防止双气泡溢屏 */
+    function dismissOtherTooltips(currentEl) {
+        document.querySelectorAll('#cacheIndicator.tooltip-active, .text-tooltip.tooltip-active').forEach(el => {
+            if (el !== currentEl) el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+        });
+        if (mobileTooltipCloser && currentEl?.id !== 'cacheIndicator') {
+            mobileTooltipCloser.unbind();
+            mobileTooltipCloser = null;
+        }
+    }
+
     /**
      * 更新缓存方案指示器显示
      * @param {string} cacheType - 缓存类型
@@ -2105,6 +2116,10 @@
 
                 indicator.onclick = function(e) {
                     e.stopPropagation();
+                    // 激活前先关闭其他已展开的气泡，防止双气泡溢屏
+                    if (!this.classList.contains('tooltip-active')) {
+                        dismissOtherTooltips(this);
+                    }
                     this.classList.toggle('tooltip-active');
                     closer.bind();
                 };
@@ -2146,6 +2161,10 @@
 
         el.addEventListener('click', function(e) {
             e.stopPropagation();
+            // 激活前先关闭其他已展开的气泡，防止双气泡溢屏
+            if (!el.classList.contains('tooltip-active')) {
+                dismissOtherTooltips(el);
+            }
             el.classList.toggle('tooltip-active');
 
             if (el.classList.contains('tooltip-active')) {
@@ -6025,11 +6044,11 @@
     
     /**
      * 解析 RGB 颜色字符串，支持多种格式：
-     *   - rgb(128, 200, 100)   传统逗号分隔
-     *   - rgb(128 200 100)     现代空格分隔
-     *   - 128, 200, 100        纯数字逗号（设计工具常用）
-     *   - 128 200 100          纯数字空格
-     *   - #80C864 / 80C864     HEX 格式
+     *   - rgb(128, 200, 100) 传统逗号分隔
+     *   - rgb(128 200 100)   现代空格分隔
+     *   - 128, 200, 100      纯数字逗号
+     *   - 128 200 100        纯数字空格
+     *   - #80C864 / 80C864   HEX 格式
      * 返回 {r,g,b} 或 null（无法解析时）
      */
     function parseColor(input) {
