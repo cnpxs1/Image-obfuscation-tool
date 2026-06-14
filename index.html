@@ -1479,6 +1479,14 @@
                                 </label>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
+                                <label for="cache-backend-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">缓存方案</label>
+                                <select id="cache-backend-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
+                                    <option value="auto">Auto</option>
+                                    <option value="cache-api">Cache API</option>
+                                    <option value="indexeddb">IndexedDB</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 <label for="log-level-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</label>
                                 <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
                                     <option value="off">off</option>
@@ -1708,9 +1716,9 @@
     // =============================================
 
     /**
-     * 根据当前环境选择存储后端
-     * - 非 file 协议且支持 Cache API 时使用 CacheStorage（性能更优）
-     * - 否则降级使用 IndexedDB
+     * 根据用户偏好与当前环境选择存储后端
+     * - Auto: 优先 Cache API，不可用时降级 IndexedDB
+     * - Cache API / IndexedDB: 按用户指定，不可用时自动切换
      */
     class StorageAdapter {
         constructor() {
@@ -1719,37 +1727,196 @@
             this.storeName = 'imageBlobs';
             this.db = null;
             this.cacheName = 'image-obfuscation-cache-v1';
+            /** @type {'auto'|'cache-api'|'indexeddb'} 用户偏好的后端 */
+            this.preference = 'auto';
+            /** @type {string} 实际使用的后端名称 */
+            this.activeBackend = '';
             this.ready = this._init();
         }
-    
+
         async _init() {
-            // 检测是否可以使用 Cache API（排除 file:// 协议）
-            const isCacheSupported = typeof window.caches !== 'undefined' && location.protocol !== 'file:';
-            if (isCacheSupported) {
+            // 读取用户偏好（直接读 localStorage，避免依赖尚未定义的 loadSetting）
+            let saved = null;
+            try { saved = localStorage.getItem('cacheBackend'); } catch (e) { /* 忽略 */ }
+            this.preference = (saved === 'cache-api' || saved === 'indexeddb') ? saved : 'auto';
+
+            // 预检测各后端可用性
+            const cacheApiSupported = typeof window.caches !== 'undefined' && location.protocol !== 'file:';
+            const indexedDbSupported = typeof window.indexedDB !== 'undefined';
+
+            // 根据偏好与可用性决定使用哪个后端
+            let tryCacheApi = (this.preference === 'cache-api' || this.preference === 'auto') && cacheApiSupported;
+            let tryIndexedDb = (this.preference === 'indexeddb' || this.preference === 'auto') && indexedDbSupported;
+
+            // 记录后端实际可用性（用于下拉菜单灰显）
+            window.__cacheBackendAvail = {
+                cacheApi: cacheApiSupported,
+                indexedDb: indexedDbSupported
+            };
+
+            // 如果首选不可用，强制走另一方
+            if (this.preference === 'cache-api' && !cacheApiSupported) {
+                tryCacheApi = false;
+                tryIndexedDb = indexedDbSupported;
+                logInfo('存储适配层', 'Cache API 不可用，自动切换至 IndexedDB');
+            }
+            if (this.preference === 'indexeddb' && !indexedDbSupported) {
+                tryIndexedDb = false;
+                tryCacheApi = cacheApiSupported;
+                logWarn('存储适配层', 'IndexedDB 不可用，自动切换至 Cache API');
+            }
+
+            // 尝试 Cache API
+            if (tryCacheApi) {
                 try {
-                    // 启动时删除整个旧缓存（单次操作，避免逐个 delete() 导致长任务阻塞 LCP）
                     await caches.delete(this.cacheName);
                     this.backend = await caches.open(this.cacheName);
+                    this.activeBackend = 'cache-api';
                     logLog('使用 Cache API');
                     logLog('已清理旧数据');
-                    // 更新 UI 指示器
-                    setTimeout(() => updateCacheIndicator('Cache API'), 100);
+                    setTimeout(() => {
+                        updateCacheIndicator('Cache API');
+                        updateCacheSelectOptions();
+                    }, 100);
                     return;
                 } catch (e) {
-                    // delete 或 open 失败 → 降级 IndexedDB（如私有模式 Safari）
                     logInfo('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
+                    window.__cacheBackendAvail.cacheApi = false;
                 }
             }
-            // 降级到 IndexedDB
-            await this._initIndexedDB();
-            // 启动时清空所有旧数据
-            await this._dbTransaction('readwrite', store => store.clear());
-            logLog('使用 IndexedDB');
-            logLog('已清理旧数据');
-            // 更新 UI 指示器
-            setTimeout(() => updateCacheIndicator('IndexedDB'), 100);
+
+            // 尝试 IndexedDB
+            if (tryIndexedDb) {
+                try {
+                    await this._initIndexedDB();
+                    await this._dbTransaction('readwrite', store => store.clear());
+                    this.activeBackend = 'indexeddb';
+                    logLog('使用 IndexedDB');
+                    logLog('已清理旧数据');
+                    setTimeout(() => {
+                        updateCacheIndicator('IndexedDB');
+                        updateCacheSelectOptions();
+                    }, 100);
+                    return;
+                } catch (e) {
+                    logWarn('存储适配层', `IndexedDB 不可用: ${e.message || e}`);
+                    window.__cacheBackendAvail.indexedDb = false;
+                }
+            }
+
+            // 两个都不可用（极端情况）
+            this.activeBackend = 'none';
+            logWarn('存储适配层', '所有存储后端均不可用，图片处理将无法缓存');
+            setTimeout(() => updateCacheSelectOptions(), 100);
         }
     
+        /**
+         * 运行时切换存储后端（立即生效，无需刷新页面）
+         * 切换时会自动迁移旧后端的所有缓存数据到新后端，避免数据丢失
+         * @param {'auto'|'cache-api'|'indexeddb'} newPreference
+         */
+        async reinit(newPreference) {
+            this.preference = newPreference;
+
+            //第一步：读取旧后端所有数据到内存（Map<key, Blob>），用于后续迁移
+            const oldData = new Map();
+            try {
+                if (this.activeBackend === 'cache-api' && this.backend) {
+                    const keys = await this.backend.keys();
+                    for (const request of keys) {
+                        try {
+                            // Cache API 的 key 是完整 URL，提取末尾文件名部分作为统一 key
+                            const fullUrl = typeof request === 'string' ? request : request.url;
+                            const normalizedKey = fullUrl.includes('/')
+                                ? fullUrl.substring(fullUrl.lastIndexOf('/') + 1)
+                                : fullUrl;
+                            const response = await this.backend.match(request);
+                            if (response) {
+                                const blob = await response.blob();
+                                oldData.set(normalizedKey, blob);
+                            }
+                        } catch (e) { /* 单条读取失败跳过，继续处理下一条 */ }
+                    }
+                } else if (this.activeBackend === 'indexeddb' && this.db) {
+                    // IndexedDB 批量读取所有键和值
+                    await new Promise((resolve, reject) => {
+                        const tx = this.db.transaction([this.storeName], 'readonly');
+                        const store = tx.objectStore(this.storeName);
+                        const keysReq = store.getAllKeys();
+                        const valuesReq = store.getAll();
+                        tx.onerror = () => reject(tx.error);
+                        // 等待两个请求都完成
+                        Promise.all([
+                            new Promise(r => {
+                                keysReq.onsuccess = () => r(keysReq.result);
+                                keysReq.onerror = () => r([]);
+                            }),
+                            new Promise(r => {
+                                valuesReq.onsuccess = () => r(valuesReq.result);
+                                valuesReq.onerror = () => r([]);
+                            })
+                        ]).then(([keys, values]) => {
+                            keys.forEach((k, i) => {
+                                if (values[i] !== undefined) {
+                                    oldData.set(k, values[i]);
+                                }
+                            });
+                            resolve();
+                        }).catch(() => resolve()); // 读取失败降级为空迁移
+                    });
+                }
+            } catch (e) { /* 读取旧数据失败，降级为空迁移 */ }
+
+            //第二步：清空旧后端
+            try {
+                if (this.activeBackend === 'cache-api' && this.backend) {
+                    const keys = await this.backend.keys();
+                    await Promise.all(keys.map(k => this.backend.delete(k)));
+                    logLog(`已清除旧后端 Cache API 的 ${keys.length} 条数据`);
+                } else if (this.activeBackend === 'indexeddb' && this.db) {
+                    await this._dbTransaction('readwrite', store => store.clear());
+                    logLog('已清除旧后端 IndexedDB 的数据');
+                }
+            } catch (e) { /* 清理失败不影响切换 */ }
+
+            //第三步：重置状态并初始化新后端
+            this.backend = null;
+            this.db = null;
+            this.activeBackend = '';
+            this.ready = this._init();
+            await this.ready;
+
+            //第四步：将旧数据写回新后端
+            if (oldData.size > 0) {
+                let migrated = 0, failed = 0;
+                for (const [key, blob] of oldData) {
+                    try {
+                        if (this.backend) {
+                            const response = new Response(blob, {
+                                headers: { 'Content-Type': blob.type || 'image/png' }
+                            });
+                            await this.backend.put(key, response);
+                        } else if (this.db) {
+                            await this._dbTransaction('readwrite', store => store.put(blob, key));
+                        }
+                        migrated++;
+                    } catch (e) {
+                        failed++;
+                    }
+                }
+                if (migrated > 0) {
+                    logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
+                }
+            }
+
+            //第五步：刷新缩略图（数据已迁移，缩略图可以从新后端加载）
+            if (images.length > 0) {
+                if (typeof refreshAllThumbnails === 'function') {
+                    await refreshAllThumbnails();
+                }
+            }
+        }
+
         async _initIndexedDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(this.dbName, 1);
@@ -2126,6 +2293,50 @@
 
                 // 移动端滑动页面时关闭气泡
                 cacheIndicatorTouchListeners = addTouchScrollDismiss(indicator);
+            }
+        }
+    }
+
+    /**
+     * 更新缓存方案下拉菜单选项的可用状态
+     * - 当前环境不支持的方案显示为灰色且禁止选择
+     * - 仅在 StorageAdapter 初始化完成后调用
+     */
+    function updateCacheSelectOptions() {
+        const select = document.getElementById('cache-backend-select');
+        if (!select) return;
+
+        const avail = window.__cacheBackendAvail || { cacheApi: true, indexedDb: true };
+
+        // 更新 Cache API 选项
+        const cacheApiOption = select.querySelector('option[value="cache-api"]');
+        if (cacheApiOption) {
+            if (!avail.cacheApi) {
+                cacheApiOption.disabled = true;
+                cacheApiOption.style.color = 'gray';
+            } else {
+                cacheApiOption.disabled = false;
+                cacheApiOption.style.color = '';
+            }
+        }
+
+        // 更新 IndexedDB 选项
+        const indexedDbOption = select.querySelector('option[value="indexeddb"]');
+        if (indexedDbOption) {
+            if (!avail.indexedDb) {
+                indexedDbOption.disabled = true;
+                indexedDbOption.style.color = 'gray';
+            } else {
+                indexedDbOption.disabled = false;
+                indexedDbOption.style.color = '';
+            }
+        }
+
+        // 同步下拉菜单值为当前实际使用的后端
+        if (storage && storage.activeBackend) {
+            const currentValue = storage.preference;
+            if (select.value !== currentValue) {
+                select.value = currentValue;
             }
         }
     }
@@ -6454,6 +6665,17 @@
         bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+
+        // 缓存方案下拉菜单：保存偏好到 localStorage，下次加载时生效
+        bindSelect('cache-backend-select', 'cacheBackend', async (v) => {
+            // 实时切换存储后端（清空旧缓存，初始化新后端）
+            try {
+                await storage.reinit(v);
+                logLog(`缓存方案已切换至: ${v === 'auto' ? 'Auto (实际使用 ' + (storage.activeBackend === 'cache-api' ? 'Cache API' : 'IndexedDB') + ')' : (v === 'cache-api' ? 'Cache API' : 'IndexedDB')}`);
+            } catch (e) {
+                logWarn('存储适配层', `切换失败: ${e.message || e}`);
+            }
+        });
         bindToggle('timer-toggle', 'processingTimer', (v) => { timerEnabled = v; });
 
         // 清除 localStorage 按钮
