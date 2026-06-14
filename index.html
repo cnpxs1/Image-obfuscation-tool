@@ -274,11 +274,7 @@
             /* 移动端时缓存指示器相对于 main-content 定位，在其上层并随内容滚动 */
             #cacheIndicator {
                 position: absolute;
-                top: 5px;
-                right: 5px;
                 margin-bottom: 10px;
-                padding: 5px 8px;
-                max-width: 75px;
                 cursor: pointer; /* 允许点击 */
             }
 
@@ -1180,7 +1176,7 @@
             return window.viewerLoadPromise;
         }
         // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
-        function showBasicImageViewer(imageData) {
+        function showBasicViewer(imageData) {
             logLog('启动基础图片查看器');
 
             // 彻底清理可能存在的旧实例（释放事件监听器 + Blob URL + overflow 状态）
@@ -1476,6 +1472,13 @@
                                 </label>
                             </div>
                             <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">处理计时</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="timer-toggle" class="setting-switch" />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 6px;">
                                 <label for="log-level-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</label>
                                 <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
                                     <option value="off">off</option>
@@ -1496,7 +1499,7 @@
     <div class="controls-section" >
         <!-- 设置按钮 ./img/icons/settings.svg -->
         <button id="settings-btn" class="icon-btn settings-btn" aria-label="高级设置">
-            <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200"><path fill="#333" fill-rule="evenodd" d="M115,25l3.2812,22.9688,6.0938,2.8125c2.5,1.25,5.1563,2.6563,7.5,4.2188l5.4688,3.5937,22.0312-8.5938,14.8438,24.8438-18.5938,14.2188.625,6.875c.1562,1.4063.1562,2.8125.1562,4.0625s0,2.6562-.1562,4.0625l-.625,6.875,18.5938,14.2187-14.6875,24.8438-22.1875-8.5938-5.4688,3.5938c-2.5,1.7187-5,3.125-7.5,4.2187l-6.0938,2.8125-3.2812,22.9687h-30l-3.2812-22.9688-6.0938-2.8125c-2.5-1.25-5.1562-2.6562-7.5-4.2187l-5.4688-3.5938-22.0313,8.5938-14.8438-24.8438,18.5937-14.2187-.625-6.875c-.1563-1.4063-.1563-2.8125-.1563-4.0625s0-2.6563.1563-4.0625l.625-6.875-18.5937-14.2188,14.6875-24.8437,22.1875,8.5938,5.4688-3.5937c2.5-1.7187,5-3.125,7.5-4.2188l6.0938-2.8125,3.2812-22.9688h30M116.7188,12.5h-33.4375c-5.3125,0-9.6875,3.75-10.4688,8.75l-2.5,18.125c-3.125,1.4062-6.0938,3.125-9.2188,5.1562l-17.6562-6.875c-1.25-.4687-2.5-.625-3.75-.625-3.75,0-7.3437,1.875-9.0625,5.1562l-16.7187,28.125c-2.6562,4.375-1.5625,10.1562,2.5,13.2812l14.8438,11.25c-.1563,1.875-.3125,3.5937-.3125,5.1562s0,3.2812.3125,5.1563l-14.8438,11.25c-4.0625,3.125-5.1563,8.5938-2.5,13.2812l16.5625,27.9688c1.875,3.2812,5.4688,5.3125,9.2187,5.3125,1.25,0,2.3438-.1562,3.5937-.625l17.6563-6.875c2.9688,2.0313,6.0938,3.75,9.2188,5.1563l2.6563,17.9688c.625,5,5.1562,8.9062,10.4688,8.9062h33.4375c5.3125,0,9.6875-3.75,10.4687-8.75l2.6562-18.125c3.125-1.4063,6.0938-3.125,9.2188-5.1563l17.6563,6.875c1.25.4688,2.5.625,3.75.625,3.75,0,7.3437-1.875,9.0625-5.1563l16.7187-28.2812c2.5-4.5313,1.4063-10-2.6562-13.125l-14.8438-11.25c.1562-1.5625.3125-3.2812.3125-5.1563s-.1562-3.5937-.3125-5.1562l14.8438-11.25c4.0625-3.125,5.1563-8.5938,2.5-13.2812l-16.5625-27.9687c-1.875-3.2813-5.4688-5.3125-9.2188-5.3125-1.25,0-2.3438.1563-3.5938.625l-17.6563,6.875c-2.9688-2.0312-6.0938-3.75-9.2188-5.1562l-2.6562-17.9688c-.7812-5.1563-5.1563-8.9062-10.4687-8.9063h0ZM100,62.5 A37.5,37.5 0 1,0 100,137.5 A37.5,37.5 0 1,0 100,62.5 Z M100,75 A25,25 0 1,0 100,125 A25,25 0 1,0 100,75 Z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200" fill="#333"><path fill-rule="evenodd" d="M115 25l3.3 23 6.1 2.8c2.5 1.3 5.2 2.7 7.5 4.2l5.5 3.6 22-8.6 14.8 24.8-18.6 14.2.6 6.9c.2 1.4.2 2.8.2 4.1s0 2.7-.2 4.1l-.6 6.9 18.6 14.2-14.7 24.8-22.2-8.6-5.5 3.6c-2.5 1.7-5 3.1-7.5 4.2l-6.1 2.8-3.3 23H85l-3.3-23-6.1-2.8c-2.5-1.3-5.2-2.7-7.5-4.2l-5.5-3.6-22 8.6-14.8-24.8 18.6-14.2-.6-6.9c-.2-1.4-.2-2.8-.2-4.1s0-2.7.2-4.1l.6-6.9-18.6-14.2 14.7-24.8 22.2 8.6 5.5-3.6c2.5-1.7 5-3.1 7.5-4.2l6.1-2.8L85 25h30m1.7-12.5H83.3c-5.3 0-9.7 3.8-10.5 8.8l-2.5 18.1c-3.1 1.4-6.1 3.1-9.2 5.2l-17.7-6.9c-1.2-.5-2.5-.6-3.7-.6-3.8 0-7.3 1.9-9.1 5.2l-16.7 28.1c-2.7 4.4-1.6 10.2 2.5 13.3l14.8 11.3c-.2 1.9-.3 3.6-.3 5.2s0 3.3.3 5.2l-14.8 11.3c-4.1 3.1-5.2 8.6-2.5 13.3l16.6 28c1.9 3.3 5.5 5.3 9.2 5.3 1.3 0 2.3-.2 3.6-.6l17.7-6.9c3 2 6.1 3.8 9.2 5.2l2.7 18c.6 5 5.2 8.9 10.5 8.9h33.4c5.3 0 9.7-3.8 10.5-8.8l2.7-18.1c3.1-1.4 6.1-3.1 9.2-5.2l17.7 6.9c1.2.5 2.5.6 3.7.6 3.8 0 7.3-1.9 9.1-5.2l16.7-28.3c2.5-4.5 1.4-10-2.7-13.1l-14.8-11.2c.2-1.6.3-3.3.3-5.2s-.2-3.6-.3-5.2l14.8-11.2c4.1-3.1 5.2-8.6 2.5-13.3l-16.6-28c-1.9-3.3-5.5-5.3-9.2-5.3-1.3 0-2.3.2-3.6.6l-17.7 6.9c-3-2-6.1-3.8-9.2-5.2l-2.7-18c-.8-5.2-5.2-8.9-10.5-8.9M100 62.5a37.5 37.5 0 1 0 0 75 37.5 37.5 0 1 0 0-75zm0 12.5a25 25 0 1 0 0 50 25 25 0 1 0 0-50z"/></svg>
         </button>
         <!-- fflate 打包下载开关 -->
         <div class="toggle-switch-container zip-download-container">
@@ -1677,7 +1680,7 @@
      * 清理页面上所有残留的处理中遮罩层
      * 作为异常情况下的最终保障措施
      */
-    function cleanupAllProcessingOverlays() {
+    function clearOverlays() {
         try {
             const allOverlays = document.querySelectorAll('.processing-overlay');
             let cleanedCount = 0;
@@ -1849,94 +1852,66 @@
      * @param {File} zipFile - ZIP 文件对象
      * @returns {Promise<{added: number, errors: Array}>}
      */
-    async function extractZipAndAddImages(zipFile) {
-        // 等待 fflate 加载（由 loadScriptWithFallback 中的 Promise 管理）
+    async function importZip(zipFile) {
         if (typeof fflate === 'undefined') {
-            try {
-                await window.fflateResources.promise;
-            } catch (e) {
+            try { await window.fflateResources.promise; } catch (e) {
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
                 return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
             }
         }
-        
+
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在解析 ZIP 文件...`;
 
         try {
-            // 读取 ZIP 文件为 Uint8Array
-            const arrayBuffer = await zipFile.arrayBuffer();
-            const zipData = new Uint8Array(arrayBuffer);
-
-            // 使用 fflate 解压
+            const zipData = new Uint8Array(await zipFile.arrayBuffer());
             /** @type {Record<string, Uint8Array>} */
-            const unzipped = await new Promise((resolve, reject) => {
-                fflate.unzip(zipData, (err, data) => {
-                    if (err) reject(err);
-                    else resolve(data);
-                });
-            });
+            const unzipped = await new Promise((resolve, reject) =>
+                fflate.unzip(zipData, (err, data) => err ? reject(err) : resolve(data))
+            );
 
-            const imageFiles = [];
+            // 第一趟：校验并收集有效图片条目
+            const entries = [];
             const errors = [];
-
-            // 遍历 ZIP 中的所有文件
             for (const [filename, fileData] of Object.entries(unzipped)) {
-                // 跳过目录（以 / 结尾的条目）
                 if (filename.endsWith('/')) continue;
-
-                // 检查是否为图片文件（扩展名）
                 const ext = filename.split('.').pop()?.toLowerCase();
                 if (!VALID_EXTENSIONS.includes(ext)) continue;
-
-                // 提取文件名（去掉路径前缀）
                 const baseName = filename.split('/').pop();
                 if (!baseName) continue;
 
-                // 验证文件内容（magic bytes），防止扩展名伪造
                 if (!isValidImageBytes(fileData)) {
                     errors.push({ name: baseName, error: '文件内容不是有效的图片格式' });
                     logWarn(baseName, '文件扩展名与内容不匹配，已跳过');
                     continue;
                 }
-
-                try {
-                    const mime = MIME_MAP[ext] || 'application/octet-stream';
-                    
-                    // 创建 Blob 并转换为 File 对象
-                    const blob = new Blob([fileData], { type: mime });
-                    const file = new File([blob], baseName, { type: blob.type });
-                    imageFiles.push(file);
-                } catch (e) {
-                    errors.push({ name: baseName, error: e.message });
-                    logError(baseName, `ZIP 解压提取失败: ${e.message}`);
-                }
+                entries.push({ fileData, baseName, ext });
             }
 
-            if (imageFiles.length === 0) {
+            if (entries.length === 0) {
                 showTempStatus('⚠️ ZIP 文件中未找到支持的图片格式', 3000);
                 return { added: 0, errors };
             }
 
-            statusDiv.innerHTML = `<div class="loading"></div> 正在添加 ${imageFiles.length} 张图片...`;
-
-            // 逐个添加图片
-            let added = 0;
-            for (let i = 0; i < imageFiles.length; i++) {
+            // 第二趟：逐张准备数据，再批量渲染 DOM
+            statusDiv.innerHTML = `<div class="loading"></div> 正在添加 ${entries.length} 张图片...`;
+            const batch = [];
+            for (let i = 0; i < entries.length; i++) {
+                const { fileData, baseName, ext } = entries[i];
                 try {
-                    await addImage(imageFiles[i]);
-                    added++;
-                    // 更新进度
-                    await updateProgressStatus(statusDiv, i + 1, imageFiles.length, '添加图片');
+                    const mime = MIME_MAP[ext] || 'application/octet-stream';
+                    const file = new File([fileData], baseName, { type: mime });
+                    batch.push(await prepareImageData(file));
                 } catch (e) {
-                    errors.push({ name: imageFiles[i].name, error: e.message });
-                    logError(imageFiles[i].name, `添加失败: ${e.message}`);
+                    errors.push({ name: baseName, error: e.message });
+                    logError(baseName, `添加失败: ${e.message}`);
                 }
+                await updateProgressStatus(statusDiv, i + 1, entries.length, '添加图片');
             }
+            commitImageBatch(batch);
 
-            showTempStatus(`✅ 已从 ZIP 添加 ${added} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
-
-            return { added, errors };
+            showTempStatus(`✅ 已从 ZIP 添加 ${batch.length} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
+            return { added: batch.length, errors };
 
         } catch (error) {
             showTempStatus(`❌ ZIP 解压失败: ${error.message}`, 3000);
@@ -2091,6 +2066,17 @@
     /** @type {Function|null} 缓存指示器 touch 滚动监听器引用（防泄漏） */
     let cacheIndicatorTouchListeners = null;
 
+    /** 关闭除 currentEl 外的所有气泡，防止双气泡溢屏 */
+    function dismissOtherTooltips(currentEl) {
+        document.querySelectorAll('#cacheIndicator.tooltip-active, .text-tooltip.tooltip-active').forEach(el => {
+            if (el !== currentEl) el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
+        });
+        if (mobileTooltipCloser && currentEl?.id !== 'cacheIndicator') {
+            mobileTooltipCloser.unbind();
+            mobileTooltipCloser = null;
+        }
+    }
+
     /**
      * 更新缓存方案指示器显示
      * @param {string} cacheType - 缓存类型
@@ -2130,6 +2116,10 @@
 
                 indicator.onclick = function(e) {
                     e.stopPropagation();
+                    // 激活前先关闭其他已展开的气泡，防止双气泡溢屏
+                    if (!this.classList.contains('tooltip-active')) {
+                        dismissOtherTooltips(this);
+                    }
                     this.classList.toggle('tooltip-active');
                     closer.bind();
                 };
@@ -2171,6 +2161,10 @@
 
         el.addEventListener('click', function(e) {
             e.stopPropagation();
+            // 激活前先关闭其他已展开的气泡，防止双气泡溢屏
+            if (!el.classList.contains('tooltip-active')) {
+                dismissOtherTooltips(el);
+            }
             el.classList.toggle('tooltip-active');
 
             if (el.classList.contains('tooltip-active')) {
@@ -2193,8 +2187,20 @@
     let images = [];
     /** @type {Set<string>} 存储选中图片 ID 的集合 */
     let selectedImages = new Set();
-    /** @type {boolean} 处理状态标志，防止重复处理 */
-    let isProcessing = false;
+    /** 批量导入计数器，确保高并发场景下 ID 唯一性 */
+    let _batchIdCounter = 0;
+    let isProcessing = false, processingTimer = null, timerEnabled = false;
+    const OP = { encrypt: '混淆', decrypt: '解混淆', restore: '还原' };
+
+    function startProcessingTimer(n, op) { processingTimer = { s: performance.now(), n, op: OP[op] }; }
+
+    function stopProcessingTimer() {
+        if (!timerEnabled) return; const t = processingTimer; if (!t) return;
+        const e = performance.now() - t.s;
+        logLog(`[处理计时] ${t.op ? '[' + t.op + '] ' : ''}处理 ${t.n} 张图片，总耗时 ${e < 1e3 ? Math.round(e) + 'ms' : e < 6e4 ? (e / 1e3).toFixed(2) + 's' : Math.floor(e / 6e4) + 'min ' + ((e % 6e4) / 1e3).toFixed(1) + 's'}`);
+        processingTimer = null;
+    }
+
     /** @type {boolean} 首次导入文件标志 */
     let hasImportedFiles = false;
     /**
@@ -2371,7 +2377,7 @@
 
     const LOG_ICONS = {
         error: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#d81e06" stroke-width="81" fill="none"/><path d="M330 330L694 694M694 330L330 694" stroke="#d81e06" stroke-width="81" stroke-linecap="round" fill="none"/></svg>',
-        warn: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215 200"><path fill="#ec7a40" d="M187.6098,199.4113H27.3938c-10.7441,0-19.3754-4.2385-23.6859-11.6313-4.3117-7.3926-3.7871-17.0494,1.4445-26.4856L85.9903,15.4977c5.2619-9.5051,13.0867-14.9533,21.4582-14.9533s16.1895,5.4414,21.4662,14.9381l80.9225,145.8271c5.2305,9.4363,5.7715,19.0859,1.4518,26.4775-4.3037,7.3926-12.942,11.6242-23.6791,11.6242h0ZM107.4565,15.8492c-2.6617,0-5.7107,2.6553-8.1824,7.102L18.4366,168.7631c-2.5328,4.5762-3.1258,8.6865-1.6129,11.2797,1.5143,2.5867,5.3687,4.0723,10.5701,4.0723h160.216c5.2096,0,9.057-1.4775,10.5701-4.0723,1.5047-2.5863.9199-6.6953-1.6197-11.2715L115.6387,22.951c-2.4644-4.4465-5.5285-7.1018-8.1822-7.1018Z"/><line x1="107.5" y1="54" x2="107.5" y2="124" stroke="#ec7a40" stroke-width="15" stroke-linecap="round"/><circle cx="107.5" cy="156" r="12" fill="#ec7a40"/></svg>',
+        warn: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 215 200"><path fill="#ec7a40" d="M187.6 199.4H27.4c-10.7 0-19.4-4.2-23.7-11.6-4.3-7.4-3.8-17 1.4-26.5L86 15.5c5.3-9.5 13.1-15 21.5-15s16.2 5.4 21.5 14.9l80.9 145.8c5.2 9.4 5.8 19.1 1.5 26.5-4.3 7.4-12.9 11.6-23.7 11.6ZM107.5 15.8c-2.7 0-5.7 2.7-8.2 7.1L18.4 168.8c-2.5 4.6-3.1 8.7-1.6 11.3 1.5 2.6 5.4 4.1 10.6 4.1h160.2c5.2 0 9.1-1.5 10.6-4.1 1.5-2.6 0.9-6.7-1.6-11.3L115.6 23c-2.5-4.4-5.5-7.1-8.2-7.1Z"/><line x1="107.5" y1="54" x2="107.5" y2="124" stroke="#ec7a40" stroke-width="15" stroke-linecap="round"/><circle cx="107.5" cy="156" r="12" fill="#ec7a40"/></svg>',
         info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><circle cx="512" cy="512" r="471" stroke="#1296db" stroke-width="81" fill="none"/><line x1="512" y1="300" x2="512" y2="580" stroke="#1296db" stroke-width="81" stroke-linecap="round"/><circle cx="512" cy="720" r="47" fill="#1296db"/></svg>'
     };
 
@@ -2712,23 +2718,16 @@
     function releaseImgBlob(img) {
         if (img && img.dataset.blobUrl && img.dataset.blobUrl.startsWith('blob:')) {
             URL.revokeObjectURL(img.dataset.blobUrl);
+            img.onerror = null;  // 避免清空 src 时触发虚假的"图片加载失败"日志
+            img.src = '';
             delete img.dataset.blobUrl;
         }
     }
 
-    /** 释放容器中所有图片元素的 Blob URL */
-    function revokeBlobUrlsInContainer(container) {
+    /** 释放容器中所有图片元素的 Blob URL（复用 releaseImgBlob 逻辑） */
+    function revokeBlobUrls(container) {
         if (!container) return;
-        const imgs = container.querySelectorAll('img');
-        imgs.forEach(img => {
-            const url = img.dataset.blobUrl;
-            if (url && url.startsWith('blob:')) {
-                URL.revokeObjectURL(url);
-                img.onerror = null; // 避免清空 src 时触发虚假的"图片加载失败"日志
-                img.src = '';
-                delete img.dataset.blobUrl;
-            }
-        });
+        container.querySelectorAll('img').forEach(img => releaseImgBlob(img));
     }
 
     /** 触发浏览器下载 Blob */
@@ -2985,100 +2984,53 @@
      * 希尔伯特曲线是一种空间填充曲线，能够保持像素的空间相关性
      * 通过黄金分割比例计算偏移量实现混淆效果
      */
-    // =============================================
-    // 希尔伯特曲线缓存（LRU淘汰策略）
-    // =============================================
-    
-    // 希尔伯特曲线缓存 - LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
-    // 同时缓存 shiftedCurve（加密解密映射表），避免循环内取模运算
-    const curveCache = new Map(); // key -> {curve: Uint32Array, shiftedCurve: Uint32Array, frequency: number, lastAccess: number}
+    // 希尔伯特曲线缓存 — LFU-Aging 策略（新条目以平均频率起步 + 周期性老化）
+    const curveCache = new Map();
     const MAX_CACHE_SIZE = 20;
-    let accessCounter = 0;
-    const STATS_INTERVAL = MAX_CACHE_SIZE * 2; // 每 40 次访问输出一次监控
-
-    // 命中率监控（仅在 log 级别统计，其他级别完全跳过计算）
-    let cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
+    let accessCounter = 0, cacheHits = 0, cacheMisses = 0, cacheEvictions = 0;
 
     function logCacheStats() {
-        if (logLevel !== 'log') return;
-        const total = cacheHits + cacheMisses;
-        if (total === 0) return;
-        const rate = (cacheHits / total * 100).toFixed(1);
-        const freqs = [...curveCache.values()].map(e => e.frequency);
-        const minF = freqs.length ? Math.min(...freqs) : 0;
-        const maxF = freqs.length ? Math.max(...freqs) : 0;
-        logLog(`曲线缓存: 命中率 ${rate}% (${cacheHits}/${total}) | 条目 ${curveCache.size}/${MAX_CACHE_SIZE} | 频率 ${minF}~${maxF} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
-    }
-
-    function averageCacheFrequency() {
-        if (curveCache.size === 0) return 1;
-        let sum = 0;
-        for (const entry of curveCache.values()) sum += entry.frequency;
-        return Math.max(1, Math.ceil(sum / curveCache.size));
-    }
-
-    function ageFrequencies() {
-        for (const entry of curveCache.values()) entry.frequency >>= 1;
+        const q = cacheHits + cacheMisses, s = curveCache.size;
+        if (!q) return;
+        const f = [...curveCache.values()].map(e => e.frequency);
+        logLog(`曲线缓存: 命中率 ${(cacheHits/q*100).toFixed(1)}% (${cacheHits}/${q}) | 条目 ${s}/${MAX_CACHE_SIZE} | 频率 ${s?Math.min(...f):0}~${s?Math.max(...f):0} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
     }
 
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
-
+        const isLog = logLevel === 'log',
+            shouldLog = isLog && accessCounter % (MAX_CACHE_SIZE * 2) === 0;
         if (curveCache.has(key)) {
-            if (logLevel === 'log') cacheHits++;
-            const cacheEntry = curveCache.get(key);
-            cacheEntry.frequency++;
-            cacheEntry.lastAccess = accessCounter;
-            if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
-            return cacheEntry.data;
+            cacheHits++;
+            const entry = curveCache.get(key);
+            entry.frequency++;
+            entry.lastAccess = accessCounter;
+            if (shouldLog) logCacheStats();
+            return entry.data;
         }
-
-        if (logLevel === 'log') cacheMisses++;
-        // 未命中：生成新的曲线数据及映射表
-        const totalPixels = width * height;
-        const curve = hilbert2D(width, height);
-        const offset = Math.round((Math.sqrt(5) - 1) / 2 * totalPixels);
-        const shiftedCurve = new Uint32Array(totalPixels);
-        for (let i = 0; i < totalPixels; i++) {
-            shiftedCurve[i] = curve[(i + offset) % totalPixels];
-        }
-
+        cacheMisses++;
+        const total = width * height,
+            curve = hilbert2D(width, height),
+            offset = Math.round((Math.sqrt(5) - 1) / 2 * total),
+            shiftedCurve = new Uint32Array(total);
+        for (let i = 0; i < total; i++) shiftedCurve[i] = curve[(i + offset) % total];
         if (curveCache.size >= MAX_CACHE_SIZE) {
-            ageFrequencies();
-            evictLfuCacheEntry();
+            let m = Infinity, o = Infinity, v = null;
+            for (const [k, e] of curveCache) {
+                e.frequency >>= 1;  // 老化
+                if (e.frequency < m || (e.frequency === m && e.lastAccess < o))
+                    { m = e.frequency; o = e.lastAccess; v = k; }
+            }
+            v !== null && curveCache.delete(v);
             cacheEvictions++;
         }
-
-        const newData = { curve, shiftedCurve };
-        curveCache.set(key, {
-            data: newData,
-            frequency: averageCacheFrequency(),
-            lastAccess: accessCounter
-        });
-
-        if (logLevel === 'log' && accessCounter % STATS_INTERVAL === 0) logCacheStats();
-        return newData;
-    }
-
-    /**
-     * LFU-Aging 淘汰策略
-     * 淘汰频率最低的条目，频率相同时淘汰最久未访问的
-     * （ageFrequencies 右移老化后大量条目频率→1，统一走频率+时间判断，语义一致）
-     */
-    function evictLfuCacheEntry() {
-        let minFreq = Infinity;
-        let oldestAccess = Infinity;
-        let evictionKey = null;
-        for (const [key, entry] of curveCache.entries()) {
-            if (entry.frequency < minFreq
-                || (entry.frequency === minFreq && entry.lastAccess < oldestAccess)) {
-                minFreq = entry.frequency;
-                oldestAccess = entry.lastAccess;
-                evictionKey = key;
-            }
-        }
-        if (evictionKey !== null) curveCache.delete(evictionKey);
+        let s = 0;
+        for (const e of curveCache.values()) s += e.frequency;
+        const n = curveCache.size;
+        curveCache.set(key, { data: { curve, shiftedCurve }, frequency: n ? Math.max(1, Math.ceil(s / n)) : 1, lastAccess: accessCounter });
+        if (shouldLog) logCacheStats();
+        return { curve, shiftedCurve };
     }
 
     /**
@@ -3617,7 +3569,7 @@
         if (!skipUI) {
             updateSaveButtonText();
             updateImageCounter();
-            if (images.length === 0) showEmptyState();
+            if (images.length === 0) toggleEmptyState(true);
         }
     }
 
@@ -3943,6 +3895,8 @@
     async function processBatch(operation) {
         if (isProcessing) return;
         isProcessing = true;
+        const targetIds = getTargetImageIds();
+        if (targetIds.length > 0) startProcessingTimer(targetIds.length, operation);
         try {
             await forEachTargetImage('处理', undefined, async (imageData, imageId) => {
                 const item = document.querySelector(`[data-id="${imageId}"]`);
@@ -3957,6 +3911,7 @@
             logError('批量处理', `批量处理失败: ${error.message || error}`);
             showTempStatus('❌ 处理失败');
         } finally {
+            stopProcessingTimer();
             isProcessing = false;
         }
     }
@@ -4021,11 +3976,13 @@
     }
 
     /**
-     * 添加图片到应用
+     * 【Phase 1】准备图片数据：读取文件、存储到 IndexedDB、获取尺寸
+     * 纯异步工作，不涉及任何 DOM 操作，为批量渲染做准备
      * @param {File} file - 图片文件对象
+     * @returns {Promise<Object>} imageData 对象（含 id、尺寸、格式等）
      */
-    async function addImage(file) {
-        const id = Date.now().toString(36) + Math.random().toString(36).substring(2);
+    async function prepareImageData(file) {
+        const id = Date.now().toString(36) + (_batchIdCounter++).toString(36) + Math.random().toString(36).substring(2);
         let blob;
         let originalFormat = file.type.split('/')[1]?.toUpperCase() || 'UNKNOWN';
         try {
@@ -4083,18 +4040,17 @@
             throw storageErr;
         }
 
-        // 先获取图片尺寸
+        // 获取图片尺寸
         const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
-
         const width = bitmap.width;
         const height = bitmap.height;
         bitmap.close();
 
-        const imageData = {
+        return {
             id,
             name: file.name,
             originalName: file.name,
-            scrambleLevel: 0,          // 新增：混淆级别，0=原始，正数=混淆次数，负数=解混淆次数
+            scrambleLevel: 0,
             size: blob.size,
             width: width,
             height: height,
@@ -4103,19 +4059,48 @@
             format: originalFormat,
             processed: false
         };
-        images.push(imageData);
-        await renderImageItem(imageData);
+    }
+
+    /**
+     * 【Phase 2】批量提交图片数据到应用：一次性创建所有 DOM 容器
+     * 使用 DocumentFragment 减少浏览器重排/重绘次数
+     * @param {Object[]} imageDataArray - prepareImageData 返回的 imageData 数组
+     */
+    function commitImageBatch(imageDataArray) {
+        if (!imageDataArray || imageDataArray.length === 0) return;
+
+        const imageList = document.getElementById('imageList');
+        const fragment = document.createDocumentFragment();
+
+        for (const imageData of imageDataArray) {
+            // 加入数据数组
+            images.push(imageData);
+
+            // 使用工厂函数创建 DOM 元素（不单独追加）
+            const item = createImageItem(imageData);
+            fragment.appendChild(item);
+
+            // 网格模式：注册到懒加载器
+            if (currentViewMode === 'grid' && imageLazyLoader) {
+                imageLazyLoader.observe(item, imageData);
+            }
+
+            // 后台预生成缩略图缓存
+            schedulePrefetch(imageData);
+        }
+
+        // ===== 一次性插入所有容器，触发单次重排 =====
+        imageList.appendChild(fragment);
+
+        // ===== 统一更新 UI 状态（只执行一次） =====
         updateImageCounter();
-        hideEmptyState();
+        toggleEmptyState(false);
 
         if (!hasImportedFiles) {
             hasImportedFiles = true;
             const desc = document.getElementById('description-text');
             if (desc) desc.style.display = 'none';
         }
-        
-        // 更新界面显示
-        updateImageInfo(imageData.id);
     }
 
     // =============================================
@@ -4235,12 +4220,17 @@
             }
         }
     }
-    async function renderImageItem(imageData) {
-        const imageList = document.getElementById('imageList');
+    /**
+     * 创建图片项的 DOM 元素（纯工厂函数，不追加到 DOM）
+     * 将 DOM 创建与挂载分离，支持批量渲染优化
+     * @param {Object} imageData - 图片数据对象
+     * @returns {HTMLDivElement} 完整的 .image-item 元素
+     */
+    function createImageItem(imageData) {
         const item = document.createElement('div');
         item.className = `image-item ${currentViewMode === 'list' ? 'list-view' : ''}`;
         item.dataset.id = imageData.id;
-        
+
         // 创建复选框
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -4250,26 +4240,23 @@
             toggleSelect(imageData.id, event);
         });
         item.appendChild(checkbox);
-        
+
         // 创建缩略图容器
         const thumbnailContainer = document.createElement('div');
         thumbnailContainer.className = 'thumbnail-container';
         thumbnailContainer.onclick = () => showPreview(imageData.id);
-        
+
         // 统一先放置占位符，由懒加载器在进入视口时替换为缩略图
         const placeholder = document.createElement('div');
         placeholder.className = 'thumbnail-placeholder';
         if (currentViewMode === 'grid') {
-            // 网格模式：使用简洁的加载占位符，懒加载器负责后续替换
             placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
             placeholder.title = '加载中…';
         } else {
-            // 列表模式：显示占位符图标
             placeholder.innerHTML = getPlaceholderSvg();
             placeholder.title = '点击预览图片';
         }
         thumbnailContainer.appendChild(placeholder);
-
         item.appendChild(thumbnailContainer);
 
         // 获取状态文本和样式
@@ -4305,8 +4292,6 @@
         `;
         item.appendChild(actionsDiv);
 
-        imageList.appendChild(item);
-
         // 设置选中状态（如果之前已选中）
         if (selectedImages.has(imageData.id)) {
             checkbox.checked = true;
@@ -4320,13 +4305,7 @@
             statusBadge: infoDiv.querySelector('.status-badge')
         };
 
-        // 网格模式：注册到懒加载器
-        if (currentViewMode === 'grid' && imageLazyLoader) {
-            imageLazyLoader.observe(item, imageData);
-        }
-
-        // 后台预生成缩略图缓存，滚动展示时直接命中，避免卡顿
-        schedulePrefetch(imageData);
+        return item;
     }
 
     // =============================================
@@ -4404,22 +4383,10 @@
      *
      * 当有图片时隐藏"暂无图片"提示
      */
-    function hideEmptyState() {
+    function toggleEmptyState(visible) {
         const emptyState = document.getElementById('emptyState');
         if (emptyState) {
-            emptyState.style.display = 'none';
-        }
-    }
-
-    /**
-     * 显示空状态提示
-     *
-     * 当没有图片时显示"暂无图片"提示
-     */
-    function showEmptyState() {
-        const emptyState = document.getElementById('emptyState');
-        if (emptyState) {
-            emptyState.style.display = 'block';
+            emptyState.style.display = visible ? 'block' : 'none';
         }
     }
 
@@ -4500,6 +4467,29 @@
     }
 
     /**
+     * 内部函数：删除指定 ID 的图片（批量或单张）
+     * @param {string[]} imageIds - 要删除的图片 ID 数组
+     * @param {boolean} isBatch - 是否为批量操作（批量时跳过逐项 UI 更新）
+     */
+    async function _deleteImagesByIds(imageIds, isBatch) {
+        for (const id of imageIds) {
+            await storage.deleteImageData(id);
+        }
+        imageIds.forEach(id => cleanupImageFromUi(id, true));  // 统一跳过内部 UI 更新，由本函数集中控制
+
+        if (!isBatch) {
+            updateSaveButtonText();
+            updateImageCounter();
+        }
+
+        if (images.length === 0) {
+            toggleEmptyState(true);
+            await storage.clear();
+            logLog('所有图片已删除：已清除全部缓存');
+        }
+    }
+
+    /**
      * 删除选中的图片
      *
      * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
@@ -4507,38 +4497,24 @@
     async function deleteSelectedImages() {
         if (guardProcessing()) return;
 
-        // 如果没有选中的图片，提示用户
         if (selectedImages.size === 0) {
             showTempStatus('⚠️ 请先选择要删除的图片');
             return;
         }
 
-        // 复制选中的 ID 集合，避免在迭代时修改集合
         const idsToDelete = Array.from(selectedImages);
+        await _deleteImagesByIds(idsToDelete, true);
 
-        // 清理存储中的数据
-        for (const id of idsToDelete) {
-            await storage.deleteImageData(id);
-        }
-            
-        // 从 DOM 和数据中移除选中的图片（批量删除，跳过逐项 UI 更新）
-        idsToDelete.forEach(id => cleanupImageFromUi(id, true));
-        // 批量操作完成后一次性更新 UI
         selectedImages.clear();
         updateSaveButtonText();
         updateImageCounter();
-        if (images.length === 0) {
-            showEmptyState();
-            await storage.clear();
-            logLog('所有图片已删除：已清除全部缓存');
-        }
         logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
     /**
      * 删除单张图片
      * @param {string} imageId - 要删除的图片 ID
-     * 
+     *
      * 从数组和 DOM 中移除图片，同时释放 Blob URL 资源
      */
     async function deleteSingleImage(imageId) {
@@ -4551,13 +4527,7 @@
         }
 
         try {
-            await storage.deleteImageData(imageId);
-            logLog(`已删除存储数据：${imageId}`);
-            cleanupImageFromUi(imageId);
-            if (images.length === 0) {
-                await storage.clear();
-                logLog('所有图片已删除：已清除全部缓存');
-            }
+            await _deleteImagesByIds([imageId], false);
             logLog('已删除图片:', imageData.name);
         } catch (error) {
             logError('图片删除', `删除图片时出错: ${error.message || error}`);
@@ -4580,8 +4550,12 @@
         if (isProcessing) return;
 
         isProcessing = true;
+        // 保存操作不计时
+        if (operation !== 'save') startProcessingTimer(1, operation);
+
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) {
+            stopProcessingTimer();
             isProcessing = false;
             return;
         }
@@ -4603,6 +4577,7 @@
             showTempStatus(`❌ "${imageData.name}" 处理失败`);
         } finally {
             overlay?.remove();
+            stopProcessingTimer();
             isProcessing = false;
         }
     }
@@ -4684,38 +4659,76 @@
      * 处理通过拖拽或文件选择添加的图片文件
      */
     async function handleFiles(files) {
-        let addedCount = 0;
+        // ========== 第一趟：分离 ZIP / 预统计有效图片数量 ==========
+        const validImages = [];   // 普通图片（已验证）
+        const zipFiles = [];      // ZIP 文件（保持原有逻辑不变）
         let errorCount = 0;
 
         for (const file of files) {
-            // 检查是否为 ZIP 文件
-            const isZip = file.type === 'application/zip' || 
+            const isZip = file.type === 'application/zip' ||
                           file.name.toLowerCase().endsWith('.zip');
-            
             if (isZip) {
-                // 处理 ZIP 文件
-                const result = await extractZipAndAddImages(file);
-                addedCount += result.added;
-                errorCount += result.errors.length;
+                zipFiles.push(file);
                 continue;
             }
-            
-            // 原有图片处理逻辑
+            // 普通图片：先校验格式，统计有效数量
             if (!isValidImageFile(file)) {
                 logWarn(file.name, '不是支持/有效的图片文件');
                 errorCount++;
                 continue;
             }
-
-            try {
-                await addImage(file);
-                addedCount++;
-            } catch (error) {
-                logError(file.name, `添加失败: ${error.message || '未知错误'}`);
-                errorCount++;
-            }
+            validImages.push(file);
         }
 
+        const totalImages = validImages.length;
+        const totalZips = zipFiles.length;
+        const statusDiv = document.getElementById('batchStatus');
+
+        // 展示预统计结果
+        if (totalImages > 0 || totalZips > 0) {
+            const parts = [];
+            if (totalImages > 0) parts.push(`${totalImages} 张图片`);
+            if (totalZips > 0) parts.push(`${totalZips} 个 ZIP 文件`);
+            statusDiv.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')} 张图片`;
+        } else if (errorCount > 0) {
+            showTempStatus(`⚠️ 所有 ${errorCount} 个文件都不支持`, 3000);
+            return;
+        } else {
+            return;
+        }
+
+        // ========== 第二趟：批量导入 ==========
+        let addedCount = 0;
+
+        // 图片分支：先并行准备所有图片数据，再批量渲染 DOM
+        const regularImageDataBatch = [];
+        for (let i = 0; i < totalImages; i++) {
+            try {
+                const imageData = await prepareImageData(validImages[i]);
+                regularImageDataBatch.push(imageData);
+                addedCount++;
+            } catch (err) {
+                logError(validImages[i].name, `添加失败: ${err.message || '未知错误'}`);
+                errorCount++;
+            }
+            // 每张图更新一次进度（短暂延迟让浏览器刷新 UI，同时避免 I/O 争用）
+            if (i < totalImages - 1) {
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片', 16);
+            } else {
+                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片');
+            }
+        }
+        // 批量渲染所有普通图片的 DOM 容器（单次重排）
+        commitImageBatch(regularImageDataBatch);
+
+        // ZIP 分支：每个压缩包内部已改为批量渲染（prepareImageData → commitImageBatch）
+        for (const zipFile of zipFiles) {
+            const result = await importZip(zipFile);
+            addedCount += result.added;
+            errorCount += result.errors.length;
+        }
+
+        // ========== 结果汇总 ==========
         let message = '';
         if (addedCount > 0 && errorCount > 0) {
             message = ` 已添加 ${addedCount} 张图片， ${errorCount} 个文件被拒绝或读取失败`;
@@ -4829,7 +4842,7 @@
     /**
      * 断开颜色选择器的 ResizeObserver（面板关闭时调用）
      */
-    function disconnectColorPickerObserver() {
+    function disconnectColorPicker() {
         if (colorPickerResizeObserver) {
             colorPickerResizeObserver.disconnect();
             colorPickerResizeObserver = null;
@@ -5049,14 +5062,14 @@
     /**
      * 为单张图片打开基础查看器（跳过创建全部图片元素）
      */
-    async function openBasicViewerForImage(imageData, token) {
+    async function openBasicViewer(imageData, token) {
         if (isPreviewStale(token)) return;
         logLog('启用基础图片查看器');
         try {
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob && !isPreviewStale(token)) {
                 const url = URL.createObjectURL(blob);
-                showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
+                showBasicViewer({ blobUrl: url, originalName: imageData.name });
             } else if (!blob) {
                 logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
             }
@@ -5077,7 +5090,7 @@
         // 1. 彻底清理所有残留预览容器和实例（含 Blob URL）
         const existingContainers = document.querySelectorAll('.image-gallery-container');
         existingContainers.forEach(container => {
-            revokeBlobUrlsInContainer(container);
+            revokeBlobUrls(container);
             if (container.parentNode) container.parentNode.removeChild(container);
         });
         cleanupExistingViewer();
@@ -5087,7 +5100,7 @@
 
         // 3. 若关闭 Viewer.js 开关，跳过创建全部图片元素，直接用基础查看器
         if (!useViewerJs) {
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
@@ -5103,34 +5116,34 @@
         // 5. Viewer.js 不可用，降级到基础查看器（跳过创建全部图片元素）
         if (!window.Viewer) {
             logError('Viewer.js', 'Viewer.js 不可用');
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
         // 6. Viewer.js 可用，创建画廊容器（含全部图片元素）并初始化
         let galleryContainer;
         try {
-            galleryContainer = await createImageGalleryContainer();
+            galleryContainer = await buildGallery();
         } catch (createError) {
             if (isPreviewStale(token)) return;
             logError('Viewer.js', `创建画廊容器失败: ${createError.message || createError}`);
-            await openBasicViewerForImage(imageData, token);
+            await openBasicViewer(imageData, token);
             return;
         }
 
         try {
             if (isPreviewStale(token)) {
-                cleanupViewerResources(galleryContainer);
+                destroyViewer(galleryContainer);
                 return;
             }
-            await initViewerWithBestPractices(imageData, galleryContainer, imageId, token);
+            await initViewer(imageData, galleryContainer, imageId, token);
         } catch (error) {
             if (isPreviewStale(token)) {
-                cleanupViewerResources(galleryContainer);
+                destroyViewer(galleryContainer);
                 return;
             }
             logError('Viewer.js', `初始化失败: ${error.message || error}`);
-            await handleViewerInitializationFailure(galleryContainer, imageData, token);
+            await fallbackViewer(galleryContainer, imageData, token);
         }
     }
 
@@ -5152,9 +5165,9 @@
             }
             viewerInstance = null;
         }
-        // 复用 cleanupViewerResources 清理所有残留容器
+        // 复用 destroyViewer 清理所有残留容器
         document.querySelectorAll('.image-gallery-container').forEach(container => {
-            cleanupViewerResources(container, true);
+            destroyViewer(container, true);
         });
     }
 
@@ -5166,7 +5179,7 @@
      * 创建图片画廊容器
      * @returns {Promise<GalleryContainer>} 容器元素
      */
-    async function createImageGalleryContainer() {
+    async function buildGallery() {
         const container = document.createElement('div');
         container.className = 'image-gallery-container';
         container.style.cssText = `
@@ -5284,11 +5297,11 @@
      * @param {string} targetImageId - 目标图片 ID
      * @param {number} token - 并发控制令牌
      */
-    async function initViewerWithBestPractices(imageData, container, targetImageId, token) {
+    async function initViewer(imageData, container, targetImageId, token) {
         // 最终检查是否被新调用取代
         if (isPreviewStale(token)) {
             logLog('预览操作已被取代，跳过 Viewer 实例创建');
-            cleanupViewerResources(container);
+            destroyViewer(container);
             return;
         }
             
@@ -5320,7 +5333,7 @@
                 // UI组件
                 button: true,
                 navbar: true,
-                toolbar: getOptimizedToolbarConfig(),
+                toolbar: toolbarConfig(),
                 title: false,
                 
                 // 行为配置
@@ -5388,8 +5401,8 @@
                 
                 hidden() {
                     logLog('Viewer.js 已隐藏');
-                    viewerInstance = null; // Viewer.js 已自毁，避免 cleanupViewerResources 重复销毁
-                    cleanupViewerResources(container);
+                    viewerInstance = null; // Viewer.js 已自毁，避免 destroyViewer 重复销毁
+                    destroyViewer(container);
                 },
                 
                 play() {
@@ -5444,7 +5457,7 @@
             
         } catch (error) {
             logError('Viewer.js', `初始化过程中发生错误: ${error.message || error}`);
-            await handleViewerInitializationFailure(container, imageData, token);
+            await fallbackViewer(container, imageData, token);
         }
     }
 
@@ -5452,7 +5465,7 @@
      * 获取优化的工具栏配置
      * @returns {Object} 工具栏配置
      */
-    function getOptimizedToolbarConfig() {
+    function toolbarConfig() {
         return {
             zoomIn: 1,
             zoomOut: 1,
@@ -5478,16 +5491,16 @@
      * @param {Object} imageData - 图片数据
      * @param {number} token - 并发控制令牌
      */
-    async function handleViewerInitializationFailure(container, imageData, token) {
+    async function fallbackViewer(container, imageData, token) {
         // 检查是否被新调用取代
         if (isPreviewStale(token)) {
             logLog('预览操作已被取代，跳过失败处理');
-            cleanupViewerResources(container);
+            destroyViewer(container);
             return;
         }
             
         // 清理容器并释放 Blob URL
-        cleanupViewerResources(container);
+        destroyViewer(container);
             
         // 启用基础图片查看器作为兜底方案
         logLog('启用基础图片查看器作为替代方案');
@@ -5497,7 +5510,7 @@
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob) {
                 const url = URL.createObjectURL(blob);
-                showBasicImageViewer({ blobUrl: url, originalName: imageData.name });
+                showBasicViewer({ blobUrl: url, originalName: imageData.name });
             } else {
                 logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
             }
@@ -5511,7 +5524,7 @@
      * @param {GalleryContainer} container - 容器元素
      * @param {boolean} [skipViewerDestroy=false] - 跳过 Viewer 实例销毁（批量清理时由调用方统一销毁）
      */
-    function cleanupViewerResources(container, skipViewerDestroy = false) {
+    function destroyViewer(container, skipViewerDestroy = false) {
         // 重入防护：destroy() 可能触发 hidden 回调导致递归调用
         if (container && container._cleanedUp) return;
         if (container) container._cleanedUp = true;
@@ -5531,7 +5544,7 @@
                 container._timeoutIds = null;
             }
             // 释放所有临时 blob URL
-            revokeBlobUrlsInContainer(container);
+            revokeBlobUrls(container);
             container.parentNode.removeChild(container);
         }
         logLog('Viewer.js 资源已清理');
@@ -5579,7 +5592,7 @@
         logLog('页面卸载：已重置Viewer加载Promise');
 
         // 清理所有残留的处理遮罩层
-        const cleanedOverlays = cleanupAllProcessingOverlays();
+        const cleanedOverlays = clearOverlays();
         if (cleanedOverlays > 0) {
             logLog(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
         }
@@ -5633,7 +5646,7 @@
             smartClearCanvasPools();
             
             // 清理残留的处理遮罩层
-            cleanupAllProcessingOverlays();
+            clearOverlays();
             
             logLog('页面隐藏：已执行智能Canvas池清理');
         } else {
@@ -6031,11 +6044,11 @@
     
     /**
      * 解析 RGB 颜色字符串，支持多种格式：
-     *   - rgb(128, 200, 100)   传统逗号分隔
-     *   - rgb(128 200 100)     现代空格分隔
-     *   - 128, 200, 100        纯数字逗号（设计工具常用）
-     *   - 128 200 100          纯数字空格
-     *   - #80C864 / 80C864     HEX 格式
+     *   - rgb(128, 200, 100) 传统逗号分隔
+     *   - rgb(128 200 100)   现代空格分隔
+     *   - 128, 200, 100      纯数字逗号
+     *   - 128 200 100        纯数字空格
+     *   - #80C864 / 80C864   HEX 格式
      * 返回 {r,g,b} 或 null（无法解析时）
      */
     function parseColor(input) {
@@ -6156,7 +6169,7 @@
             });
         }
             
-        // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件
+        // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件与空白区域勾选
         const imageList = document.getElementById('imageList');
         if (imageList) {
             imageList.addEventListener('click', function(event) {
@@ -6166,15 +6179,28 @@
                     event.stopPropagation();
                     const operation = actionButton.getAttribute('data-operation');
                     const imageItem = actionButton.closest('.image-item');
-                    
+
                     if (imageItem && operation) {
                         const imageId = imageItem.dataset.id;
-                        
+
                         if (operation === 'delete') {
                             deleteSingleImage(imageId);
                         } else {
                             processSingle(imageId, operation);
                         }
+                    }
+                    return;
+                }
+
+                // 点击 image-item 空白区域（非复选框、非缩略图）时切换勾选状态
+                const imageItem = event.target.closest('.image-item');
+                if (imageItem &&
+                    !event.target.closest('.select-checkbox') &&
+                    !event.target.closest('.thumbnail-container')) {
+                    const checkbox = imageItem.querySelector('.select-checkbox');
+                    if (checkbox) {
+                        // 程序化点击复选框，利用已有的 change 事件处理 toggleSelect
+                        checkbox.click();
                     }
                 }
             });
@@ -6211,7 +6237,7 @@
                     }
                 } else {
                     // 关闭时断开 ResizeObserver，避免不可见时持续响应 resize
-                    disconnectColorPickerObserver();
+                    disconnectColorPicker();
                 }
             });
             
@@ -6221,7 +6247,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     settingsContainer.style.display = 'none';
-                    disconnectColorPickerObserver();
+                    disconnectColorPicker();
                 });
             }
         }
@@ -6428,6 +6454,7 @@
         bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; });
         bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
         bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+        bindToggle('timer-toggle', 'processingTimer', (v) => { timerEnabled = v; });
 
         // 清除 localStorage 按钮
         document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
@@ -6470,8 +6497,8 @@
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('./sw.js', { scope: './' })
-                .then(reg => console.log('[PWA] Service Worker 已注册:', reg.scope))
-                .catch(err => console.warn('[PWA] Service Worker 注册失败:', err));
+                .then(reg => logLog('[PWA] Service Worker 已注册:', reg.scope))
+                .catch(err => logWarn('PWA', `Service Worker 注册失败: ${err.message || err}`));
         });
     }
 </script>
