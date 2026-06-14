@@ -6169,7 +6169,7 @@
             });
         }
             
-        // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件
+        // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件与空白区域勾选
         const imageList = document.getElementById('imageList');
         if (imageList) {
             imageList.addEventListener('click', function(event) {
@@ -6179,15 +6179,28 @@
                     event.stopPropagation();
                     const operation = actionButton.getAttribute('data-operation');
                     const imageItem = actionButton.closest('.image-item');
-                    
+
                     if (imageItem && operation) {
                         const imageId = imageItem.dataset.id;
-                        
+
                         if (operation === 'delete') {
                             deleteSingleImage(imageId);
                         } else {
                             processSingle(imageId, operation);
                         }
+                    }
+                    return;
+                }
+
+                // 点击 image-item 空白区域（非复选框、非缩略图）时切换勾选状态
+                const imageItem = event.target.closest('.image-item');
+                if (imageItem &&
+                    !event.target.closest('.select-checkbox') &&
+                    !event.target.closest('.thumbnail-container')) {
+                    const checkbox = imageItem.querySelector('.select-checkbox');
+                    if (checkbox) {
+                        // 程序化点击复选框，利用已有的 change 事件处理 toggleSelect
+                        checkbox.click();
                     }
                 }
             });
