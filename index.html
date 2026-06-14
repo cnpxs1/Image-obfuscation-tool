@@ -5923,7 +5923,8 @@
             
             showBatchStatus(successCount, failureCount, '刷新');
             
-            logInfo('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
+            const logFn = failureCount === 0 ? logLog : failureCount === totalCount ? logError : logWarn;
+            logFn('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
             logError('缩略图刷新', `刷新缩略图过程出错: ${error.message || error}`);
             showTempStatus('❌ 刷新缩略图失败', 3000);
@@ -6648,7 +6649,16 @@
 
         // 缓存方案下拉菜单：保存偏好到 localStorage，下次加载时生效
         bindSelect('cache-backend-select', 'cacheBackend', async (v) => {
-            // 实时切换存储后端（清空旧缓存，初始化新后端）
+            // 有已导入图片时需用户确认（初始化时 images 为空，不会弹窗）
+            if (images.length > 0) {
+                const label = v === 'auto' ? 'Auto' : (v === 'cache-api' ? 'Cache API' : 'IndexedDB');
+                if (!confirm(`切换缓存方案将迁移全部 ${images.length} 张图片的缓存数据，是否继续？\n\n目标方案：${label}`)) {
+                    const el = document.getElementById('cache-backend-select');
+                    if (el) el.value = storage.preference;
+                    saveSetting('cacheBackend', storage.preference);
+                    return;
+                }
+            }
             try {
                 await storage.reinit(v);
                 logLog(`缓存方案已切换至: ${v === 'auto' ? 'Auto (实际使用 ' + (storage.activeBackend === 'cache-api' ? 'Cache API' : 'IndexedDB') + ')' : (v === 'cache-api' ? 'Cache API' : 'IndexedDB')}`);
