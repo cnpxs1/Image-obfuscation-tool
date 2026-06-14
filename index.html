@@ -1818,56 +1818,35 @@
         async reinit(newPreference) {
             this.preference = newPreference;
 
-            //第一步：读取旧后端所有数据到内存（Map<key, Blob>），用于后续迁移
+            //读取旧后端所有数据
             const oldData = new Map();
             try {
                 if (this.activeBackend === 'cache-api' && this.backend) {
                     const keys = await this.backend.keys();
                     for (const request of keys) {
                         try {
-                            // Cache API 的 key 是完整 URL，提取末尾文件名部分作为统一 key
-                            const fullUrl = typeof request === 'string' ? request : request.url;
-                            const normalizedKey = fullUrl.includes('/')
-                                ? fullUrl.substring(fullUrl.lastIndexOf('/') + 1)
-                                : fullUrl;
-                            const response = await this.backend.match(request);
-                            if (response) {
-                                const blob = await response.blob();
-                                oldData.set(normalizedKey, blob);
-                            }
-                        } catch (e) { /* 单条读取失败跳过，继续处理下一条 */ }
+                            const key = (typeof request === 'string' ? request : request.url).split('/').pop();
+                            const res = await this.backend.match(request);
+                            if (res) oldData.set(key, await res.blob());
+                        } catch (e) { /* 跳过单条失败 */ }
                     }
                 } else if (this.activeBackend === 'indexeddb' && this.db) {
-                    // IndexedDB 批量读取所有键和值
                     await new Promise((resolve, reject) => {
                         const tx = this.db.transaction([this.storeName], 'readonly');
-                        const store = tx.objectStore(this.storeName);
-                        const keysReq = store.getAllKeys();
-                        const valuesReq = store.getAll();
-                        tx.onerror = () => reject(tx.error);
-                        // 等待两个请求都完成
+                        const s = tx.objectStore(this.storeName);
                         Promise.all([
-                            new Promise(r => {
-                                keysReq.onsuccess = () => r(keysReq.result);
-                                keysReq.onerror = () => r([]);
-                            }),
-                            new Promise(r => {
-                                valuesReq.onsuccess = () => r(valuesReq.result);
-                                valuesReq.onerror = () => r([]);
-                            })
+                            new Promise(r => { const req = s.getAllKeys(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); }),
+                            new Promise(r => { const req = s.getAll(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); })
                         ]).then(([keys, values]) => {
-                            keys.forEach((k, i) => {
-                                if (values[i] !== undefined) {
-                                    oldData.set(k, values[i]);
-                                }
-                            });
+                            keys.forEach((k, i) => { if (values[i] !== undefined) oldData.set(k, values[i]); });
                             resolve();
-                        }).catch(() => resolve()); // 读取失败降级为空迁移
+                        }).catch(() => resolve());
+                        tx.onerror = () => reject(tx.error);
                     });
                 }
-            } catch (e) { /* 读取旧数据失败，降级为空迁移 */ }
+            } catch (e) { /* 读取失败降级为空迁移 */ }
 
-            //第二步：清空旧后端
+            //清空旧后端
             try {
                 if (this.activeBackend === 'cache-api' && this.backend) {
                     const keys = await this.backend.keys();
@@ -1879,42 +1858,33 @@
                 }
             } catch (e) { /* 清理失败不影响切换 */ }
 
-            //第三步：重置状态并初始化新后端
+            //初始化新后端
             this.backend = null;
             this.db = null;
             this.activeBackend = '';
             this.ready = this._init();
             await this.ready;
 
-            //第四步：将旧数据写回新后端
+            //迁移数据到新后端
             if (oldData.size > 0) {
-                let migrated = 0, failed = 0;
-                for (const [key, blob] of oldData) {
-                    try {
-                        if (this.backend) {
-                            const response = new Response(blob, {
+                const results = await Promise.allSettled(
+                    [...oldData].map(([key, blob]) =>
+                        this.backend
+                            ? this.backend.put(key, new Response(blob, {
                                 headers: { 'Content-Type': blob.type || 'image/png' }
-                            });
-                            await this.backend.put(key, response);
-                        } else if (this.db) {
-                            await this._dbTransaction('readwrite', store => store.put(blob, key));
-                        }
-                        migrated++;
-                    } catch (e) {
-                        failed++;
-                    }
-                }
+                              }))
+                            : this._dbTransaction('readwrite', store => store.put(blob, key))
+                    )
+                );
+                const migrated = results.filter(r => r.status === 'fulfilled').length;
+                const failed = results.filter(r => r.status === 'rejected').length;
                 if (migrated > 0) {
                     logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
                 }
             }
 
-            //第五步：刷新缩略图（数据已迁移，缩略图可以从新后端加载）
-            if (images.length > 0) {
-                if (typeof refreshAllThumbnails === 'function') {
-                    await refreshAllThumbnails();
-                }
-            }
+            //刷新缩略图
+            if (images.length > 0) await refreshAllThumbnails();
         }
 
         async _initIndexedDB() {
