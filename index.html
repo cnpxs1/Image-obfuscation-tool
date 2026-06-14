@@ -230,7 +230,7 @@
             z-index: 999; /* 低于图片查看器（基础查看器 10000，Viewer.js modal 通常>1000） */
             display: none;
             cursor: default;
-            white-space: nowrap;/* 禁止换行 */
+            white-space: nowrap; /* 禁止换行 */
         }
 
         /* 公共气泡样式 */
@@ -439,7 +439,7 @@
             flex-wrap: nowrap;
             width: calc(180px + 0.6rem); /* 3 个按钮宽度 (60px*3) + 2 个间隙 (0.3rem*2) */
         }
-        
+
         /* 通用开关样式（不含颜色） */
         .toggle-switch-container {
             display: inline-flex;
@@ -465,14 +465,17 @@
             transition: 0.3s;
             flex-shrink: 0;
         }
+
         .toggle-switch input {
             opacity: 0;
             position: absolute;
         }
+
         .toggle-slider {
             position: absolute;
             inset: 0;
         }
+
         .toggle-slider::before {
             content: "";
             position: absolute;
@@ -485,13 +488,16 @@
             background: #fff;
             transition: 0.3s;
         }
+
         .toggle-switch input:checked + .toggle-slider::before {
             transform: translate(calc(2rem + 2px), -50%);
         }
+
         .toggle-switch-text {
             position: relative;
             top: -1px;
         }
+
         .toggle-switch-text::before {
             margin-right: 0.5rem;
         }
@@ -825,6 +831,7 @@
                 flex-direction: column;
                 gap: 8px;
             }
+
             .setting-info {
                 flex: none;
                 border-right: none;
@@ -832,13 +839,14 @@
                 padding-right: 0;
                 padding-bottom: 8px;
             }
+
             .setting-controls > div:not(#color-picker-container) > div:not(#quality-row) {
                 justify-content: space-between;
                 width: 100%;
             }
         }
 
-        /* ========== 日志悬浮按钮 ========== */
+        /* 日志悬浮按钮 */
         .log-fab {
             position: fixed;
             right: 5px;
@@ -878,7 +886,7 @@
             text-align: center;
         }
 
-        /* ========== 日志浮动面板 ========== */
+        /* 日志浮动面板 */
         .log-panel-overlay {
             position: fixed;
             inset: 0;
@@ -891,10 +899,12 @@
             visibility: hidden;
             transition: opacity 0.2s ease, visibility 0.2s ease;
         }
+
         .log-panel-overlay.open {
             opacity: 1;
             visibility: visible;
         }
+
         .log-panel {
             background: #fff;
             border-radius: 12px;
@@ -910,6 +920,7 @@
         .log-panel-overlay.open .log-panel {
             transform: scale(1);
         }
+
         .log-panel-header {
             display: flex;
             align-items: center;
@@ -946,6 +957,7 @@
         .log-panel-close:hover {
             background: #f5f5f5;
         }
+
         .log-panel-list {
             flex: 1;
             overflow-y: auto;
@@ -954,6 +966,7 @@
             overflow-anchor: none;
             scroll-behavior: auto;
         }
+
         .log-panel-item {
             display: flex;
             align-items: baseline;
@@ -967,6 +980,7 @@
             from { opacity: 0; transform: translateY(-6px); }
             to   { opacity: 1; transform: translateY(0); }
         }
+
         .log-panel-item .log-timestamp {
             color: #999;
             font-size: 12px;
@@ -990,18 +1004,21 @@
             text-align: right;
             word-break: break-word;
         }
+
         .log-panel-item.level-error { color: #d81e06; }
         .log-panel-item.level-error .log-file { color: #d81e06; }
         .log-panel-item.level-warn  { color: #ec7a40; }
         .log-panel-item.level-warn  .log-file { color: #ec7a40; }
         .log-panel-item.level-info { color: #1296db; }
         .log-panel-item.level-info .log-file { color: #1296db; }
+
         .log-panel-empty {
             text-align: center;
             color: #999;
             padding: 40px 16px;
             font-size: 14px;
         }
+
         .log-panel-footer {
             display: flex;
             align-items: center;
@@ -1010,6 +1027,7 @@
             border-top: 1px solid #eee;
             flex-shrink: 0;
         }
+
         .log-stats {
             display: flex;
             gap: 8px;
@@ -1029,6 +1047,7 @@
         .log-stat-btn:hover { background: #f0f0f0; }
         .log-stat-btn.active { border-color: currentColor; background: #eee; }
         .log-stat-btn svg { width: 14px; height: 14px; }
+
         .log-clear-btn {
             padding: 6px 16px;
             background: #d81e06;
@@ -1040,14 +1059,16 @@
         }
         .log-clear-btn:hover { background: #b71a05; }
 
-        /* ========== 移动端适配 ========== */
+        /* 移动端适配 */
         @media screen and (max-width: 768px) {
             .log-panel {
                 width: 90vw;
                 max-width: 90vw;
                 max-height: 70vh;
             }
+
             .log-panel-list { max-height: none; }
+
             .log-panel-item {
                 font-size: 14px;
                 line-height: 1.5;
@@ -1067,7 +1088,7 @@
             justify-content: center;
             cursor: pointer;
         }
-        
+
         .image-item.list-view {
             display: flex;
             align-items: center;
@@ -1077,19 +1098,19 @@
             grid-column: 1 / -1;
             box-sizing: border-box;
         }
-        
+
         .image-item.list-view .image-info {
             flex: 1;
             text-align: left;
             margin-top: 0;
             min-height: auto;
         }
-        
+
         .image-item.list-view .image-info .text-multiline {
             text-align: left;
             margin-bottom: 4px;
         }
-        
+
         .image-item.list-view .image-info-row,
         .image-item.list-view .file-size,
         .image-item.list-view .status-badge {
@@ -1097,12 +1118,12 @@
             display: inline-block;
             margin-right: 12px;
         }
-        
+
         .image-item.list-view .image-actions {
             margin-top: 0;
             flex-shrink: 0;
         }
-        
+
         .image-item.list-view .select-checkbox {
             position: relative;
             top: auto;
@@ -1110,7 +1131,7 @@
             margin-right: 8px;
             flex-shrink: 0;
         }
-        
+
         /* 列表视图下缩略图占位符样式 */
         .thumbnail-placeholder {
             width: 100%;
@@ -1123,12 +1144,12 @@
             background: #f5f5f5;
             border-radius: 4px;
         }
-        
+
         /* 颜色选择器容器直角样式 */
         #color-picker-box * {
             border-radius: 0 !important;
         }
-        
+
         @media (max-width: 768px) {
             .image-item.list-view {
                 flex-wrap: wrap;
@@ -1140,6 +1161,41 @@
             .image-item.list-view .action-group {
                 width: auto;
             }
+        }
+
+        /* 设置面板输入框统一样式 */
+        .setting-num-input {
+            width: 5ch; padding: 3px 5px; border: 1px solid #ccc;
+            border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;
+        }
+
+        .setting-rgb-input {
+            width: 3ch; padding: 3px 5px; border: 1px solid #ccc;
+            border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;
+        }
+
+        .setting-hex-input {
+            width: 7ch; padding: 3px 5px; border: 1px solid #ccc;
+            border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;
+        }
+
+        .setting-label {
+            font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;
+        }
+
+        .setting-select {
+            font-size: 0.85rem; padding: 2px 0; border: 1px solid #555;
+            border-radius: 4px; background: #fff; color: #333; cursor: pointer;
+        }
+
+        .sticky-controls-bar {
+            background: #fff; border-bottom: 1px solid #eee;
+            padding: 0; position: sticky; top: 0; z-index: 100;
+        }
+
+        .view-icon-span {
+            display: flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; cursor: pointer;
         }
     </style>
     <!-- Viewer.js 事件驱动加载 -->
@@ -1351,279 +1407,279 @@
     <script id="viewer-js-bootcdn" src="https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.js" defer onload="if(window.viewerResources){window.viewerResources.jsLoaded=true;window.viewerResources.currentCDN='bootcdn';window.viewerResources._notifyReady();}" onerror="loadCDNFallback('js','bootcdn')"></script>
 </head>
 <body>
-<!-- 缓存方案指示器 -->
-<div id="cacheIndicator">加载中...</div>
+    <!-- 缓存方案指示器 -->
+    <div id="cacheIndicator">加载中...</div>
 
-<main class="main-content" style="text-align: center;">
-    <h1>图片混淆工具</h1>
-    <div id="description-text" style="display: inline-block; max-width: 500px; margin: 0 auto;">
-        基于希尔伯特曲线的图片混淆。混淆算法保持像素的空间相关性，混淆图被压缩仍能保持色彩。
-    </div>
+    <main class="main-content" style="text-align: center;">
+        <h1>图片混淆工具</h1>
+        <div id="description-text" style="display: inline-block; max-width: 500px; margin: 0 auto;">
+            基于希尔伯特曲线的图片混淆。混淆算法保持像素的空间相关性，混淆图被压缩仍能保持色彩。
+        </div>
 
-    <!-- 设置容器 -->
-    <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
-        <!-- 关闭按钮./img/icons/close.svg -->
-        <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
-        </button>
-        <!-- 设置内容 -->
-        <div style="padding: 10px;">
-            <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
-            <div id="settings-content">
-                <!-- 图片质量设置 -->
-                <div class="setting-section">
-                    <div class="setting-info">
-                        <h4>图片质量</h4>
-                        <p>用于 JPG、WebP 等有损格式的输出质量控制</p>
-                    </div>
-                    <div class="setting-controls">
-                        <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
-                            <div id="quality-row" style="display: flex; align-items: center; gap: 3px;">
-                                <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
-                                <input type="range" id="quality-slider" min="1" max="100" value="100"
-                                    style="flex: 1; max-width: 200px; height: 6px;" />
-                                <input type="number" id="quality-input" min="1" max="100" value="100" aria-label="质量"
-                                    style="width: 5ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;" />
-                                <span style="font-size: 1rem; color: #000;">%</span>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="webp-lossless-toggle" class="setting-switch" />
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+        <!-- 设置容器 -->
+        <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
+            <!-- 关闭按钮./img/icons/close.svg -->
+            <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
+            </button>
+            <!-- 设置内容 -->
+            <div style="padding: 10px;">
+                <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
+                <div id="settings-content">
+                    <!-- 图片质量设置 -->
+                    <div class="setting-section">
+                        <div class="setting-info">
+                            <h4>图片质量</h4>
+                            <p>用于 JPG、WebP 等有损格式的输出质量控制</p>
                         </div>
-                    </div>
-                </div>
-
-                <hr class="setting-separator" />
-
-                <!-- 背景颜色设置 -->
-                <div class="setting-section">
-                    <div class="setting-info">
-                        <h4>背景色</h4>
-                        <p>用于 JPEG、BMP 等无透明通道的格式的背景填充</p>
-                    </div>
-                    <div class="setting-controls">
-                        <!-- 颜色选择器容器 -->
-                        <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 15px;">
-                            <!-- 色盘+色条，允许换行 -->
-                            <div style="display: flex; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
-                                <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
-                                <div id="color-picker-box"></div>
-                            </div>
-
-                            <!-- 颜色值输入框（宽度不足时换行） -->
-                            <div id="color-input-panel" style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
-                                <div style="display: flex; align-items: center; gap: 8px;">
-                                    <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
-                                    <input type="text" id="hex-input" placeholder="#FFFFFF"
-                                        style="width: 7ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;" />
+                        <div class="setting-controls">
+                            <div style="flex: 1; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 6px;">
+                                <div id="quality-row" style="display: flex; align-items: center; gap: 3px;">
+                                    <label for="quality-slider" style="font-size: 0.9rem; color: #888; white-space: nowrap;">质量</label>
+                                    <input type="range" id="quality-slider" min="1" max="100" value="100"
+                                        style="flex: 1; max-width: 200px; height: 6px;" />
+                                    <input type="number" id="quality-input" min="1" max="100" value="100" aria-label="质量"
+                                        class="setting-num-input" />
+                                    <span style="font-size: 1rem; color: #000;">%</span>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 4px;">
-                                    <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
-                                    <input type="text" id="rgb-r-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
-                                    <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
-                                    <input type="text" id="rgb-g-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
-                                    <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
-                                    <input type="text" id="rgb-b-input" placeholder="255"
-                                        style="width: 3ch; padding: 3px 5px; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;"
-                                        maxlength="3" />
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="webp-lossless-toggle" class="setting-switch" />
+                                        <span class="toggle-slider"></span>
+                                    </label>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <hr class="setting-separator" />
+                    <hr class="setting-separator" />
 
-                <!-- 调试设置 -->
-                <div class="setting-section">
-                    <div class="setting-info">
-                        <h4>调试</h4>
-                        <p>日志输出、存储行为与图片查看器配置</p>
+                    <!-- 背景颜色设置 -->
+                    <div class="setting-section">
+                        <div class="setting-info">
+                            <h4>背景色</h4>
+                            <p>用于 JPEG、BMP 等无透明通道的格式的背景填充</p>
+                        </div>
+                        <div class="setting-controls">
+                            <!-- 颜色选择器容器 -->
+                            <div id="color-picker-container" style="width: 100%; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 15px;">
+                                <!-- 色盘+色条，允许换行 -->
+                                <div style="display: flex; align-items: flex-start; gap: 15px; flex-wrap: wrap;">
+                                    <div id="color-preview" style="width: 25px; height: 25px; border: 2px solid #ddd; border-radius: 0; background-color: #ffffff; flex-shrink: 0;"></div>
+                                    <div id="color-picker-box"></div>
+                                </div>
+
+                                <!-- 颜色值输入框（宽度不足时换行） -->
+                                <div id="color-input-panel" style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
+                                        <input type="text" id="hex-input" placeholder="#FFFFFF"
+                                            class="setting-hex-input" />
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 4px;">
+                                        <label for="rgb-r-input" style="font-size: 0.9rem; color: #555;">R:</label>
+                                        <input type="text" id="rgb-r-input" placeholder="255"
+                                            class="setting-rgb-input"
+                                            maxlength="3" />
+                                        <label for="rgb-g-input" style="font-size: 0.9rem; color: #555;">G:</label>
+                                        <input type="text" id="rgb-g-input" placeholder="255"
+                                            class="setting-rgb-input"
+                                            maxlength="3" />
+                                        <label for="rgb-b-input" style="font-size: 0.9rem; color: #555;">B:</label>
+                                        <input type="text" id="rgb-b-input" placeholder="255"
+                                            class="setting-rgb-input"
+                                            maxlength="3" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="setting-controls">
-                        <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">存储配置</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
-                                    <span class="toggle-slider"></span>
-                                </label>
+
+                    <hr class="setting-separator" />
+
+                    <!-- 调试设置 -->
+                    <div class="setting-section">
+                        <div class="setting-info">
+                            <h4>调试</h4>
+                            <p>日志输出、存储行为与图片查看器配置</p>
+                        </div>
+                        <div class="setting-controls">
+                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="setting-label">存储配置</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="setting-label">Viewer.js</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="viewerjs-toggle" class="setting-switch" checked />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="setting-label">iro.js</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="setting-label">处理计时</span>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="timer-toggle" class="setting-switch" />
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <label for="cache-backend-select" class="setting-label">缓存方案</label>
+                                    <select id="cache-backend-select" class="setting-select">
+                                        <option value="auto">Auto</option>
+                                        <option value="cache-api">Cache API</option>
+                                        <option value="indexeddb">IndexedDB</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <label for="log-level-select" class="setting-label">日志级别</label>
+                                    <select id="log-level-select" class="setting-select">
+                                        <option value="off">off</option>
+                                        <option value="error">error</option>
+                                        <option value="warn">warn</option>
+                                        <option value="info" selected>info</option>
+                                        <option value="log">log</option>
+                                    </select>
+                                </div>
+                                <button id="clear-localstorage-btn" style="font-size: 1rem; color: #fff; background: #ff0000; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; align-self: flex-start;">清除配置</button>
                             </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">Viewer.js</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="viewerjs-toggle" class="setting-switch" checked />
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">iro.js</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">处理计时</span>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="timer-toggle" class="setting-switch" />
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <label for="cache-backend-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">缓存方案</label>
-                                <select id="cache-backend-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
-                                    <option value="auto">Auto</option>
-                                    <option value="cache-api">Cache API</option>
-                                    <option value="indexeddb">IndexedDB</option>
-                                </select>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 6px;">
-                                <label for="log-level-select" style="font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;">日志级别</label>
-                                <select id="log-level-select" style="font-size: 0.85rem; padding: 2px 0; border: 1px solid #555; border-radius: 4px; background: #fff; color: #333; cursor: pointer;">
-                                    <option value="off">off</option>
-                                    <option value="error">error</option>
-                                    <option value="warn">warn</option>
-                                    <option value="info" selected>info</option>
-                                    <option value="log">log</option>
-                                </select>
-                            </div>
-                            <button id="clear-localstorage-btn" style="font-size: 1rem; color: #fff; background: #ff0000; border: none; border-radius: 4px; padding: 2px 8px; cursor: pointer; align-self: flex-start;">清除配置</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="controls-section" >
-        <!-- 设置按钮 ./img/icons/settings.svg -->
-        <button id="settings-btn" class="icon-btn settings-btn" aria-label="高级设置">
-            <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200" fill="#333"><path fill-rule="evenodd" d="M115 25l3.3 23 6.1 2.8c2.5 1.3 5.2 2.7 7.5 4.2l5.5 3.6 22-8.6 14.8 24.8-18.6 14.2.6 6.9c.2 1.4.2 2.8.2 4.1s0 2.7-.2 4.1l-.6 6.9 18.6 14.2-14.7 24.8-22.2-8.6-5.5 3.6c-2.5 1.7-5 3.1-7.5 4.2l-6.1 2.8-3.3 23H85l-3.3-23-6.1-2.8c-2.5-1.3-5.2-2.7-7.5-4.2l-5.5-3.6-22 8.6-14.8-24.8 18.6-14.2-.6-6.9c-.2-1.4-.2-2.8-.2-4.1s0-2.7.2-4.1l.6-6.9-18.6-14.2 14.7-24.8 22.2 8.6 5.5-3.6c2.5-1.7 5-3.1 7.5-4.2l6.1-2.8L85 25h30m1.7-12.5H83.3c-5.3 0-9.7 3.8-10.5 8.8l-2.5 18.1c-3.1 1.4-6.1 3.1-9.2 5.2l-17.7-6.9c-1.2-.5-2.5-.6-3.7-.6-3.8 0-7.3 1.9-9.1 5.2l-16.7 28.1c-2.7 4.4-1.6 10.2 2.5 13.3l14.8 11.3c-.2 1.9-.3 3.6-.3 5.2s0 3.3.3 5.2l-14.8 11.3c-4.1 3.1-5.2 8.6-2.5 13.3l16.6 28c1.9 3.3 5.5 5.3 9.2 5.3 1.3 0 2.3-.2 3.6-.6l17.7-6.9c3 2 6.1 3.8 9.2 5.2l2.7 18c.6 5 5.2 8.9 10.5 8.9h33.4c5.3 0 9.7-3.8 10.5-8.8l2.7-18.1c3.1-1.4 6.1-3.1 9.2-5.2l17.7 6.9c1.2.5 2.5.6 3.7.6 3.8 0 7.3-1.9 9.1-5.2l16.7-28.3c2.5-4.5 1.4-10-2.7-13.1l-14.8-11.2c.2-1.6.3-3.3.3-5.2s-.2-3.6-.3-5.2l14.8-11.2c4.1-3.1 5.2-8.6 2.5-13.3l-16.6-28c-1.9-3.3-5.5-5.3-9.2-5.3-1.3 0-2.3.2-3.6.6l-17.7 6.9c-3-2-6.1-3.8-9.2-5.2l-2.7-18c-.8-5.2-5.2-8.9-10.5-8.9M100 62.5a37.5 37.5 0 1 0 0 75 37.5 37.5 0 1 0 0-75zm0 12.5a25 25 0 1 0 0 50 25 25 0 1 0 0-50z"/></svg>
-        </button>
-        <!-- fflate 打包下载开关 -->
-        <div class="toggle-switch-container zip-download-container">
-            <label class="toggle-switch">
-                <input type="checkbox" id="zip-download-toggle" aria-label="打包下载开关" />
-                <span class="toggle-slider"></span>
+        <div class="controls-section" >
+            <!-- 设置按钮 ./img/icons/settings.svg -->
+            <button id="settings-btn" class="icon-btn settings-btn" aria-label="高级设置">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 200 200" fill="#333"><path fill-rule="evenodd" d="M115 25l3.3 23 6.1 2.8c2.5 1.3 5.2 2.7 7.5 4.2l5.5 3.6 22-8.6 14.8 24.8-18.6 14.2.6 6.9c.2 1.4.2 2.8.2 4.1s0 2.7-.2 4.1l-.6 6.9 18.6 14.2-14.7 24.8-22.2-8.6-5.5 3.6c-2.5 1.7-5 3.1-7.5 4.2l-6.1 2.8-3.3 23H85l-3.3-23-6.1-2.8c-2.5-1.3-5.2-2.7-7.5-4.2l-5.5-3.6-22 8.6-14.8-24.8 18.6-14.2-.6-6.9c-.2-1.4-.2-2.8-.2-4.1s0-2.7.2-4.1l.6-6.9-18.6-14.2 14.7-24.8 22.2 8.6 5.5-3.6c2.5-1.7 5-3.1 7.5-4.2l6.1-2.8L85 25h30m1.7-12.5H83.3c-5.3 0-9.7 3.8-10.5 8.8l-2.5 18.1c-3.1 1.4-6.1 3.1-9.2 5.2l-17.7-6.9c-1.2-.5-2.5-.6-3.7-.6-3.8 0-7.3 1.9-9.1 5.2l-16.7 28.1c-2.7 4.4-1.6 10.2 2.5 13.3l14.8 11.3c-.2 1.9-.3 3.6-.3 5.2s0 3.3.3 5.2l-14.8 11.3c-4.1 3.1-5.2 8.6-2.5 13.3l16.6 28c1.9 3.3 5.5 5.3 9.2 5.3 1.3 0 2.3-.2 3.6-.6l17.7-6.9c3 2 6.1 3.8 9.2 5.2l2.7 18c.6 5 5.2 8.9 10.5 8.9h33.4c5.3 0 9.7-3.8 10.5-8.8l2.7-18.1c3.1-1.4 6.1-3.1 9.2-5.2l17.7 6.9c1.2.5 2.5.6 3.7.6 3.8 0 7.3-1.9 9.1-5.2l16.7-28.3c2.5-4.5 1.4-10-2.7-13.1l-14.8-11.2c.2-1.6.3-3.3.3-5.2s-.2-3.6-.3-5.2l14.8-11.2c4.1-3.1 5.2-8.6 2.5-13.3l-16.6-28c-1.9-3.3-5.5-5.3-9.2-5.3-1.3 0-2.3.2-3.6.6l-17.7 6.9c-3-2-6.1-3.8-9.2-5.2l-2.7-18c-.8-5.2-5.2-8.9-10.5-8.9M100 62.5a37.5 37.5 0 1 0 0 75 37.5 37.5 0 1 0 0-75zm0 12.5a25 25 0 1 0 0 50 25 25 0 1 0 0-50z"/></svg>
+            </button>
+            <!-- fflate 打包下载开关 -->
+            <div class="toggle-switch-container zip-download-container">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="zip-download-toggle" aria-label="打包下载开关" />
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-switch-text zip-download-text"></span>
+            </div>
+            <!-- 保存格式选择 -->
+            <label for="save-format-select" class="normal_button" style="background-color: #4CAF50;color:#fff;display:inline-flex;align-items:center;justify-content:center;height:2rem;font-size:1rem;padding:0 0.5rem;margin:0.3rem;border:0;border-radius:6px;cursor:pointer;">保存格式:
+                <select id="save-format-select" style="margin-left:0.3rem;background-color:white;color:#333;height:1.5rem;border:1px solid #ccc;border-radius:4px;padding:0 0.2rem;font-size:0.9rem;cursor:pointer;">
+                    <option value="png">PNG</option>
+                    <option value="jpg">JPG</option>
+                    <option value="bmp">BMP</option>
+                    <option value="webp">WebP</option>
+                </select>
             </label>
-            <span class="toggle-switch-text zip-download-text"></span>
         </div>
-        <!-- 保存格式选择 -->
-        <label for="save-format-select" class="normal_button" style="background-color: #4CAF50;color:#fff;display:inline-flex;align-items:center;justify-content:center;height:2rem;font-size:1rem;padding:0 0.5rem;margin:0.3rem;border:0;border-radius:6px;cursor:pointer;">保存格式:
-            <select id="save-format-select" style="margin-left:0.3rem;background-color:white;color:#333;height:1.5rem;border:1px solid #ccc;border-radius:4px;padding:0 0.2rem;font-size:0.9rem;cursor:pointer;">
-                <option value="png">PNG</option>
-                <option value="jpg">JPG</option>
-                <option value="bmp">BMP</option>
-                <option value="webp">WebP</option>
-            </select>
-        </label>
-    </div>
 
-    <!-- 拖拽区域 -->
-    <div class="drop-zone" id="dropZone">
-        <input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="display: none;" />
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
-            <p style="margin-bottom: 0.5rem;">拖拽图片文件到这里，或点击选择文件</p>
-            <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持 PNG、JPG、BMP、WebP 及 ZIP 批量导入</p>
-            <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
-                添加图片
-            </span>
-        </div>
-    </div>
-
-    <div style="background: #fff; border-bottom: 1px solid #eee; padding: 0 0; position: sticky; top: 0; z-index: 100;">
-        <div class="controls-section">
-            <button id="encrypt-btn" class="normal_button" style="background-color: #7928c1;color:#fff;min-width: 65px;">混 淆</button>
-            <button id="decrypt-btn" class="normal_button" style="background-color: #eb3678;color:#fff;min-width: 65px;">解混淆</button>
-            <button id="restore-btn" class="normal_button" style="background-color: #fb773c;color:#fff;min-width: 65px;">还 原</button>
-            <button id="select-all" class="normal_button" style="background-color: #0091ff;color:#fff;min-width: 65px;">全 选</button>
-            <button id="clear-selection" class="normal_button" style="background-color: #666;color:#fff;">清空选择</button>
-            <button id="clear-all" class="normal_button" style="background-color: #ff1100;color:#fff;">删除所选</button>
-            <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所有</button>
-        </div>
-    </div>
-
-    <!-- 图片状态容器 -->
-    <div class="image-manager-container">
-        <!-- 批量处理状态显示区域 -->
-        <div class="batch-status" id="batchStatus"></div>
-
-        <!-- 图片计数器：实时显示当前加载的图片总数 -->
-        <div class="image-counter" id="imageCounter">当前共 0 张图片</div>
-    </div>
-
-    <!-- 列表管理按钮容器 -->
-    <div class="list-management-container" style="display: flex; justify-content: flex-end; max-width: 1200px; margin: 0 auto 10px;">
-        <!-- 视图切换按钮：网格/列表视图切换 -->
-        <button id="view-toggle-btn" class="icon-btn refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
-            <!-- 网格视图图标 ./img/icons/grid.svg -->
-            <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer;" id="grid-view-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
-                    <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65">
-                        <rect x="129" y="129" width="317" height="317" rx="51"/>
-                        <rect x="578" y="129" width="317" height="317" rx="51"/>
-                        <rect x="129" y="578" width="317" height="317" rx="51"/>
-                        <rect x="578" y="578" width="317" height="317" rx="51"/>
-                    </g>
-                </svg>
-            </span>
-            <!-- 分隔线 -->
-            <span class="divider"></span>
-            <!-- 列表视图图标 ./img/icons/list.svg -->
-            <span style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; cursor: pointer; opacity: 0.4;" id="list-view-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
-                    <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65" stroke-linecap="round">
-                        <rect x="130" y="125" width="324" height="324" rx="65"/>
-                        <rect x="130" y="575" width="324" height="324" rx="65"/>
-                        <path d="M606 220L894 220M606 380L894 380M606 640L894 640M606 800L894 800"/>
-                    </g>
-                </svg>
-            </span>
-        </button>
-
-        <button id="refresh-list-btn" class="icon-btn refresh-btn" title="刷新列表">
-            <!-- 刷新预览图图标 ./img/icons/refresh.svg -->
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 26px; height: 26px;">
-                <path fill="#333" d="M175.7955,110.0905c.5396-4.0352-2.2959-7.7431-6.3314-8.2793-4.0336-.5377-7.7431,2.2959-8.2793,6.3314-2.0305,15.2155-9.6307,29.0334-21.399,38.9082-12.5682,10.546-28.4896,15.567-44.8336,14.1371s-31.1516-9.1394-41.6976-21.7076c-10.546-12.5682-15.567-28.4896-14.1371-44.8336s9.1394-31.1516,21.7076-41.6976,28.4896-15.567,44.8336-14.1371c12.5263,1.0959,24.1471,5.8828,33.6409,13.7151l-9.1128,7.6466c-3.2352,2.7147-1.7666,7.9736,2.4058,8.6194l30.3253,4.6917c2.9371.454,5.602-1.7821,5.663-4.7519l.6436-30.6777c.0885-4.2211-4.8355-6.5807-8.0707-3.866l-10.4039,8.7299c-12.1366-10.7717-27.3449-17.3495-43.8066-18.7898-20.2656-1.773-40.0102,4.4516-55.5934,17.5275-15.5832,13.0759-25.1419,31.4396-26.9149,51.7052-1.773,20.2656,4.4516,40.0102,17.5275,55.5934s31.4396,25.1419,51.7052,26.9149c20.2656,1.773,40.0102-4.4516,55.5935-17.5275,14.5933-12.2452,24.0168-29.3826,26.5344-48.2525Z"/>
-            </svg>
-        </button>
-    </div>
-
-    <!-- 图片列表容器：以网格形式展示所有已添加的图片项 -->
-    <div class="image-list" id="imageList">
-        <!-- 空状态提示：当列表无图片时显示 -->
-        <div class="empty-state" id="emptyState"></div>
-    </div>
-
-    <!-- 日志悬浮按钮 -->
-    <div class="log-fab" id="logFab" style="display:none;"></div>
-
-    <!-- 日志浮动面板 -->
-    <div class="log-panel-overlay" id="logPanelOverlay">
-        <div class="log-panel" id="logPanel">
-            <div class="log-panel-header">
-                <span class="log-panel-title">日志</span>
-                <button class="log-panel-close" id="logPanelClose" title="关闭">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
-                </button>
-            </div>
-            <div class="log-panel-list" id="logPanelList"></div>
-            <div class="log-panel-footer">
-                <div class="log-stats" id="logStats"></div>
-                <button class="log-clear-btn" id="logClearBtn">清空日志</button>
+        <!-- 拖拽区域 -->
+        <div class="drop-zone" id="dropZone">
+            <input type="file" accept="image/*,.zip" id="add-images" class="ipt_btn" multiple style="display: none;" />
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;">
+                <p style="margin-bottom: 0.5rem;">拖拽图片文件到这里，或点击选择文件</p>
+                <p style="font-size: 0.9rem; color: #666; margin-top: 0; margin-bottom: 0.25rem;">支持 PNG、JPG、BMP、WebP 及 ZIP 批量导入</p>
+                <span class="normal_button" style="background-color: #ffbb00;color:#ffffff;display:inline-block; width: 85px; height: 38px; line-height: 38px; font-size: 19px;">
+                    添加图片
+                </span>
             </div>
         </div>
-    </div>
-</main>
+
+        <div class="sticky-controls-bar">
+            <div class="controls-section">
+                <button id="encrypt-btn" class="normal_button" style="background-color: #7928c1;color:#fff;min-width: 65px;">混 淆</button>
+                <button id="decrypt-btn" class="normal_button" style="background-color: #eb3678;color:#fff;min-width: 65px;">解混淆</button>
+                <button id="restore-btn" class="normal_button" style="background-color: #fb773c;color:#fff;min-width: 65px;">还 原</button>
+                <button id="select-all" class="normal_button" style="background-color: #0091ff;color:#fff;min-width: 65px;">全 选</button>
+                <button id="clear-selection" class="normal_button" style="background-color: #666;color:#fff;">清空选择</button>
+                <button id="clear-all" class="normal_button" style="background-color: #ff1100;color:#fff;">删除所选</button>
+                <button id="save-format-btn" class="normal_button" style="background-color: #4caf50;color:#fff;">保存所有</button>
+            </div>
+        </div>
+
+        <!-- 图片状态容器 -->
+        <div class="image-manager-container">
+            <!-- 批量处理状态显示区域 -->
+            <div class="batch-status" id="batchStatus"></div>
+
+            <!-- 图片计数器：实时显示当前加载的图片总数 -->
+            <div class="image-counter" id="imageCounter">当前共 0 张图片</div>
+        </div>
+
+        <!-- 列表管理按钮容器 -->
+        <div class="list-management-container" style="display: flex; justify-content: flex-end; max-width: 1200px; margin: 0 auto 10px;">
+            <!-- 视图切换按钮：网格/列表视图切换 -->
+            <button id="view-toggle-btn" class="icon-btn refresh-btn" title="切换视图" style="width: auto; padding: 0; display: flex;">
+                <!-- 网格视图图标 ./img/icons/grid.svg -->
+                <span class="view-icon-span" id="grid-view-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
+                        <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65">
+                            <rect x="129" y="129" width="317" height="317" rx="51"/>
+                            <rect x="578" y="129" width="317" height="317" rx="51"/>
+                            <rect x="129" y="578" width="317" height="317" rx="51"/>
+                            <rect x="578" y="578" width="317" height="317" rx="51"/>
+                        </g>
+                    </svg>
+                </span>
+                <!-- 分隔线 -->
+                <span class="divider"></span>
+                <!-- 列表视图图标 ./img/icons/list.svg -->
+                <span class="view-icon-span" style="opacity: 0.4;" id="list-view-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" style="width: 100%; height: 100%;">
+                        <g class="view-icon-path" stroke="#333" fill="none" stroke-width="65" stroke-linecap="round">
+                            <rect x="130" y="125" width="324" height="324" rx="65"/>
+                            <rect x="130" y="575" width="324" height="324" rx="65"/>
+                            <path d="M606 220L894 220M606 380L894 380M606 640L894 640M606 800L894 800"/>
+                        </g>
+                    </svg>
+                </span>
+            </button>
+
+            <button id="refresh-list-btn" class="icon-btn refresh-btn" title="刷新列表">
+                <!-- 刷新预览图图标 ./img/icons/refresh.svg -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" style="width: 26px; height: 26px;">
+                    <path fill="#333" d="M175.7955,110.0905c.5396-4.0352-2.2959-7.7431-6.3314-8.2793-4.0336-.5377-7.7431,2.2959-8.2793,6.3314-2.0305,15.2155-9.6307,29.0334-21.399,38.9082-12.5682,10.546-28.4896,15.567-44.8336,14.1371s-31.1516-9.1394-41.6976-21.7076c-10.546-12.5682-15.567-28.4896-14.1371-44.8336s9.1394-31.1516,21.7076-41.6976,28.4896-15.567,44.8336-14.1371c12.5263,1.0959,24.1471,5.8828,33.6409,13.7151l-9.1128,7.6466c-3.2352,2.7147-1.7666,7.9736,2.4058,8.6194l30.3253,4.6917c2.9371.454,5.602-1.7821,5.663-4.7519l.6436-30.6777c.0885-4.2211-4.8355-6.5807-8.0707-3.866l-10.4039,8.7299c-12.1366-10.7717-27.3449-17.3495-43.8066-18.7898-20.2656-1.773-40.0102,4.4516-55.5934,17.5275-15.5832,13.0759-25.1419,31.4396-26.9149,51.7052-1.773,20.2656,4.4516,40.0102,17.5275,55.5934s31.4396,25.1419,51.7052,26.9149c20.2656,1.773,40.0102-4.4516,55.5935-17.5275,14.5933-12.2452,24.0168-29.3826,26.5344-48.2525Z"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- 图片列表容器：以网格形式展示所有已添加的图片项 -->
+        <div class="image-list" id="imageList">
+            <!-- 空状态提示：当列表无图片时显示 -->
+            <div class="empty-state" id="emptyState"></div>
+        </div>
+
+        <!-- 日志悬浮按钮 -->
+        <div class="log-fab" id="logFab" style="display:none;"></div>
+
+        <!-- 日志浮动面板 -->
+        <div class="log-panel-overlay" id="logPanelOverlay">
+            <div class="log-panel" id="logPanel">
+                <div class="log-panel-header">
+                    <span class="log-panel-title">日志</span>
+                    <button class="log-panel-close" id="logPanelClose" title="关闭">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
+                    </button>
+                </div>
+                <div class="log-panel-list" id="logPanelList"></div>
+                <div class="log-panel-footer">
+                    <div class="log-stats" id="logStats"></div>
+                    <button class="log-clear-btn" id="logClearBtn">清空日志</button>
+                </div>
+            </div>
+        </div>
+    </main>
 
 <script>
     // =============================================
@@ -1655,7 +1711,7 @@
     /**
      * 检测浏览器是否支持WebP格式（带缓存优化）
      * @returns {Promise<boolean>} 是否支持WebP
-     * 
+     *
      * 优化：首次检测后缓存结果，避免重复创建Canvas检测
      */
     function isWebPSupported() {
@@ -1819,13 +1875,13 @@
         async reinit(newPreference) {
             this.preference = newPreference;
 
-            //解析 auto → 实际后端，同一后端无需迁移
+            // 解析 auto → 实际后端，同一后端无需迁移
             const effective = newPreference === 'auto'
                 ? (window.__cacheBackendAvail?.cacheApi ? 'cache-api' : (window.__cacheBackendAvail?.indexedDb ? 'indexeddb' : ''))
                 : newPreference;
             if (effective && effective === this.activeBackend) return;
 
-            //读取旧后端所有数据
+            // 读取旧后端所有数据
             const oldData = new Map();
             try {
                 if (this.activeBackend === 'cache-api' && this.backend) {
@@ -1853,7 +1909,7 @@
                 }
             } catch (e) { /* 读取失败降级为空迁移 */ }
 
-            //清空旧后端
+            // 清空旧后端
             try {
                 if (this.activeBackend === 'cache-api' && this.backend) {
                     const keys = await this.backend.keys();
@@ -1865,14 +1921,14 @@
                 }
             } catch (e) { /* 清理失败不影响切换 */ }
 
-            //初始化新后端
+            // 初始化新后端
             this.backend = null;
             this.db = null;
             this.activeBackend = '';
             this.ready = this._init();
             await this.ready;
 
-            //迁移数据到新后端（逐条写入，避免并发事务争抢）
+            // 迁移数据到新后端（逐条写入，避免并发事务争抢）
             if (oldData.size > 0) {
                 let migrated = 0, failed = 0;
                 for (const [key, blob] of oldData) {
@@ -1893,7 +1949,7 @@
                 }
             }
 
-            //刷新缩略图
+            // 刷新缩略图
             if (images.length > 0) await refreshAllThumbnails();
         }
 
@@ -1913,7 +1969,7 @@
                 };
             });
         }
-    
+
         async set(key, blob) {
             await this.ready;
             try {
@@ -1938,7 +1994,7 @@
                 throw storageErr;
             }
         }
-    
+
         /** @returns {Promise<Blob|null>} */
         async get(key) {
             await this.ready;
@@ -1950,7 +2006,7 @@
                 return this._dbTransaction('readonly', store => store.get(key));
             }
         }
-    
+
         async delete(key) {
             await this.ready;
             if (this.backend) {
@@ -1959,7 +2015,7 @@
                 return this._dbTransaction('readwrite', store => store.delete(key));
             }
         }
-    
+
         async clear() {
             await this.ready;
             if (this.backend) {
@@ -2207,13 +2263,16 @@
 
     // 全局存储实例
     const storage = new StorageAdapter();
-    
+
     /** @type {{ bind: Function, unbind: Function }|null} 移动端气泡关闭处理器 */
     let mobileTooltipCloser = null;
     /** @type {Function|null} 缓存指示器 touch 滚动监听器引用（防泄漏） */
     let cacheIndicatorTouchListeners = null;
 
-    /** 关闭除 currentEl 外的所有气泡，防止双气泡溢屏 */
+    /**
+     * 关闭除当前元素外的所有气泡提示，防止多个气泡同时显示导致界面溢出
+     * @param {HTMLElement} currentEl - 当前需要保留的气泡元素
+     */
     function dismissOtherTooltips(currentEl) {
         document.querySelectorAll('#cacheIndicator.tooltip-active, .text-tooltip.tooltip-active').forEach(el => {
             if (el !== currentEl) el.classList.remove('tooltip-active', 'edge-left', 'edge-right');
@@ -2234,12 +2293,12 @@
             indicator.textContent = cacheType;
             indicator.style.display = 'block';
             // 设置气泡提示数据
-            const tooltipText = cacheType === 'Cache API' 
-                ? '当前使用 Cache API 存储(性能更优)' 
+            const tooltipText = cacheType === 'Cache API'
+                ? '当前使用 Cache API 存储(性能更优)'
                 : '当前使用 IndexedDB 存储';
             indicator.setAttribute('data-tooltip', tooltipText);
             indicator.removeAttribute('title');
-            
+
             // 清理旧的监听器
             if (mobileTooltipCloser) {
                 mobileTooltipCloser.unbind();
@@ -2385,6 +2444,9 @@
 
     function startProcessingTimer(n, op) { processingTimer = { s: performance.now(), n, op: OP[op] }; }
 
+    /**
+     * 停止处理计时器，计算并输出耗时统计信息
+     */
     function stopProcessingTimer() {
         if (!timerEnabled) return; const t = processingTimer; if (!t) return;
         const e = performance.now() - t.s;
@@ -2406,6 +2468,11 @@
     let viewerInstance = null;
     /** @type {number} 预览取消标志 */
     let previewNonce = 0;
+    /**
+     * 检查预览令牌是否已过期，防止竞态条件下旧预览覆盖新预览
+     * @param {number} token - 预览令牌
+     * @returns {boolean} 令牌是否已过期
+     */
     function isPreviewStale(token) { return token !== previewNonce; }
     /** @type {string} 日志输出级别: 'error' | 'warn' | 'info' | 'log' */
     let logLevel = 'info';
@@ -2427,7 +2494,7 @@
     let isSwitchingViewMode = false;
     /** @type {ImageLazyLoader|null} 图片缩略图懒加载管理器 */
     let imageLazyLoader = null;
-    
+
     // ==================== 日志系统（四级：Error / Warn / Info / Log） ====================
 
     /** 日志最大数量限制 */
@@ -2726,11 +2793,17 @@
         document.getElementById('logPanelOverlay').classList.remove('open');
     }
 
+    /**
+     * 切换日志浮动面板的显示/隐藏状态
+     */
     function toggleLogPanel() {
         if (logPanelVisible) closeLogPanel();
         else openLogPanel();
     }
 
+    /**
+     * 清空所有日志记录并关闭日志面板
+     */
     function clearAllLogs() {
         LogManager.clear();
         renderedLogIds.clear();
@@ -2744,7 +2817,7 @@
 
     // ---- 事件绑定（日志面板） ----
     // （合并到下方 DOMContentLoaded 统一入口中）
-    
+
     // =============================================
     // 公共工具函数
     // =============================================
@@ -3054,7 +3127,7 @@
     function saveViewModePreference() {
         saveSetting('imageViewMode', currentViewMode);
     }
-    
+
     /**
      * 更新切换按钮的图标高亮状态
      */
@@ -3062,10 +3135,10 @@
         const gridIcon = document.getElementById('grid-view-icon');
         const listIcon = document.getElementById('list-view-icon');
         if (!gridIcon || !listIcon) return;
-        
+
         const gridPath = gridIcon.querySelector('.view-icon-path');
         const listPath = listIcon.querySelector('.view-icon-path');
-        
+
         if (currentViewMode === 'grid') {
             gridIcon.style.opacity = '1';
             listIcon.style.opacity = '0.4';
@@ -3078,7 +3151,7 @@
             if (listPath) listPath.setAttribute('stroke', '#333');
         }
     }
-    
+
     /**
      * 获取占位符 SVG
      * ./img/placeholder.svg
@@ -3087,7 +3160,7 @@
     function getPlaceholderSvg() {
         return '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="198" viewBox="0 0 252 198"><path fill="#fa4" d="M222.6,53.625c0,13.669-11.2824,24.75-25.2,24.75s-25.2-11.081-25.2-24.75,11.2824-24.75,25.2-24.75,25.2,11.081,25.2,24.75Z"/><path fill="#1a6" d="M91.476,87.615c-11.0428-9.638-27.6811-9.638-38.724,0L9,127.3013v61.6987h83.1633l55.5927-50.4-56.28-50.985Z"/><path fill="#fa4" d="M160.188,127.2975h0s-12.4321,11.3024-12.4321,11.3024l-55.5927,50.4h150.8368v-24.8636l-40.8122-36.8388c-12.0145-10.3562-29.9854-10.3563-41.9998,0Z"/><path fill="#4d4d4d" d="M242.9981,0H9.0019C4.0303,0,0,4.0303,0,9.0019v179.9962c0,4.9716,4.0303,9.0019,9.0019,9.0019h233.9962c4.9716,0,9.0019-4.0303,9.0019-9.0019V9.0019c0-4.9716-4.0303-9.0019-9.0019-9.0019ZM243,189H9V9h234v180Z"/></svg>';
     }
-    
+
     /**
      * 切换视图模式（带并发锁，防止快速连续点击导致状态混乱）
      */
@@ -3161,7 +3234,7 @@
             isSwitchingViewMode = false;
         }
     }
-    
+
     // =============================================
     // 希尔伯特曲线算法
     // =============================================
@@ -3358,7 +3431,7 @@
     // =============================================
     // Canvas池管理函数（按尺寸分组）
     // =============================================
-    
+
     /**
      * 按尺寸分组的Canvas池
      * key: "width×height", value: HTMLCanvasElement[]
@@ -3366,13 +3439,13 @@
      */
     const canvasPoolBySize = new Map();
     const recentCanvasSizes = new Map(); // key: "WxH", value: 最近使用次数
-    
+
     /**
      * 从Canvas池获取指定尺寸的Canvas对象
      * @param {number} width - 所需Canvas宽度
      * @param {number} height - 所需Canvas高度
      * @returns {HTMLCanvasElement} Canvas对象
-     * 
+     *
      * 按尺寸精确匹配，减少重复设置宽高的开销
      * 池为空时创建新对象并设置对应尺寸
      */
@@ -3383,16 +3456,16 @@
         recentCanvasSizes.set(key, (recentCanvasSizes.get(key) || 0) + 1);
 
         let pool = canvasPoolBySize.get(key);
-        
+
         if (!pool) {
             pool = [];
             canvasPoolBySize.set(key, pool);
         }
-        
+
         if (pool.length > 0) {
             return pool.pop();
         }
-        
+
         // 池为空时创建新Canvas并设置尺寸，初始化上下文避免后续getContext属性不匹配
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -3400,32 +3473,32 @@
         canvas.getContext('2d', { willReadFrequently: true, premultipliedAlpha: false });
         return canvas;
     }
-    
+
     /**
      * 将Canvas对象按尺寸放回对应的池中
      * @param {HTMLCanvasElement} canvas - 要回收的Canvas对象
-     * 
+     *
      * 按Canvas的实际尺寸进行分组存储
      * 每个尺寸组限制最大容量为5个对象
      */
     function releaseCanvasToPool(canvas) {
         // 使用Canvas的实际尺寸作为键
         const key = `${canvas.width}x${canvas.height}`;
-        
+
         // 确保该尺寸组存在
         if (!canvasPoolBySize.has(key)) {
             canvasPoolBySize.set(key, []);
         }
-        
+
         const pool = canvasPoolBySize.get(key);
-        
+
         // 限制每个尺寸组的最大容量为5个Canvas对象
         if (pool.length < 5) {
             pool.push(canvas);
         }
         // 超过容量限制的对象会被垃圾回收
     }
-    
+
     /**
      * 智能清理Canvas池
      * 保留部分常用尺寸的Canvas，避免频繁重建影响性能
@@ -3440,13 +3513,13 @@
                 if (pool.length > RETAIN_COUNT_PER_SIZE) {
                     const canvasesToKeep = pool.slice(0, RETAIN_COUNT_PER_SIZE);
                     const canvasesToClear = pool.slice(RETAIN_COUNT_PER_SIZE);
-                    
+
                     // 清理多余的Canvas
                     canvasesToClear.forEach(canvas => {
                         canvas.width = 0;
                         canvas.height = 0;
                     });
-                    
+
                     // 保留指定数量的Canvas
                     pool.length = 0;
                     pool.push(...canvasesToKeep);
@@ -3463,17 +3536,17 @@
                 logLog(`清理非常用尺寸 ${key}: ${cleanedCount} 个Canvas`);
             }
         });
-        
+
         // 清理完全空的池
         for (const [key, pool] of canvasPoolBySize.entries()) {
             if (pool.length === 0) {
                 canvasPoolBySize.delete(key);
             }
         }
-        
+
         logLog('智能清理完成，保留了常用尺寸的Canvas');
     }
-    
+
     /**
      * 预创建常用尺寸的Canvas
      * 在页面重新可见时提前创建可能需要的Canvas
@@ -3507,10 +3580,10 @@
 
         logLog(`预创建常用Canvas完成 (${topSizes.length} 种尺寸)`);
     }
-    
+
     /**
      * 清理所有Canvas池中的对象
-     * 
+     *
      * 在页面卸载时调用，完全释放所有Canvas资源
      */
     function clearAllCanvasPools() {
@@ -3613,27 +3686,32 @@
         return ctx;
     }
 
+    /**
+     * 将 Canvas 内容转换为 BMP 格式的 ArrayBuffer
+     * @param {HTMLCanvasElement} canvas - 源 Canvas 元素
+     * @returns {ArrayBuffer} BMP 格式的二进制数据
+     */
     function canvasToBmp(canvas) {
         const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         return encodeBmpData(canvas.width, canvas.height, imageData.data).buffer;
     }
-    
+
     /**
      * 异步BMP生成函数（用于大图处理）
      * @param {HTMLCanvasElement} canvas - 要转换的Canvas元素
      * @returns {Promise<ArrayBuffer>} BMP格式的二进制数据
-     * 
+     *
      * 对于大图(>2MB)使用Web Worker避免主线程阻塞
      */
     async function canvasToBmpAsync(canvas) {
         const dataSize = canvas.width * canvas.height * 4;
-        
+
         // 小图直接同步处理
         if (dataSize <= 2 * 1024 * 1024) {  // 2MB阈值
             return canvasToBmp(canvas);
         }
-        
+
         // 大图使用Web Worker处理
         return new Promise((resolve, reject) => {
             let blobUrl = null;
@@ -3698,8 +3776,11 @@
     }
 
     // =============================================
-    // 状态辅助函数：根据 scrambleLevel 返回显示文本、CSS类名和文件名后缀
-    // =============================================
+    /**
+     * 根据混淆级别返回对应的状态信息
+     * @param {number} level - 混淆级别（0=原始，1=混淆，2=解混淆）
+     * @returns {{text: string, className: string, suffix: string}} 状态显示信息
+     */
     function getStatusInfo(level) {
         if (level === 0) return { text: '原始图片', className: 'status-original', suffix: 'original' };
         if (level > 0) {
@@ -3716,7 +3797,6 @@
             suffix: absLevel === 1 ? 'decrypted' : `decrypted_${absLevel}`
         };
     }
-    
 
     // =============================================
     // 共享工具函数
@@ -4116,7 +4196,7 @@
         // 检查打包下载开关状态
         const zipToggle = document.getElementById('zip-download-toggle');
         const useZip = zipToggle ? zipToggle.checked : false;
-        
+
         if (useZip) {
             // 使用 ZIP 打包下载
             await saveImagesAsZip(format);
@@ -4155,7 +4235,6 @@
     // =============================================
     // 图片管理函数
     // =============================================
-
 
     /** 存储错误统一处理，消除重复的 quota / 通用错误弹窗 */
     function handleStorageError(storageErr) {
@@ -4528,29 +4607,29 @@
     function updateImageInfo(imageId) {
         const imageData = images.find(img => img.id === imageId);
         if (!imageData) return;
-    
+
         const cache = imageData.domCache;
         if (!cache) return;
-    
+
         // 更新尺寸信息
-        const hasValidSize = imageData.hasOwnProperty('width') && 
-                            imageData.hasOwnProperty('height') && 
-                            typeof imageData.width === 'number' && 
+        const hasValidSize = imageData.hasOwnProperty('width') &&
+                            imageData.hasOwnProperty('height') &&
+                            typeof imageData.width === 'number' &&
                             typeof imageData.height === 'number' &&
-                            imageData.width > 0 && 
+                            imageData.width > 0 &&
                             imageData.height > 0;
-        
+
         if (cache.sizeRow) {
-            cache.sizeRow.innerHTML = `<span>${hasValidSize ? 
-                `${imageData.width}×${imageData.height}` : 
+            cache.sizeRow.innerHTML = `<span>${hasValidSize ?
+                `${imageData.width}×${imageData.height}` :
                 '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
         }
-            
+
         // 更新格式和大小信息
         if (cache.fileSize) {
             cache.fileSize.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
         }
-            
+
         // 更新状态徽章（基于 scrambleLevel）
         if (cache.statusBadge) {
             const statusInfo = getStatusInfo(imageData.scrambleLevel);
@@ -4558,7 +4637,6 @@
             cache.statusBadge.textContent = statusInfo.text;
         }
     }
-
 
     /**
      * 更新图片计数器
@@ -4725,7 +4803,7 @@
             alert('删除图片失败: ' + (error.message || '未知错误'));
         }
     }
-    
+
     // =============================================
     // 单张图片处理函数
     // =============================================
@@ -4733,7 +4811,7 @@
     /**
      * 处理单张图片（用户界面调用）
      * 提供用户界面级别的单张图片处理功能
-     * 
+     *
      * @param {string} imageId - 图片ID
      * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'|'save'
      */
@@ -4805,37 +4883,37 @@
     // =============================================
     // 拖拽功能
     // =============================================
-    
+
     const dropZone = document.getElementById('dropZone');
-    
+
     // =============================================
     // 整页拖拽支持 - 在页面任意位置拖拽文件
     // =============================================
-    
+
     // 拖拽经过时：阻止默认行为并添加高亮样式
     document.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('drag-over');
     });
-    
+
     // 拖拽离开时：智能判断鼠标位置再移除高亮
     document.addEventListener('dragleave', (e) => {
         if (e.relatedTarget === null || !dropZone.contains(e.relatedTarget)) {
             dropZone.classList.remove('drag-over');
         }
     });
-    
+
     // 文件放置时：处理拖拽的文件
     document.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
-    
+
         const files = Array.from(e.dataTransfer.files);
         if (files.length > 0) {
             handleFiles(files);
         }
     });
-    
+
     // =============================================
     // 点击拖拽区域：触发文件选择
     // =============================================
@@ -4934,8 +5012,6 @@
         }
     }
 
-
-
     /**
      * 验证文件是否为图片
      * @param {File} file - 文件对象
@@ -4961,7 +5037,6 @@
         return type === 'image/png' || type === 'image/webp' || type === 'image/gif';
     }
 
-
     // =============================================
     // 背景颜色管理
     // =============================================
@@ -4977,7 +5052,7 @@
      * @type {number}
      */
     let imageQuality = 1.0;
-    
+
     /**
      * @typedef {Object} IroColorPicker
      * @property {function(string, function): void} on - 绑定事件
@@ -5102,7 +5177,7 @@
             logError('颜色选择器', `初始化失败: ${error.message || error}`);
         }
     }
-    
+
     /**
      * 更新颜色输入框的值
      * @param {Object} color - iro.js 颜色对象
@@ -5153,7 +5228,7 @@
             rgbBInput.value = b;
         }
     }
-    
+
     /**
      * 更新颜色预览框
      * @param {string} hexColor - 十六进制颜色值
@@ -5164,7 +5239,7 @@
             preview.style.backgroundColor = hexColor;
         }
     }
-    
+
     /**
      * 从十六进制输入框更新颜色
      * @param {string} hexValue - 十六进制颜色值
@@ -5180,7 +5255,7 @@
             updateColorPreview(hexValue);
         }
     }
-    
+
     /**
      * 从 RGB 输入框更新颜色
      */
@@ -5239,13 +5314,13 @@
     /**
      * 按照 Viewer.js 最佳实践实现的图片预览功能
      * @param {string} imageId - 要预览的图片 ID
-     * 
+     *
      * 遵循 Viewer.js 官方推荐的实现方式：
      * 1. 使用图片容器作为 Viewer 的目标元素
      * 2. 利用 Viewer.js 的内置生命周期事件
      * 3. 实现完善的资源管理和错误处理
      * 4. 支持优雅降级到基础查看器
-     * 
+     *
      * 取消机制防止竞态条件：
      * - 使用取消令牌避免多个预览实例同时存在
      * - 快速连续点击时自动取消前一个操作
@@ -5456,12 +5531,12 @@
                 });
             });
         });
-        
+
         // 等待所有图片元素创建完成后再添加到 DOM
         await Promise.allSettled(loadPromises);
-        
+
         logLog(`Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
-        
+
         // 按顺序将所有图片添加到容器（保证 DOM 顺序与 images 数组一致）
         imgElements.forEach((img, index) => {
             if (img) {
@@ -5470,16 +5545,15 @@
                 logWarn('Viewer.js', `图片索引 ${index} 对应的元素未创建成功`);
             }
         });
-        
+
         logLog(`共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
-        
+
         // 存储加载 Promise 到容器
         container._loadPromises = Promise.allSettled(loadPromises);
-        
+
         document.body.appendChild(container);
         return container;
     }
-
 
     /**
      * 按照最佳实践初始化 Viewer.js
@@ -5495,7 +5569,7 @@
             destroyViewer(container);
             return;
         }
-            
+
         try {
             // 等待所有图片至少尝试加载完成
             if (container._loadPromises) {
@@ -5503,30 +5577,30 @@
                 await container._loadPromises;
                 logLog('所有图片加载尝试完成');
             }
-                
+
             // 额外等待一小段时间，确保 DOM 渲染完成
             await new Promise(resolve => setTimeout(resolve, 100));
-                
+
             // @ts-ignore - Viewer.js 是动态加载的，忽略类型检查
             const ViewerConstructor = window.Viewer;
-                
+
             viewerInstance = new ViewerConstructor(container, {
                 // 基础配置
                 inline: false,
                 backdrop: true,
                 loading: true,
-                
+
                 // 导航和交互
                 keyboard: true,
                 focus: true,
-				loop: true,
-                
+                loop: true,
+
                 // UI组件
                 button: true,
                 navbar: true,
                 toolbar: toolbarConfig(),
                 title: false,
-                
+
                 // 行为配置
                 movable: true,
                 zoomable: true,
@@ -5534,7 +5608,7 @@
                 scalable: true,
                 transition: false,   // 关闭动画
                 fullscreen: true,
-                
+
                 // 过滤器：优化图片加载判断逻辑
                 filter(image) {
                     // 更宽松的图片过滤条件，确保所有图片都能被加载
@@ -5547,18 +5621,18 @@
                     logLog(`图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
                     return true;
                 },
-                
+
                 // 生命周期事件
                 ready() {
                     logLog('Viewer.js 已准备就绪');
                 },
-                                
+
                 shown() {
                     // 统计加载成功和失败的图片
                     const viewerImages = container.querySelectorAll('img');
                     let loadedCount = 0;
                     let failedImages = [];
-                    
+
                     viewerImages.forEach((img, idx) => {
                         if (img.complete && img.naturalWidth > 0) {
                             loadedCount++;
@@ -5566,47 +5640,47 @@
                             failedImages.push(idx + 1);
                         }
                     });
-                    
+
                     if (failedImages.length === 0) {
                         logLog(`已加载${loadedCount}张图片`);
                     } else {
                         logLog(`已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
                     }
                 },
-                                
+
                 viewed(event) {
                     const { detail } = event;
                     const currentImage = detail.image;
                     const currentIndex = detail.index;
                     logLog(`当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
-                                    
+
                     // 每次切换图片时检查加载状态
                     if (!currentImage.complete || currentImage.naturalWidth === 0) {
                         logWarn('Viewer.js', '当前图片尚未加载完成');
                     }
                 },
-                
+
                 hide() {
                     logLog('Viewer.js 开始隐藏');
                 },
-                
+
                 hidden() {
                     logLog('Viewer.js 已隐藏');
                     viewerInstance = null; // Viewer.js 已自毁，避免 destroyViewer 重复销毁
                     destroyViewer(container);
                 },
-                
+
                 play() {
                     logLog('全屏');
                 }
             });
-            
+
             // 显示查看器
             viewerInstance.show();
-                        
+
             // 延迟一小段时间确保 DOM 完全渲染
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             // 定位到目标图片 - 通过 data-imageId 属性查找 DOM 中的实际位置
             // 检查 Viewer 实例是否仍然有效（用户可能在延时期间快速关闭了查看器）
             if (!viewerInstance) {
@@ -5645,7 +5719,7 @@
                     }
                 }
             }
-            
+
         } catch (error) {
             logError('Viewer.js', `初始化过程中发生错误: ${error.message || error}`);
             await fallbackViewer(container, imageData, token);
@@ -5675,7 +5749,6 @@
         };
     }
 
-
     /**
      * 处理 Viewer.js 初始化失败的情况
      * @param {HTMLElement} container - 容器元素
@@ -5689,13 +5762,13 @@
             destroyViewer(container);
             return;
         }
-            
+
         // 清理容器并释放 Blob URL
         destroyViewer(container);
-            
+
         // 启用基础图片查看器作为兜底方案
         logLog('启用基础图片查看器作为替代方案');
-            
+
         // 获取当前图片 Blob 并创建临时 URL
         try {
             const blob = await storage.get(`current_${imageData.id}`);
@@ -5740,18 +5813,21 @@
         }
         logLog('Viewer.js 资源已清理');
     }
-    
+
     /**
      * 窗口大小改变时的防抖处理
      * 避免频繁调用 update 导致性能问题
      */
     let resizeDebounceTimer = null;
+    /**
+     * 响应窗口大小变化，更新 UI 元素状态
+     */
     function handleWindowResize() {
         // 清除之前的定时器
         if (resizeDebounceTimer) {
             clearTimeout(resizeDebounceTimer);
         }
-        
+
         // 防抖延迟 150ms
         resizeDebounceTimer = setTimeout(() => {
             if (viewerInstance && viewerInstance.update) {
@@ -5760,7 +5836,6 @@
             }
         }, 150);
     }
-
 
     // 页面卸载时清理Canvas池和Promise，释放内存
     window.addEventListener('beforeunload', () => {
@@ -5829,16 +5904,16 @@
 
         logLog('页面卸载：所有图片资源将由浏览器自动回收');
     });
-    
+
     // 页面可见性变化处理
     window.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             // 页面隐藏时的智能清理策略
             smartClearCanvasPools();
-            
+
             // 清理残留的处理遮罩层
             clearOverlays();
-            
+
             logLog('页面隐藏：已执行智能Canvas池清理');
         } else {
             // 页面重新可见时预创建常用尺寸的Canvas
@@ -5846,7 +5921,7 @@
             logLog('页面可见：已预创建常用Canvas');
         }
     });
-    
+
     // =============================================
     // 刷新缩略图功能
     // =============================================
@@ -5863,21 +5938,21 @@
             showTempStatus('ℹ️ 当前为列表模式，不显示缩略图，无需刷新');
             return;
         }
-        
+
         const refreshBtn = document.getElementById('refresh-list-btn');
-        
+
         // 防止重复刷新
         if (isRefreshingThumbnails) {
             logLog('刷新缩略图正在进行中，请稍后再试');
             return;
         }
-        
+
         // 检查是否有图片
         if (images.length === 0) {
             showTempStatus('⚠️ 没有图片需要刷新');
             return;
         }
-        
+
         isRefreshingThumbnails = true;
         // 禁用按钮防止误操作
         if (refreshBtn) {
@@ -5885,22 +5960,22 @@
             refreshBtn.style.opacity = '0.5';
             refreshBtn.style.cursor = 'not-allowed';
         }
-        
+
         // 创建快照避免数组变化导致索引错乱
         const snapshot = [...images];
         const statusDiv = document.getElementById('batchStatus');
         const totalCount = snapshot.length;
         let successCount = 0;
         let failureCount = 0;
-        
+
         statusDiv.innerHTML = `<div class="loading"></div> 正在刷新缩略图 (0/${totalCount})...`;
-        
+
         try {
             // 串行刷新，避免大量并发导致内存压力
             for (let i = 0; i < totalCount; i++) {
                 const imageData = snapshot[i];
                 if (!imageData) continue;
-                
+
                 try {
                     const blob = await storage.get(`current_${imageData.id}`);
                     if (blob) {
@@ -5916,13 +5991,13 @@
                     failureCount++;
                     logError(imageData.name, `刷新缩略图失败: ${error.message || '未知错误'}`);
                 }
-                
+
                 // 更新进度显示
                 await updateProgressStatus(statusDiv, i + 1, totalCount, '刷新缩略图', 10);
             }
-            
+
             showBatchStatus(successCount, failureCount, '刷新');
-            
+
             const logFn = failureCount === 0 ? logLog : failureCount === totalCount ? logError : logWarn;
             logFn('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
         } catch (error) {
@@ -5938,7 +6013,7 @@
             }
         }
     }
-    
+
     // 显示开源许可证信息（新标签页打开）
     function showLicenseInfo() {
         const newTab = window.open('', '_blank');
@@ -6233,7 +6308,7 @@
         container.appendChild(iroSection);
         doc.body.appendChild(container);
     }
-    
+
     /**
      * 解析 RGB 颜色字符串，支持多种格式：
      *   - rgb(128, 200, 100) 传统逗号分隔
@@ -6338,7 +6413,7 @@
 
         // ---- 全局 resize 监听 ----
         window.addEventListener('resize', handleWindowResize);
-            
+
         // 本地存储开关（必须在所有 loadSetting 调用前初始化）
         try {
             localStorageEnabled = localStorage.getItem('localStorageEnabled') !== 'false';
@@ -6348,10 +6423,10 @@
 
         // 加载视图模式偏好
         loadViewModePreference();
-        
+
         // 初始化保存按钮文字
         updateSaveButtonText();
-        
+
         // 绑定视图切换按钮事件
         const viewToggleBtn = document.getElementById('view-toggle-btn');
         if (viewToggleBtn) {
@@ -6360,7 +6435,7 @@
                 switchViewMode();
             });
         }
-            
+
         // 事件委托：在 imageList 容器上统一处理图片项按钮点击事件与空白区域勾选
         const imageList = document.getElementById('imageList');
         if (imageList) {
@@ -6397,7 +6472,7 @@
                 }
             });
         }
-        
+
         // 刷新缩略图按钮事件绑定
         const refreshBtn = document.getElementById('refresh-list-btn');
         if (refreshBtn) {
@@ -6406,12 +6481,12 @@
                 refreshAllThumbnails();
             });
         }
-        
+
         // 设置按钮事件绑定
         const settingsBtn = document.getElementById('settings-btn');
         const settingsContainer = document.getElementById('settings-container');
         const closeSettingsBtn = document.getElementById('close-settings-btn');
-        
+
         if (settingsBtn && settingsContainer) {
             // 点击设置按钮切换容器显示/隐藏
             settingsBtn.addEventListener('click', (e) => {
@@ -6432,7 +6507,7 @@
                     disconnectColorPicker();
                 }
             });
-            
+
             // 点击关闭按钮隐藏容器
             if (closeSettingsBtn) {
                 closeSettingsBtn.addEventListener('click', (e) => {
@@ -6443,7 +6518,7 @@
                 });
             }
         }
-        
+
         // 颜色输入框事件绑定
         const hexInput = document.getElementById('hex-input');
         const rgbRInput = document.getElementById('rgb-r-input');
@@ -6474,7 +6549,7 @@
                     isHexInputBusy = false;
                 });
             });
-            
+
             // 防止删除 # 号
             hexInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Backspace' || e.key === 'Delete') {
@@ -6484,7 +6559,7 @@
                     }
                 }
             });
-            
+
             // 焦点进入时记录当前值
             hexInput.addEventListener('focus', () => {
                 let value = hexInput.value.trim();
@@ -6495,7 +6570,7 @@
                 }
                 lastValidValue = value;
             });
-            
+
             // 粘贴时使用统一的颜色解析（支持 HEX、RGB、裸数字等格式）
             hexInput.addEventListener('paste', (e) => {
                 const clipboardData = e.clipboardData || window.clipboardData;
@@ -6513,7 +6588,7 @@
                     updateColorFromHex(hex);
                 }
             });
-            
+
             // 失焦时：完整值同步 → 非完整值回退
             hexInput.addEventListener('blur', () => {
                 const hexPart = hexInput.value.substring(1);
@@ -6525,7 +6600,7 @@
                 }
             });
         }
-        
+
         // 为所有RGB输入框添加粘贴事件监听
         [rgbRInput, rgbGInput, rgbBInput].forEach(input => {
             if (input) {
@@ -6534,7 +6609,7 @@
                     if (!clipboardData) return;
                     const pasteText = clipboardData.getData('text');
                     const rgb = parseColor(pasteText);
-                    
+
                     if (rgb && rgbRInput && rgbGInput && rgbBInput) {
                         e.preventDefault();
                         rgbRInput.value = rgb.r;
@@ -6545,7 +6620,7 @@
                 });
             }
         });
-        
+
         for (const input of [rgbRInput, rgbGInput, rgbBInput]) {
             if (!input) continue;
             input.addEventListener('input', () => {
@@ -6561,6 +6636,12 @@
             });
         }
 
+        /**
+         * 双向绑定开关控件与 localStorage，自动同步状态
+         * @param {string} id - DOM 元素 ID
+         * @param {string} key - localStorage 存储键名
+         * @param {Function} [onChange] - 状态变更回调
+         */
         function bindToggle(id, key, onChange) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -6573,6 +6654,12 @@
             if (saved !== null) el.checked = saved === 'true';
             if (onChange) onChange(el.checked);
         }
+        /**
+         * 双向绑定下拉框与 localStorage，值变更时触发回调
+         * @param {string} id - DOM 元素 ID
+         * @param {string} key - localStorage 存储键名
+         * @param {Function} [callback] - 值变更回调
+         */
         function bindSelect(id, key, callback) {
             const el = document.getElementById(id);
             if (!el) return;
@@ -6592,6 +6679,11 @@
         const qualitySlider = document.getElementById('quality-slider');
         const qualityInput = document.getElementById('quality-input');
 
+        /**
+         * 同步图片质量滑块与数值输入框，保持两者值一致
+         * @param {string} source - 触发来源（'slider' 或 'input'）
+         * @param {number|string} value - 质量值（1-100）
+         */
         function syncQuality(source, value) {
             const percent = Math.max(1, Math.min(100, parseInt(value) || 1));
             imageQuality = percent / 100;
