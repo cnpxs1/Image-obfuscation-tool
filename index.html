@@ -1344,7 +1344,7 @@
 
             logLog('基础图片查看器启动成功');
         }
-        
+
     </script>
     <!-- Viewer.js JavaScript 优先级加载 -->
     <!-- 第一级：bootcdn -->
@@ -1624,11 +1624,12 @@
         </div>
     </div>
 </main>
+
 <script>
     // =============================================
     // 安全函数
     // =============================================
-    
+
     /**
      * HTML 转义函数，防止 XSS 攻击
      * @param {string} str - 需要转义的字符串
@@ -1644,13 +1645,13 @@
             .replace(/'/g, '&#x27;')
             .replace(/\//g, '&#x2F;');
     }
-    
+
     /**
      * WebP支持检测结果缓存
      * @type {Promise<boolean>|null}
      */
     let webpSupportCache = null;
-    
+
     /**
      * 检测浏览器是否支持WebP格式（带缓存优化）
      * @returns {Promise<boolean>} 是否支持WebP
@@ -1662,7 +1663,7 @@
         if (webpSupportCache !== null) {
             return webpSupportCache;
         }
-        
+
         // 首次检测并缓存结果
         webpSupportCache = new Promise((resolve) => {
             const canvas = document.createElement('canvas');
@@ -1679,10 +1680,10 @@
                 resolve(false);
             }
         });
-        
+
         return webpSupportCache;
     }
-    
+
     /**
      * 全局遮罩层清理函数
      * 清理页面上所有残留的处理中遮罩层
@@ -1692,25 +1693,25 @@
         try {
             const allOverlays = document.querySelectorAll('.processing-overlay');
             let cleanedCount = 0;
-            
+
             allOverlays.forEach(overlay => {
                 if (overlay && overlay.parentNode) {
                     overlay.remove();
                     cleanedCount++;
                 }
             });
-            
+
             if (cleanedCount > 0) {
                 logLog(`已清理 ${cleanedCount} 个残留的处理遮罩层`);
             }
-            
+
             return cleanedCount;
         } catch (error) {
             logError('遮罩层清理', `全局遮罩层清理失败: ${error.message || error}`);
             return 0;
         }
     }
-    
+
     // =============================================
     // 统一存储抽象层 (StorageAdapter)
     // =============================================
@@ -1809,7 +1810,7 @@
             logWarn('存储适配层', '所有存储后端均不可用，图片处理将无法缓存');
             setTimeout(() => updateCacheSelectOptions(), 100);
         }
-    
+
         /**
          * 运行时切换存储后端（立即生效，无需刷新页面）
          * 切换时会自动迁移旧后端的所有缓存数据到新后端，避免数据丢失
@@ -1817,6 +1818,12 @@
          */
         async reinit(newPreference) {
             this.preference = newPreference;
+
+            //解析 auto → 实际后端，同一后端无需迁移
+            const effective = newPreference === 'auto'
+                ? (window.__cacheBackendAvail?.cacheApi ? 'cache-api' : (window.__cacheBackendAvail?.indexedDb ? 'indexeddb' : ''))
+                : newPreference;
+            if (effective && effective === this.activeBackend) return;
 
             //读取旧后端所有数据
             const oldData = new Map();
@@ -1865,19 +1872,22 @@
             this.ready = this._init();
             await this.ready;
 
-            //迁移数据到新后端
+            //迁移数据到新后端（逐条写入，避免并发事务争抢）
             if (oldData.size > 0) {
-                const results = await Promise.allSettled(
-                    [...oldData].map(([key, blob]) =>
-                        this.backend
-                            ? this.backend.put(key, new Response(blob, {
+                let migrated = 0, failed = 0;
+                for (const [key, blob] of oldData) {
+                    try {
+                        if (this.backend) {
+                            const res = new Response(blob, {
                                 headers: { 'Content-Type': blob.type || 'image/png' }
-                              }))
-                            : this._dbTransaction('readwrite', store => store.put(blob, key))
-                    )
-                );
-                const migrated = results.filter(r => r.status === 'fulfilled').length;
-                const failed = results.filter(r => r.status === 'rejected').length;
+                            });
+                            await this.backend.put(key, res);
+                        } else {
+                            await this._dbTransaction('readwrite', store => store.put(blob, key));
+                        }
+                        migrated++;
+                    } catch (e) { failed++; }
+                }
                 if (migrated > 0) {
                     logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
                 }
