@@ -2201,7 +2201,7 @@
 
                 const ext = getOutputExtension(targetFormat);
                 const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
-                const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
+                const fileName = `${imageData.name.replace(/\.[^/.]+$/, '').replace(/[\\/:*?"<>|]/g, '_')}_${statusSuffix}.${ext}`;
 
                 const arrayBuffer = await outputBlob.arrayBuffer();
                 const fileData = new Uint8Array(arrayBuffer);
@@ -4256,7 +4256,7 @@
 
         const ext = getOutputExtension(targetFormat);
         const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
-        const fileName = `${imageData.name.replace(/\.[^/.]+$/, '')}_${statusSuffix}.${ext}`;
+        const fileName = `${imageData.name.replace(/\.[^/.]+$/, '').replace(/[\\/:*?"<>|]/g, '_')}_${statusSuffix}.${ext}`;
         downloadBlob(outputBlob, fileName);
     }
 
