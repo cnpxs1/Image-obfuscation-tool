@@ -150,6 +150,10 @@
     <!-- iro.js 颜色选择器库加载 | 许可证：MIT License -->
     <script>
         window.iroResources = { loaded: false, loading: false, failed: false, _resolve: null, _reject: null };
+        window.iroResources.promise = new Promise((resolve, reject) => {
+            window.iroResources._resolve = resolve;
+            window.iroResources._reject = reject;
+        });
 
         try {
             if (localStorage.getItem('iroJs') !== 'false') {
@@ -162,9 +166,15 @@
                 ],
                 function() { logError('iro.js', '所有源均加载失败，颜色选择器功能将不可用'); }
             );
+            } else {
+                // 用户显式禁用 iro.js → promise 也需 settle，避免 await 挂起
+                window.iroResources._reject(new Error('iro.js 已被用户禁用'));
             }
         } catch (e) {
-            // localStorage 不可用时跳过 iro.js 按需加载
+            // localStorage 不可用时视为禁用，同样 settle promise
+            if (typeof window.iroResources._reject === 'function') {
+                window.iroResources._reject(new Error('localStorage 不可用，iro.js 跳过加载'));
+            }
         }
     </script>
     <!-- fflate 库加载 - ZIP 压缩/解压 | 许可证：MIT License -->
@@ -2019,15 +2029,24 @@
         async clear() {
             await this.ready;
             if (this.backend) {
-                await caches.delete(this.cacheName);
-                this.backend = await caches.open(this.cacheName);
-            } else {
+                try {
+                    await caches.delete(this.cacheName);
+                    this.backend = await caches.open(this.cacheName);
+                } catch (e) {
+                    logWarn('存储适配层', `Cache API 重建失败: ${e.message || e}`);
+                    this.backend = null;
+                    this.activeBackend = 'none';
+                }
+            } else if (this.db) {
                 return this._dbTransaction('readwrite', store => store.clear());
             }
         }
 
         /** IndexedDB 事务 Promise 封装，消除重复的事务样板代码 */
         _dbTransaction(mode, operationFn) {
+            if (!this.db) {
+                throw new Error('IndexedDB 未初始化，存储操作不可用');
+            }
             return new Promise((resolve, reject) => {
                 const transaction = this.db.transaction([this.storeName], mode);
                 const store = transaction.objectStore(this.storeName);
@@ -3574,6 +3593,7 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
                 canvas.height = h;
+                canvas.getContext('2d', { willReadFrequently: true, premultipliedAlpha: false });
                 pool.push(canvas);
             }
         });
@@ -3671,9 +3691,14 @@
         return result;
     }
 
-    /** canvas.toBlob 的 Promise 封装，消除重复的 new Promise 样板代码 */
+    /** canvas.toBlob 的 Promise 封装，消除重复的 new Promise 样板代码，null Blob 时 reject */
     function canvasToBlobPromise(canvas, mime, quality) {
-        return new Promise(resolve => canvas.toBlob(resolve, mime, quality));
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (blob) resolve(blob);
+                else reject(new Error(`Canvas toBlob 返回 null（格式：${mime}）`));
+            }, mime, quality);
+        });
     }
 
     /** Canvas 绘制 bitmap 的标准三步操作：getContext + clearRect + drawImage */
@@ -3760,11 +3785,14 @@
                 const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-                worker.postMessage({
-                    width: canvas.width,
-                    height: canvas.height,
-                    imageData: imageData.data
-                });
+                // 复制像素数据到独立 buffer，通过 Transferable 传输避免结构化克隆开销
+                const dataBuffer = imageData.data.buffer.slice(0);
+                const transferData = new Uint8Array(dataBuffer);
+
+                worker.postMessage(
+                    { width: canvas.width, height: canvas.height, imageData: transferData },
+                    [dataBuffer]
+                );
 
             } catch (error) {
                 logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
@@ -4587,13 +4615,13 @@
      * @param {number} bytes - 文件大小（字节）
      * @returns {string} 格式化后的文件大小字符串
      *
-     * 支持B、KB、MB、GB四种单位，自动选择合适的单位
+     * 支持B、KB、MB、GB、TB五种单位，自动选择合适的单位
      */
     function formatFileSize(bytes) {
         if (!bytes || bytes < 0) return '0 B';
         const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
@@ -4958,7 +4986,7 @@
             const parts = [];
             if (totalImages > 0) parts.push(`${totalImages} 张图片`);
             if (totalZips > 0) parts.push(`${totalZips} 个 ZIP 文件`);
-            statusDiv.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')} 张图片`;
+            statusDiv.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')}`;
         } else if (errorCount > 0) {
             showTempStatus(`⚠️ 所有 ${errorCount} 个文件都不支持`, 3000);
             return;
@@ -5499,6 +5527,7 @@
                         logError(imgData.name, `图片加载超时(${(dynTimeout/1000).toFixed(0)}s)，使用占位图`);
                         releaseImgBlob(img);
                         img.onerror = null;
+                        img.dataset.loadFailed = 'true';
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
                     }, dynTimeout);
@@ -5515,6 +5544,7 @@
                         logError(imgData.name, '图片加载失败');
                         releaseImgBlob(img);
                         img.onerror = null;
+                        img.dataset.loadFailed = 'true';
                         img.src = PLACEHOLDER_SRC;
                         resolve(img);
                     };
@@ -5523,6 +5553,7 @@
                     logError(imgData.name, `图片获取异常：${err?.message || err}`);
                     const img = document.createElement('img');
                     img.src = PLACEHOLDER_SRC;
+                    img.dataset.loadFailed = 'true';
                     img.alt = escapeHtml(imgData.name) || `图片 ${index + 1}`;
                     img.dataset.imageId = imgData.id;
                     img.dataset.index = index.toString();
@@ -5609,16 +5640,12 @@
                 transition: false,   // 关闭动画
                 fullscreen: true,
 
-                // 过滤器：优化图片加载判断逻辑
+                // 过滤器：排除加载失败的占位图，仅允许有效图片
                 filter(image) {
-                    // 更宽松的图片过滤条件，确保所有图片都能被加载
-                    const isLoaded = image.complete || image.readyState === 4 || image.naturalWidth > 0;
-                    if (isLoaded) {
-                        return true;
-                    }
-                    // 对于未完成加载的图片，也允许 Viewer.js 加载
-                    // Viewer.js 会在内部等待图片加载完成
-                    logLog(`图片 ${image.alt} 尚未完全加载，Viewer.js 将等待其加载完成`);
+                    // 排除显式标记为失败的图片
+                    if (image.dataset.loadFailed) return false;
+                    // 排除内联 SVG 占位图
+                    if (image.src && image.src.startsWith('data:image/svg+xml')) return false;
                     return true;
                 },
 
