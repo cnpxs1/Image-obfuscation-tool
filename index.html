@@ -22,23 +22,23 @@
     <!-- Viewer.js CDN 降级（必须在 CSS link 之前定义） -->
     <script>
         (function() {
-            const R = window.viewerResources;
-            R._resolve = null; R._reject = null; R._timeout = null;
+            const viewerRes = window.viewerResources;
+            viewerRes._resolve = null; viewerRes._reject = null; viewerRes._timeout = null;
 
-            R._notifyReady = function() {
-                if (R.jsLoaded && R.cssLoaded && window.Viewer && R._resolve) {
-                    clearTimeout(R._timeout);
-                    R._resolve(); R._resolve = R._reject = null;
+            viewerRes._notifyReady = function() {
+                if (viewerRes.jsLoaded && viewerRes.cssLoaded && window.Viewer && viewerRes._resolve) {
+                    clearTimeout(viewerRes._timeout);
+                    viewerRes._resolve(); viewerRes._resolve = viewerRes._reject = null;
                 }
             };
-            R._notifyFailed = function(reason) {
-                if (R._reject) {
-                    clearTimeout(R._timeout);
-                    R._reject(new Error(reason)); R._resolve = R._reject = null;
+            viewerRes._notifyFailed = function(reason) {
+                if (viewerRes._reject) {
+                    clearTimeout(viewerRes._timeout);
+                    viewerRes._reject(new Error(reason)); viewerRes._resolve = viewerRes._reject = null;
                 }
             };
             window.createViewerFallback = function(tag, url, onLoad, onError) {
-                if (R.localFallback) return null;
+                if (viewerRes.localFallback) return null;
                 const el = document.createElement(tag);
                 if (tag === 'link') { el.rel = 'stylesheet'; el.href = url; }
                 else { el.src = url; }
@@ -48,24 +48,24 @@
                 return el;
             };
             window.loadLocalViewerResource = function(type) {
-                if (R.localFallback) return;
+                if (viewerRes.localFallback) return;
                 const isCss = type === 'css';
                 const url = './assets/viewerjs/viewer.min.' + (isCss ? 'css' : 'js');
                 console.warn('[WARN] Viewer.js - CDN 加载失败，尝试本地 ' + type.toUpperCase());
 
                 window.createViewerFallback(isCss ? 'link' : 'script', url,
                     function() {
-                        if (isCss) R.cssLoaded = true; else R.jsLoaded = true;
-                        R.currentCDN = 'local';
+                        if (isCss) viewerRes.cssLoaded = true; else viewerRes.jsLoaded = true;
+                        viewerRes.currentCDN = 'local';
                         console.log('本地 Viewer.js ' + type.toUpperCase() + ' 加载成功');
-                        R._notifyReady();
+                        viewerRes._notifyReady();
                     },
                     function() {
                         console.error('[ERROR] Viewer.js - 本地 ' + type.toUpperCase() + ' 加载失败');
-                        R.localFallback = true;
-                        R._notifyFailed('Viewer.js 资源加载失败');
-                        if (!R.promptShown) {
-                            R.promptShown = true;
+                        viewerRes.localFallback = true;
+                        viewerRes._notifyFailed('Viewer.js 资源加载失败');
+                        if (!viewerRes.promptShown) {
+                            viewerRes.promptShown = true;
                             setTimeout(function() {
                                 alert('❌ Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
                             }, 100);
@@ -80,7 +80,7 @@
                         console.log('尝试 cdnjs CSS');
                         window.createViewerFallback('link',
                             'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css',
-                            function() { R.cssLoaded = true; R.currentCDN = 'cdnjs'; console.log('cdnjs CSS 加载成功'); R._notifyReady(); },
+                            function() { viewerRes.cssLoaded = true; viewerRes.currentCDN = 'cdnjs'; console.log('cdnjs CSS 加载成功'); viewerRes._notifyReady(); },
                             function() { console.warn('[WARN] Viewer.js - cdnjs CSS 加载失败'); window.loadLocalViewerResource('css'); }
                         );
                     } else { window.loadLocalViewerResource('css'); }
@@ -89,7 +89,7 @@
                         console.log('尝试 cdnjs JS');
                         window.createViewerFallback('script',
                             'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js',
-                            function() { R.jsLoaded = true; R.currentCDN = 'cdnjs'; console.log('cdnjs JS 加载成功'); R._notifyReady(); },
+                            function() { viewerRes.jsLoaded = true; viewerRes.currentCDN = 'cdnjs'; console.log('cdnjs JS 加载成功'); viewerRes._notifyReady(); },
                             function() { console.warn('[WARN] Viewer.js - cdnjs JS 加载失败'); window.loadLocalViewerResource('js'); }
                         );
                     } else { window.loadLocalViewerResource('js'); }
@@ -1213,29 +1213,29 @@
         window.viewerLoadPromise = null;
 
         function getViewerLoadPromise() {
-            const R = window.viewerResources;
+            const viewerRes = window.viewerResources;
 
             // 入口处检查：若所有资源已在调用前完成加载，直接返回已解析Promise，避免竞态
-            if (window.Viewer && R.jsLoaded && R.cssLoaded) {
+            if (window.Viewer && viewerRes.jsLoaded && viewerRes.cssLoaded) {
                 return Promise.resolve();
             }
 
             if (window.viewerLoadPromise) return window.viewerLoadPromise;
 
             window.viewerLoadPromise = new Promise(function(resolve, reject) {
-                if (R.jsLoaded && R.cssLoaded && window.Viewer) { resolve(); return; }
-                if (R.localFallback) { reject(new Error('Viewer.js 资源加载失败')); return; }
+                if (viewerRes.jsLoaded && viewerRes.cssLoaded && window.Viewer) { resolve(); return; }
+                if (viewerRes.localFallback) { reject(new Error('Viewer.js 资源加载失败')); return; }
 
-                R._resolve = resolve;
-                R._reject = reject;
+                viewerRes._resolve = resolve;
+                viewerRes._reject = reject;
 
-                R._timeout = setTimeout(function() {
+                viewerRes._timeout = setTimeout(function() {
                     logError('Viewer.js', '加载超时 (5s)');
                     reject(new Error('Viewer.js 加载超时'));
-                    R._resolve = R._reject = null;
+                    viewerRes._resolve = viewerRes._reject = null;
                 }, 5000);
             }).catch(function(err) {
-                clearTimeout(R._timeout);
+                clearTimeout(viewerRes._timeout);
                 window.viewerLoadPromise = null; throw err;
             });
 
@@ -2176,7 +2176,7 @@
 
         for (let i = 0; i < targetIds.length; i++) {
             const imageId = targetIds[i];
-            const imageData = images.find(img => img.id === imageId);
+            const imageData = images.find(item => item.id === imageId);
             if (!imageData) {
                 failureCount++;
                 continue;
@@ -2951,7 +2951,7 @@
     function getTargetImageIds() {
         return selectedImages.size > 0
             ? Array.from(selectedImages)
-            : images.map(img => img.id);
+            : images.map(item => item.id);
     }
 
     /** 处理中守卫：阻止并发操作，提示用户等待 */
@@ -3194,20 +3194,20 @@
 
             // 遍历所有现有图片项，动态修改其显示样式和缩略图内容
             const items = document.querySelectorAll('.image-item');
-            for (const item of items) {
-                const imageId = item.dataset.id;
-                const imageData = images.find(img => img.id === imageId);
+            for (const imageItem of items) {
+                const imageId = imageItem.dataset.id;
+                const imageData = images.find(item => item.id === imageId);
                 if (!imageData) continue;
 
-                // 更新 item 的类名
+                // 更新 imageItem 的类名
                 if (currentViewMode === 'list') {
-                    item.classList.add('list-view');
+                    imageItem.classList.add('list-view');
                 } else {
-                    item.classList.remove('list-view');
+                    imageItem.classList.remove('list-view');
                 }
 
                 // 获取缩略图容器
-                const thumbnailContainer = item.querySelector('.thumbnail-container');
+                const thumbnailContainer = imageItem.querySelector('.thumbnail-container');
                 if (!thumbnailContainer) continue;
 
                 // 根据当前模式重新构建缩略图内容
@@ -3223,10 +3223,10 @@
                             thumbnailContainer.innerHTML = '';
                             thumbnailContainer.appendChild(placeholder);
                         }
-                        delete item.dataset.lazyLoaded;
+                        delete imageItem.dataset.lazyLoaded;
                         if (imageLazyLoader) {
                             imageLazyLoader.unobserve(imageId);
-                            imageLazyLoader.observe(item, imageData);
+                            imageLazyLoader.observe(imageItem, imageData);
                         }
                     }
                 } else {
@@ -3234,7 +3234,7 @@
                     if (imageLazyLoader) {
                         imageLazyLoader.unobserve(imageId);
                     }
-                    delete item.dataset.lazyLoaded;
+                    delete imageItem.dataset.lazyLoaded;
                     let placeholder = thumbnailContainer.querySelector('.thumbnail-placeholder');
                     if (!placeholder) {
                         placeholder = document.createElement('div');
@@ -3638,7 +3638,7 @@
      * 将 RGBA 像素数据编码为 BMP 24位格式
      * 供同步 canvasToBmp 和异步 Web Worker 共用，消除维护双份代码的风险
      */
-    function encodeBmpData(width, height, imageData) {
+    function encodeBmpData(width, height, pixels) {
         const bytesPerPixel = 3;
         const rowPadding = (4 - (width * bytesPerPixel) % 4) % 4;
         const rowSize = width * bytesPerPixel + rowPadding;
@@ -3680,9 +3680,9 @@
         let dstIndex = 54;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
-                result[dstIndex++] = imageData[srcIndex + 2];
-                result[dstIndex++] = imageData[srcIndex + 1];
-                result[dstIndex++] = imageData[srcIndex];
+                result[dstIndex++] = pixels[srcIndex + 2];
+                result[dstIndex++] = pixels[srcIndex + 1];
+                result[dstIndex++] = pixels[srcIndex];
                 srcIndex += 4;
             }
             dstIndex += rowPadding;
@@ -3863,7 +3863,7 @@
         const item = document.querySelector(`[data-id="${imageId}"]`);
         if (item) item.remove();
         if (imageLazyLoader) imageLazyLoader.unobserve(imageId);
-        images = images.filter(img => img.id !== imageId);
+        images = images.filter(item => item.id !== imageId);
         selectedImages.delete(imageId);
         if (!skipUI) {
             updateSaveButtonText();
@@ -4165,7 +4165,7 @@
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
 
-        const imageMap = new Map(images.map(img => [img.id, img]));
+        const imageMap = new Map(images.map(item => [item.id, item]));
         let successCount = 0, failureCount = 0;
         for (let i = 0; i < targetIds.length; i++) {
             const imageId = targetIds[i];
@@ -4633,7 +4633,7 @@
      * 优化：文件名仅在初次渲染时设置，此处仅更新可变部分（尺寸、状态等）
      */
     function updateImageInfo(imageId) {
-        const imageData = images.find(img => img.id === imageId);
+        const imageData = images.find(item => item.id === imageId);
         if (!imageData) return;
 
         const cache = imageData.domCache;
@@ -4817,7 +4817,7 @@
     async function deleteSingleImage(imageId) {
         if (guardProcessing()) return;
 
-        const imageData = images.find(img => img.id === imageId);
+        const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
             logWarn('图片删除', `未找到要删除的图片: ${imageId}`);
             return;
@@ -4850,7 +4850,7 @@
         // 保存操作不计时
         if (operation !== 'save') startProcessingTimer(1, operation);
 
-        const imageData = images.find(img => img.id === imageId);
+        const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
             stopProcessingTimer();
             isProcessing = false;
@@ -4886,7 +4886,7 @@
      * 根据当前图片状态和用户选择的格式保存单张图片
      */
     async function saveSingleImage(imageId) {
-        const imageData = images.find(img => img.id === imageId);
+        const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
             logError('图片管理', `未找到指定图片: ${imageId}`);
             return;
@@ -5375,7 +5375,7 @@
     }
 
     async function showPreview(imageId) {
-        const imageData = images.find(img => img.id === imageId);
+        const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
             logWarn('Viewer.js', `未找到指定图片: ${imageId}`);
             return;
@@ -5496,21 +5496,21 @@
         const imgElements = new Array(images.length); // 预分配数组
         logLog(`开始创建图片元素，共 ${images.length} 张`);
 
-        const loadPromises = images.map((imgData, index) => {
+        const loadPromises = images.map((imageData, index) => {
             return new Promise((resolve) => {
                 // 对 storage.get 添加超时，防止存储层永久 pending
-                const storagePromise = storage.get(`current_${imgData.id}`);
+                const storagePromise = storage.get(`current_${imageData.id}`);
                 const timeoutPromise = new Promise((_, reject) =>
                     setTimeout(() => reject(new Error('存储读取超时')), 8000)
                 );
                 Promise.race([storagePromise, timeoutPromise]).then(blob => {
-                    if (!blob) throw new Error(`图片数据不存在：${imgData.name}`);
+                    if (!blob) throw new Error(`图片数据不存在：${imageData.name}`);
 
                     const blobUrl = URL.createObjectURL(blob);
                     const img = document.createElement('img');
                     img.src = blobUrl;
-                    img.alt = escapeHtml(imgData.name) || `图片 ${index + 1}`;
-                    img.dataset.imageId = imgData.id;
+                    img.alt = escapeHtml(imageData.name) || `图片 ${index + 1}`;
+                    img.dataset.imageId = imageData.id;
                     img.dataset.index = index.toString();
                     img.dataset.blobUrl = blobUrl;
                     img.loading = 'eager';
@@ -5518,13 +5518,13 @@
 
                     // 保存引用到数组（保持顺序）- 在创建 img 后立即同步赋值
                     imgElements[index] = img;
-                    logLog(`[索引${index}] 已创建图片元素：${imgData.name}`);
+                    logLog(`[索引${index}] 已创建图片元素：${imageData.name}`);
 
                     // 动态超时：按 blob 大小估算，每 MB 给 3 秒，最少 8 秒，最多 60 秒
                     const blobSizeMB = (blob?.size || 0) / (1024 * 1024);
                     const dynTimeout = Math.max(8000, Math.min(60000, blobSizeMB * 3000));
                     const timeoutId = setTimeout(() => {
-                        logError(imgData.name, `图片加载超时(${(dynTimeout/1000).toFixed(0)}s)，使用占位图`);
+                        logError(imageData.name, `图片加载超时(${(dynTimeout/1000).toFixed(0)}s)，使用占位图`);
                         releaseImgBlob(img);
                         img.onerror = null;
                         img.dataset.loadFailed = 'true';
@@ -5541,7 +5541,7 @@
 
                     img.onerror = () => {
                         clearTimeout(timeoutId);
-                        logError(imgData.name, '图片加载失败');
+                        logError(imageData.name, '图片加载失败');
                         releaseImgBlob(img);
                         img.onerror = null;
                         img.dataset.loadFailed = 'true';
@@ -5550,12 +5550,12 @@
                     };
                 }).catch((err) => {
                     // 捕获 storage.get 失败或 then 中抛出的异常，防止 Promise 永久 pending
-                    logError(imgData.name, `图片获取异常：${err?.message || err}`);
+                    logError(imageData.name, `图片获取异常：${err?.message || err}`);
                     const img = document.createElement('img');
                     img.src = PLACEHOLDER_SRC;
                     img.dataset.loadFailed = 'true';
-                    img.alt = escapeHtml(imgData.name) || `图片 ${index + 1}`;
-                    img.dataset.imageId = imgData.id;
+                    img.alt = escapeHtml(imageData.name) || `图片 ${index + 1}`;
+                    img.dataset.imageId = imageData.id;
                     img.dataset.index = index.toString();
                     imgElements[index] = img;
                     resolve(img);
