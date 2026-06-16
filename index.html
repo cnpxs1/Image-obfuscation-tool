@@ -5642,11 +5642,8 @@
 
                 // 过滤器：排除加载失败的占位图，仅允许有效图片
                 filter(image) {
-                    // 排除显式标记为失败的图片
-                    if (image.dataset.loadFailed) return false;
-                    // 排除内联 SVG 占位图
-                    if (image.src && image.src.startsWith('data:image/svg+xml')) return false;
-                    return true;
+                    // 仅允许加载成功的非占位图
+                    return !image.dataset.loadFailed && !image.src.startsWith('data:image/svg+xml');
                 },
 
                 // 生命周期事件
