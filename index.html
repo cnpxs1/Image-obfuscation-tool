@@ -1883,6 +1883,9 @@
          * @param {'auto'|'cache-api'|'indexeddb'} newPreference
          */
         async reinit(newPreference) {
+            // 先等待当前正在进行的初始化完成，避免与首次 _init 并发
+            try { await this.ready; } catch (e) { /* 初始化失败也继续走重置流程 */ }
+
             this.preference = newPreference;
 
             // 解析 auto → 实际后端，同一后端无需迁移
@@ -3672,8 +3675,9 @@
         result[35] = (pixelDataSize >> 8) & 0xFF;
         result[36] = (pixelDataSize >> 16) & 0xFF;
         result[37] = (pixelDataSize >> 24) & 0xFF;
-        result[38] = 47; result[39] = 11;
-        result[42] = 47; result[43] = 11;
+        // 72 DPI = 2835 ppm = 0x0B13，小端：低字节 0x13(19)、高字节 0x0B(11)
+        result[38] = 19; result[39] = 11;
+        result[42] = 19; result[43] = 11;
 
         // 像素数据转换：RGBA -> BGR
         let srcIndex = 0;
@@ -5500,10 +5504,12 @@
             return new Promise((resolve) => {
                 // 对 storage.get 添加超时，防止存储层永久 pending
                 const storagePromise = storage.get(`current_${imageData.id}`);
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('存储读取超时')), 8000)
-                );
+                let storageTimerId;
+                const timeoutPromise = new Promise((_, reject) => {
+                    storageTimerId = setTimeout(() => reject(new Error('存储读取超时')), 8000);
+                });
                 Promise.race([storagePromise, timeoutPromise]).then(blob => {
+                    clearTimeout(storageTimerId);
                     if (!blob) throw new Error(`图片数据不存在：${imageData.name}`);
 
                     const blobUrl = URL.createObjectURL(blob);
@@ -5549,6 +5555,7 @@
                         resolve(img);
                     };
                 }).catch((err) => {
+                    clearTimeout(storageTimerId);
                     // 捕获 storage.get 失败或 then 中抛出的异常，防止 Promise 永久 pending
                     logError(imageData.name, `图片获取异常：${err?.message || err}`);
                     const img = document.createElement('img');
