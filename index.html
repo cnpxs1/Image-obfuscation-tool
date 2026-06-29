@@ -2459,6 +2459,8 @@
     let images = [];
     /** @type {Set<string>} 存储选中图片 ID 的集合 */
     let selectedImages = new Set();
+    /** @type {number[]} 按 (w,h) 升序的处理顺序索引，导入/删除时由 updateProcessOrder 更新 */
+    let processOrder = [];
     /** 批量导入计数器，确保高并发场景下 ID 唯一性 */
     let _batchIdCounter = 0;
     let isProcessing = false, processingTimer = null, timerEnabled = false;
@@ -2856,6 +2858,49 @@
     const VALID_EXTENSIONS = Object.keys(MIME_MAP);
     /** 有效 MIME 类型列表 */
     const VALID_MIME_TYPES = [...new Set(Object.values(MIME_MAP))];
+
+    // ---- Worker 池并发处理 ----
+
+    /** 像素映射 Worker 内联代码（Blob URL 方式创建，沿用 canvasToBmpAsync 的模式） */
+    const PIXEL_WORKER_CODE = `
+        self.onmessage = function(e) {
+            var srcBuffer = e.data.srcBuffer;
+            var curve = e.data.curve;
+            var shiftedCurve = e.data.shiftedCurve;
+            var totalPixels = e.data.totalPixels;
+            var operation = e.data.operation;
+
+            var srcU32 = new Uint32Array(srcBuffer);
+            var dstBuffer = new ArrayBuffer(totalPixels * 4);
+            var dstU32 = new Uint32Array(dstBuffer);
+
+            var to = operation === 'encrypt' ? shiftedCurve : curve;
+            var from = operation === 'encrypt' ? curve : shiftedCurve;
+            for (var i = 0; i < totalPixels; i++) {
+                dstU32[to[i]] = srcU32[from[i]];
+            }
+
+            // Transferable 回传 dstBuffer，零拷贝
+            self.postMessage({ dstBuffer: dstBuffer }, [dstBuffer]);
+        };
+    `;
+
+    /**
+     * 信号量：控制并发数量
+     * 用于 Worker 池 + I/O 预取的并发调度
+     */
+    class Semaphore {
+        constructor(max) { this.max = max; this.count = 0; this.queue = []; }
+        acquire() {
+            if (this.count < this.max) { this.count++; return Promise.resolve(); }
+            return new Promise(function(resolve) { this.queue.push(resolve); }.bind(this));
+        }
+        release() {
+            this.count--;
+            const next = this.queue.shift();
+            if (next) { this.count++; next(); }
+        }
+    }
 
     /**
      * 验证文件字节内容是否为有效图片格式（magic bytes 检查）
@@ -3963,6 +4008,124 @@
     }
 
     // =============================================
+    // Worker 池管理器
+    // =============================================
+
+    /**
+     * Web Worker 池：管理像素映射 Worker 的创建、调度、销毁
+     * 大小 = navigator.hardwareConcurrency - 1（最小 1），全局单例
+     */
+    class WorkerPool {
+        constructor(size) {
+            this.size = size;
+            this._blobUrl = null;  // 所有 Worker 共享的 Blob URL
+            this.workers = [];     // { worker, busy }
+            this.queue = [];       // { task, resolve, reject }
+            this._init();
+        }
+
+        _init() {
+            this._failed = false;
+            const blob = new Blob([PIXEL_WORKER_CODE], { type: 'application/javascript' });
+            this._blobUrl = URL.createObjectURL(blob);
+            for (let i = 0; i < this.size; i++) {
+                try {
+                    const worker = new Worker(this._blobUrl);
+                    this.workers.push({ worker: worker, busy: false });
+                } catch (e) {
+                    // file:// 下 Chrome 拒绝 Worker，标记失败并清理
+                    this._failed = true;
+                    this.terminate();
+                    return;
+                }
+            }
+        }
+
+        /** Worker 池是否不可用（如 file:// 协议被浏览器拒绝） */
+        get failed() { return this._failed; }
+
+        /**
+         * 提交像素映射任务到空闲 Worker，无空闲时排队
+         * @param {{srcBuffer: ArrayBuffer, curve: Uint32Array, shiftedCurve: Uint32Array, totalPixels: number, operation: string}} task
+         * @returns {Promise<ArrayBuffer>} dstBuffer
+         */
+        process(task) {
+            const self = this;
+            return new Promise(function(resolve, reject) {
+                let idle = null;
+                for (let i = 0; i < self.workers.length; i++) {
+                    if (!self.workers[i].busy) { idle = self.workers[i]; break; }
+                }
+                if (idle) {
+                    self._dispatch(idle, task, resolve, reject);
+                } else {
+                    self.queue.push({ task: task, resolve: resolve, reject: reject });
+                }
+            });
+        }
+
+        _dispatch(entry, task, resolve, reject) {
+            const self = this;
+            entry.busy = true;
+
+            entry.worker.onmessage = function(e) {
+                entry.busy = false;
+                resolve(e.data.dstBuffer);
+                self._processQueue();
+            };
+
+            entry.worker.onerror = function(err) {
+                entry.busy = false;
+                reject(err);
+                self._processQueue();
+            };
+
+            // srcBuffer 用 Transferable 传递，Worker 获取所有权
+            entry.worker.postMessage(task, [task.srcBuffer]);
+        }
+
+        _processQueue() {
+            if (this.queue.length === 0) return;
+            let idle = null;
+            for (let i = 0; i < this.workers.length; i++) {
+                if (!this.workers[i].busy) { idle = this.workers[i]; break; }
+            }
+            if (!idle) return;
+
+            const next = this.queue.shift();
+            this._dispatch(idle, next.task, next.resolve, next.reject);
+        }
+
+        /** 终止所有 Worker 并释放 Blob URL */
+        terminate() {
+            for (let i = 0; i < this.workers.length; i++) {
+                this.workers[i].worker.terminate();
+            }
+            if (this._blobUrl) {
+                URL.revokeObjectURL(this._blobUrl);
+                this._blobUrl = null;
+            }
+            this.workers = [];
+            this.queue = [];
+        }
+    }
+
+    /** Worker 池全局单例（懒初始化） */
+    let _workerPool = null;
+
+    /**
+     * 获取 Worker 池单例
+     * @returns {WorkerPool}
+     */
+    function getWorkerPool() {
+        if (!_workerPool) {
+            const count = Math.max(1, (navigator.hardwareConcurrency || 4) - 1);
+            _workerPool = new WorkerPool(count);
+        }
+        return _workerPool;
+    }
+
+    // =============================================
     // 图片处理核心函数
     // =============================================
     /**
@@ -4034,6 +4197,174 @@
             if (bitmap) bitmap.close();
             releaseCanvasToPool(canvas);
         }
+    }
+
+    /**
+     * 并发单张图片处理（Worker 池版本）
+     * 阶段 1（主线程）：storage.get → createImageBitmap → getImageData → 提取 srcBuffer
+     * 阶段 2（Worker ）：像素映射循环 dst[to[i]] = src[from[i]]
+     * 阶段 3（主线程）：new ImageData → putImageData → encode PNG → storage.set → updateThumbnail
+     * @param {Object} imageData - 图片数据对象
+     * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
+     * @param {WorkerPool} pool - Worker 池实例
+     */
+    async function processOneImageConcurrent(imageData, operation, pool) {
+        // 还原操作：直接复制，不涉及 Worker
+        if (operation === 'restore') {
+            const originalBlob = await storage.get('original_' + imageData.id);
+            if (!originalBlob) throw new Error('原始图片数据不存在');
+
+            await storage.set('current_' + imageData.id, originalBlob);
+
+            imageData.scrambleLevel = 0;
+            imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
+            imageData.processed = false;
+            imageData.size = originalBlob.size;
+
+            await updateThumbnail(imageData.id, originalBlob);
+            updateImageInfo(imageData.id);
+            return;
+        }
+
+        // --- 阶段 1：I/O 读取 + 解码（主线程）---
+        const sourceBlob = await storage.get('current_' + imageData.id);
+        if (!sourceBlob) throw new Error('图片数据不存在');
+
+        const bitmap = await createImageBitmap(sourceBlob, { premultiplyAlpha: 'none' });
+        const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
+        try {
+            const ctx = drawBitmapToCanvas(canvas, bitmap, { willReadFrequently: true });
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const totalPixels = canvas.width * canvas.height;
+            // 分离 ArrayBuffer（getImageData 返回的 buffer 可能与 Canvas 共享，不能直接 Transfer）
+            const srcBuffer = imgData.data.buffer.slice(0);
+
+            // --- 阶段 2：像素映射（Worker 池）---
+            const curveResult = getCachedCurve(canvas.width, canvas.height);
+            const dstBuffer = await pool.process({
+                srcBuffer: srcBuffer,
+                curve: curveResult.curve,
+                shiftedCurve: curveResult.shiftedCurve,
+                totalPixels: totalPixels,
+                operation: operation
+            });
+
+            // --- 阶段 3：写回 + 编码 + 存储（主线程）---
+            const newImageData = new ImageData(
+                new Uint8ClampedArray(dstBuffer),
+                canvas.width,
+                canvas.height
+            );
+            ctx.putImageData(newImageData, 0, 0);
+
+            const newBlob = await canvasToBlobPromise(canvas, 'image/png');
+            await storage.set('current_' + imageData.id, newBlob);
+
+            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
+            imageData.format = 'PNG';
+            imageData.processed = true;
+            imageData.size = newBlob.size;
+
+            await updateThumbnail(imageData.id, newBlob);
+            updateImageInfo(imageData.id);
+        } finally {
+            if (bitmap) bitmap.close();
+            releaseCanvasToPool(canvas);
+        }
+    }
+
+    /**
+     * 并发批量处理图片（Worker 池 + 并发 I/O）
+     * 替代 forEachTargetImage 中串行 await，实现流水线重叠
+     * 按 processOrder 顺序遍历，并发数 = Worker 数量 × 2
+     * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
+     * @returns {Promise<{successCount: number, failureCount: number}|null>}
+     */
+    async function processBatchConcurrent(operation) {
+        const targetIds = guardEmptySelection();
+        if (!targetIds) return null;
+
+        const statusDiv = document.getElementById('batchStatus');
+        const targetSet = new Set(targetIds);
+
+        // 按 processOrder 顺序收集目标图片
+        const tasks = [];
+        for (let i = 0; i < processOrder.length; i++) {
+            const idx = processOrder[i];
+            const imgData = images[idx];
+            if (!targetSet.has(imgData.id)) continue;
+            tasks.push(imgData);
+        }
+
+        if (tasks.length === 0) {
+            showTempStatus('⚠️ 请先选择图片');
+            return null;
+        }
+
+        statusDiv.innerHTML = '<div class="loading"></div> 正在处理 ' + tasks.length + ' 张图片...';
+
+        // 启动计时器
+        if (tasks.length > 0) startProcessingTimer(tasks.length, operation);
+
+        const pool = getWorkerPool();
+
+        // Worker 池不可用（如 file:// 协议下 Chrome 拒绝 Worker），降级到串行处理
+        if (pool.failed) {
+            logWarn('Worker 池', 'Worker 不可用，降级到串行处理');
+            let successCount = 0, failureCount = 0;
+            for (let i = 0; i < tasks.length; i++) {
+                const imageData = tasks[i];
+                const item = document.querySelector('[data-id="' + imageData.id + '"]');
+                const overlay = item ? showProcessingOverlay(item) : null;
+                try {
+                    await processSingleImage(imageData, operation);
+                    successCount++;
+                } catch (error) {
+                    failureCount++;
+                    logError(imageData.name, ('处理失败: ' + (error.message || '未知错误')));
+                } finally {
+                    if (overlay) overlay.remove();
+                    await updateProgressStatus(statusDiv, i + 1, tasks.length, '处理');
+                }
+            }
+            stopProcessingTimer();
+            showBatchStatus(successCount, failureCount, '处理');
+            return { successCount: successCount, failureCount: failureCount };
+        }
+
+        // 并发限制：Worker 数量的 2 倍（Worker 跑像素时，主线程可预读/编码下一张）
+        const CONCURRENCY = Math.max(1, pool.size * 2);
+        const semaphore = new Semaphore(CONCURRENCY);
+
+        let successCount = 0, failureCount = 0;
+        let completed = 0;
+
+        const promises = tasks.map(function(imageData) {
+            return (async function() {
+                const item = document.querySelector('[data-id="' + imageData.id + '"]');
+                const overlay = item ? showProcessingOverlay(item) : null;
+
+                await semaphore.acquire();
+                try {
+                    await processOneImageConcurrent(imageData, operation, pool);
+                    successCount++;
+                } catch (error) {
+                    failureCount++;
+                    logError(imageData.name, ('处理失败: ' + (error.message || '未知错误')));
+                } finally {
+                    if (overlay) overlay.remove();
+                    completed++;
+                    await updateProgressStatus(statusDiv, completed, tasks.length, '处理');
+                    semaphore.release();
+                }
+            })();
+        });
+
+        await Promise.allSettled(promises);
+
+        stopProcessingTimer();
+        showBatchStatus(successCount, failureCount, '处理');
+        return { successCount: successCount, failureCount: failureCount };
     }
 
     /**
@@ -4145,6 +4476,79 @@
     // 批量操作函数
     // =============================================
 
+    /**
+     * 按 (width, height) 升序生成处理顺序索引数组（纯函数，不修改 images）
+     * 小图（max(w,h) ≤ threshold）使用双层计数排序 O(n)，大图使用快排 O(n log n)
+     * @param {Array<{width: number, height: number}>} imageList
+     * @param {number} [threshold=16384] - 计数排序的尺寸上限
+     * @returns {number[]} 按 (w, h) 升序排列的 images 索引
+     */
+    function buildDimensionProcessOrder(imageList, threshold = 16384) {
+        const n = imageList.length;
+        if (n === 0) return [];
+
+        const smallIdx = [];
+        const largeIdx = [];
+
+        // 1. 拆分索引：小图走计数排序，大图走快排
+        for (let i = 0; i < n; i++) {
+            const { width: w, height: h } = imageList[i];
+            if (Math.max(w, h) <= threshold) {
+                smallIdx.push(i);
+            } else {
+                largeIdx.push(i);
+            }
+        }
+
+        // 2. 小图：双层计数排序（先 w 后 h）
+        // countW[w] 存放所有宽度为 w 的图片索引，一次分配 16385 个空数组
+        const countW = Array.from({ length: threshold + 1 }, () => []);
+        for (const idx of smallIdx) {
+            countW[imageList[idx].width].push(idx);
+        }
+
+        const smallOrder = [];
+        for (let w = 0; w <= threshold; w++) {
+            const group = countW[w];
+            if (group.length === 0) continue;
+
+            // 同 w 内按 h 计数排序（Map 避免稀疏大数组的分配开销）
+            const countH = new Map();
+            for (const idx of group) {
+                const h = imageList[idx].height;
+                if (!countH.has(h)) countH.set(h, []);
+                countH.get(h).push(idx);
+            }
+            // 按 h 升序拼接
+            const sortedH = [...countH.keys()].sort((a, b) => a - b);
+            for (const h of sortedH) {
+                const indices = countH.get(h);
+                for (let k = 0; k < indices.length; k++) {
+                    smallOrder.push(indices[k]);
+                }
+            }
+        }
+
+        // 3. 大图：快排 (w, h) 字典序
+        largeIdx.sort((a, b) => {
+            const diffW = imageList[a].width - imageList[b].width;
+            if (diffW !== 0) return diffW;
+            return imageList[a].height - imageList[b].height;
+        });
+
+        // 4. 合并：小图在前，大图在后
+        const result = new Array(n);
+        let pos = 0;
+        for (let i = 0; i < smallOrder.length; i++) result[pos++] = smallOrder[i];
+        for (let i = 0; i < largeIdx.length; i++) result[pos++] = largeIdx[i];
+        return result;
+    }
+
+    /** 更新全局 processOrder（导入/删除图片后调用） */
+    function updateProcessOrder() {
+        processOrder = buildDimensionProcessOrder(images);
+    }
+
     /** 空选择守卫，无选中图片时提示并返回 null */
     function guardEmptySelection() {
         const targetIds = getTargetImageIds();
@@ -4169,12 +4573,18 @@
         const statusDiv = document.getElementById('batchStatus');
         statusDiv.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
 
+        // 用 Map 快照 ID→对象：循环内有 await，期间用户可能删除图片（images.filter 创建新数组），
+        // Map 持有旧数组中的对象引用，避免迭代过程中索引失效
         const imageMap = new Map(images.map(item => [item.id, item]));
         let successCount = 0, failureCount = 0;
         for (let i = 0; i < targetIds.length; i++) {
             const imageId = targetIds[i];
             const imageData = imageMap.get(imageId);
-            if (!imageData) { failureCount++; continue; }
+            if (!imageData) {
+                failureCount++;
+                continue;
+            }
+
             try {
                 await processorFn(imageData, imageId, i);
                 successCount++;
@@ -4198,22 +4608,13 @@
     async function processBatch(operation) {
         if (isProcessing) return;
         isProcessing = true;
-        const targetIds = getTargetImageIds();
-        if (targetIds.length > 0) startProcessingTimer(targetIds.length, operation);
         try {
-            await forEachTargetImage('处理', undefined, async (imageData, imageId) => {
-                const item = document.querySelector(`[data-id="${imageId}"]`);
-                const overlay = item ? showProcessingOverlay(item) : null;
-                try {
-                    await processSingleImage(imageData, operation);
-                } finally {
-                    overlay?.remove();
-                }
-            });
+            await processBatchConcurrent(operation);
         } catch (error) {
-            logError('批量处理', `批量处理失败: ${error.message || error}`);
+            logError('批量处理', '批量处理失败: ' + (error.message || error));
             showTempStatus('❌ 处理失败');
         } finally {
+            // 兜底停止计时器：processBatchConcurrent 异常路径可能跳过其内部 stopProcessingTimer
             stopProcessingTimer();
             isProcessing = false;
         }
@@ -4403,6 +4804,9 @@
             const desc = document.getElementById('description-text');
             if (desc) desc.style.display = 'none';
         }
+
+        // 导入后更新处理顺序（按图片尺寸排序）
+        updateProcessOrder();
     }
 
     // =============================================
@@ -4788,6 +5192,9 @@
             await storage.clear();
             logLog('所有图片已删除：已清除全部缓存');
         }
+
+        // 删除后更新处理顺序
+        updateProcessOrder();
     }
 
     /**
@@ -5879,6 +6286,12 @@
         // 断开懒加载观察器
         if (imageLazyLoader) {
             imageLazyLoader.disconnect();
+        }
+
+        // 清理 Worker 池
+        if (_workerPool) {
+            _workerPool.terminate();
+            _workerPool = null;
         }
 
         // 清理所有Canvas池
