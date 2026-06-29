@@ -1205,6 +1205,12 @@
         .setting-label {
             font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;
         }
+        .setting-row {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .setting-controls-col {
+            display: flex; flex-direction: column; gap: 6px; width: 100%;
+        }
 
         .setting-select {
             font-size: 0.85rem; padding: 2px 0; border: 1px solid #555;
@@ -1463,7 +1469,7 @@
                                         class="setting-num-input" />
                                     <span style="font-size: 1rem; color: #000;">%</span>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <span class="text-tooltip" data-tooltip="开启后WebP忽略质量参数" style="font-size: 0.85rem; color: #888;">无损WebP</span>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="webp-lossless-toggle" class="setting-switch" />
@@ -1526,36 +1532,36 @@
                             <p>日志输出、存储行为与图片查看器配置</p>
                         </div>
                         <div class="setting-controls">
-                            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                            <div class="setting-controls-col">
+                                <div class="setting-row">
                                     <span class="setting-label">存储配置</span>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="localstorage-toggle" class="setting-switch" checked />
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <span class="setting-label">Viewer.js</span>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="viewerjs-toggle" class="setting-switch" checked />
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <span class="setting-label">iro.js</span>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="irojs-toggle" class="setting-switch" checked />
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <span class="setting-label">处理计时</span>
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="timer-toggle" class="setting-switch" />
                                         <span class="toggle-slider"></span>
                                     </label>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <label for="cache-backend-select" class="setting-label">缓存方案</label>
                                     <select id="cache-backend-select" class="setting-select">
                                         <option value="auto">Auto</option>
@@ -1563,7 +1569,7 @@
                                         <option value="indexeddb">IndexedDB</option>
                                     </select>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: 6px;">
+                                <div class="setting-row">
                                     <label for="log-level-select" class="setting-label">日志级别</label>
                                     <select id="log-level-select" class="setting-select">
                                         <option value="off">off</option>
@@ -2529,7 +2535,7 @@
             }
         });
 
-        addTouchScrollDismiss(el, true);
+        addTouchScrollDismiss(el);
     }
 
     // =============================================
@@ -3230,11 +3236,10 @@
      * @returns {Promise<Blob>} 转换后的 Blob
      */
     async function convertImageBlob(blob, targetFormat, opts = {}) {
-        const currentType = blob.type;
-        const needConvert = !(currentType === `image/${targetFormat}` ||
-            (targetFormat === 'jpg' && currentType === 'image/jpeg'));
-
-        if (!needConvert) return blob;
+        // 规范化格式：jpeg→jpg，统一后续分支
+        const fmt = targetFormat === 'jpeg' ? 'jpg' : targetFormat;
+        const mime = fmt === 'jpg' ? 'image/jpeg' : `image/${fmt}`;
+        if (blob.type === mime) return blob;
 
         const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
@@ -3242,26 +3247,21 @@
             const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            if ((targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') && blobMayHaveTransparency(currentType)) {
+            if ((fmt === 'jpg' || fmt === 'bmp') && blobMayHaveTransparency(blob.type)) {
                 ctx.fillStyle = opts.fillColor || opaqueBackgroundColor;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             }
-
             ctx.drawImage(bitmap, 0, 0);
 
-            if (targetFormat === 'png') {
-                return await canvasToBlobPromise(canvas, 'image/png');
-            } else if (targetFormat === 'bmp') {
+            if (fmt === 'bmp') {
                 const bmpData = await canvasToBmpAsync(canvas);
                 return new Blob([bmpData], { type: 'image/bmp' });
-            } else if (targetFormat === 'jpg' || targetFormat === 'jpeg') {
-                return await canvasToBlobPromise(canvas, 'image/jpeg', opts.quality != null ? opts.quality : imageQuality);
-            } else if (targetFormat === 'webp') {
-                const webpLossless = opts.lossless != null ? opts.lossless : document.getElementById('webp-lossless-toggle')?.checked;
-                const webpQuality = webpLossless ? 1.0 : (opts.quality != null ? opts.quality : imageQuality);
-                return await canvasToBlobPromise(canvas, 'image/webp', webpQuality);
             }
-            return blob;
+            // png / jpg / webp 统一走 toBlob
+            const q = fmt === 'webp'
+                ? ((opts.lossless != null ? opts.lossless : document.getElementById('webp-lossless-toggle')?.checked) ? 1.0 : (opts.quality != null ? opts.quality : imageQuality))
+                : (opts.quality != null ? opts.quality : imageQuality);
+            return await canvasToBlobPromise(canvas, mime, q);
         } finally {
             bitmap.close();
             releaseCanvasToPool(canvas);
@@ -3992,31 +3992,21 @@
     // 共享工具函数
     // =============================================
 
-    function addTouchScrollDismiss(element, removeEdgeClasses = false) {
-        // 先移除该元素上已绑定的旧监听器，避免重复累积
+    function addTouchScrollDismiss(element) {
         if (element._touchDismissListener) {
             document.removeEventListener('touchstart', element._touchDismissListener);
             document.removeEventListener('touchmove', element._touchDismissListener);
-            element._touchDismissListener = null;
         }
-
         let startY = 0;
         const closeOnScroll = (e) => {
             if (!element.classList.contains('tooltip-active')) return;
-            if (e.type === 'touchstart') {
-                startY = e.touches[0].clientY;
-            } else if (Math.abs(e.touches[0].clientY - startY) > 10) {
-                if (removeEdgeClasses) {
-                    element.classList.remove('tooltip-active', 'edge-left', 'edge-right');
-                } else {
-                    element.classList.remove('tooltip-active');
-                }
+            if (e.type === 'touchstart') { startY = e.touches[0].clientY; }
+            else if (Math.abs(e.touches[0].clientY - startY) > 10) {
+                element.classList.remove('tooltip-active', 'edge-left', 'edge-right');
             }
         };
         document.addEventListener('touchstart', closeOnScroll, { passive: true });
         document.addEventListener('touchmove', closeOnScroll, { passive: true });
-
-        // 将监听器引用存储在元素自身上，便于后续清理
         element._touchDismissListener = closeOnScroll;
         return closeOnScroll;
     }
@@ -4286,32 +4276,25 @@
     // =============================================
     // 图片处理核心函数
     // =============================================
+
+    /** 共享还原逻辑：从 original 备份恢复，processSingleImage 和 processOneImageConcurrent 共用 */
+    async function restoreImageData(imageData) {
+        const originalBlob = await storage.get(`original_${imageData.id}`);
+        if (!originalBlob) throw new Error('原始图片数据不存在');
+        await storage.set(`current_${imageData.id}`, originalBlob);
+        imageData.scrambleLevel = 0;
+        imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
+        imageData.processed = false;
+        imageData.size = originalBlob.size;
+        await updateThumbnail(imageData.id, originalBlob);
+        updateImageInfo(imageData.id);
+    }
+
     /**
-     * 处理单张图片
-     * @param {Object} imageData - 图片数据对象
-     * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
-     * @returns {Promise} 处理完成的 Promise
-     *
-     * 使用希尔伯特曲线算法对图片像素进行空间重排
-     * 通过黄金分割比例计算偏移量实现混淆效果
+     * 处理单张图片（串行版本，Worker 不可用时降级使用）
      */
     async function processSingleImage(imageData, operation) {
-        // 还原操作：直接复制原始 Blob，完全跳过 Canvas 处理
-        if (operation === 'restore') {
-            const originalBlob = await storage.get(`original_${imageData.id}`);
-            if (!originalBlob) throw new Error('原始图片数据不存在');
-
-            await storage.set(`current_${imageData.id}`, originalBlob);
-
-            imageData.scrambleLevel = 0;
-            imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
-            imageData.processed = false;
-            imageData.size = originalBlob.size;
-
-            await updateThumbnail(imageData.id, originalBlob);
-            updateImageInfo(imageData.id);
-            return;
-        }
+        if (operation === 'restore') { await restoreImageData(imageData); return; }
 
         // 获取当前图片 Blob
         const sourceBlob = await storage.get(`current_${imageData.id}`);
@@ -4367,22 +4350,7 @@
      * @param {WorkerPool} pool - Worker 池实例
      */
     async function processOneImageConcurrent(imageData, operation, pool) {
-        // 还原操作：直接复制，不涉及 Worker
-        if (operation === 'restore') {
-            const originalBlob = await storage.get('original_' + imageData.id);
-            if (!originalBlob) throw new Error('原始图片数据不存在');
-
-            await storage.set('current_' + imageData.id, originalBlob);
-
-            imageData.scrambleLevel = 0;
-            imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
-            imageData.processed = false;
-            imageData.size = originalBlob.size;
-
-            await updateThumbnail(imageData.id, originalBlob);
-            updateImageInfo(imageData.id);
-            return;
-        }
+        if (operation === 'restore') { await restoreImageData(imageData); return; }
 
         // --- 阶段 1：I/O 读取 + 解码（主线程）---
         const sourceBlob = await storage.get('current_' + imageData.id);
@@ -4478,8 +4446,7 @@
 
         batchStatusEl.innerHTML = '<div class="loading"></div> 正在处理 ' + tasks.length + ' 张图片...';
 
-        // 启动计时器
-        if (tasks.length > 0) startProcessingTimer(tasks.length, operation);
+        startProcessingTimer(tasks.length, operation);
 
         const pool = getWorkerPool();
 
@@ -4795,21 +4762,11 @@
         }
     }
 
-    /**
-     * 保存图片到本地，支持选择特定图片或处理所有图片，可选 ZIP 打包下载
-     * @param {string} format - 保存格式：'png'|'bmp'|'jpg'|'jpeg'|'webp'
-     * @returns {Promise<void>}
-     */
+    /** 保存图片（根据 ZIP 开关选择打包/逐个下载） */
     async function saveImages(format) {
-        // 检查打包下载开关状态
-        const zipToggle = document.getElementById('zip-download-toggle');
-        const useZip = zipToggle ? zipToggle.checked : false;
-
-        if (useZip) {
-            // 使用 ZIP 打包下载
+        if (document.getElementById('zip-download-toggle')?.checked) {
             await saveImagesAsZip(format);
         } else {
-            // 逐个下载
             try {
                 await forEachTargetImage('保存', 50, async (imageData) => {
                     await saveImageInFormat(imageData, format);
@@ -5193,13 +5150,7 @@
     // 辅助函数
     // =============================================
 
-    /**
-     * 格式化文件大小为易读格式
-     * @param {number} bytes - 文件大小（字节）
-     * @returns {string} 格式化后的文件大小字符串
-     *
-     * 支持B、KB、MB、GB、TB五种单位，自动选择合适的单位
-     */
+    /** 格式化字节数为易读格式 (B/KB/MB/GB/TB) */
     function formatFileSize(bytes) {
         if (!bytes || bytes < 0) return '0 B';
         const k = 1024;
@@ -5222,16 +5173,10 @@
         const cache = imageData.domCache;
         if (!cache) return;
 
-        // 更新尺寸信息
-        const hasValidSize = imageData.hasOwnProperty('width') &&
-                            imageData.hasOwnProperty('height') &&
-                            typeof imageData.width === 'number' &&
-                            typeof imageData.height === 'number' &&
-                            imageData.width > 0 &&
-                            imageData.height > 0;
-
+        // 更新尺寸信息（width/height 由 prepareImageData 保证为数字）
         if (cache.sizeRow) {
-            cache.sizeRow.innerHTML = `<span>${hasValidSize ?
+            const hasSize = imageData.width > 0 && imageData.height > 0;
+            cache.sizeRow.innerHTML = `<span>${hasSize ?
                 `${imageData.width}×${imageData.height}` :
                 '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
         }
@@ -5249,20 +5194,12 @@
         }
     }
 
-    /**
-     * 更新图片计数器
-     *
-     * 显示当前图片总数
-     */
+    /** 更新图片计数器显示 */
     function updateImageCounter() {
         document.getElementById('imageCounter').textContent = `共 ${images.length} 张图片`;
     }
 
-    /**
-     * 隐藏空状态提示
-     *
-     * 当有图片时隐藏"暂无图片"提示
-     */
+    /** 切换空状态提示的显示/隐藏 */
     function toggleEmptyState(visible) {
         const emptyState = document.getElementById('emptyState');
         if (emptyState) {
@@ -5309,11 +5246,7 @@
         updateSaveButtonText();
     }
 
-    /**
-     * 全选图片
-     *
-     * 选择所有图片，更新选中状态和UI显示
-     */
+    /** 全选所有图片 */
     function selectAll() {
         selectedImages.clear();
         const items = document.querySelectorAll('.image-item');
@@ -5329,11 +5262,7 @@
         updateSaveButtonText();
     }
 
-    /**
-     * 清空选择
-     *
-     * 取消所有图片的选择状态
-     */
+    /** 清空所有图片选择 */
     function clearSelection() {
         const selectedItems = document.querySelectorAll('.image-item.selected');
         for (const item of selectedItems) {
@@ -5372,42 +5301,24 @@
         updateProcessOrder();
     }
 
-    /**
-     * 删除选中的图片
-     *
-     * 释放选中图片的资源，从数组和 DOM 中移除，清空选择状态
-     */
+    /** 删除选中的图片 */
     async function deleteSelectedImages() {
         if (guardProcessing()) return;
-
-        if (selectedImages.size === 0) {
-            showTempStatus('⚠️ 请先选择要删除的图片');
-            return;
-        }
+        if (selectedImages.size === 0) { showTempStatus('⚠️ 请先选择要删除的图片'); return; }
 
         const idsToDelete = Array.from(selectedImages);
         await _deleteImagesByIds(idsToDelete, true);
-
         selectedImages.clear();
         updateSaveButtonText();
         updateImageCounter();
         logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
     }
 
-    /**
-     * 删除单张图片
-     * @param {string} imageId - 要删除的图片 ID
-     *
-     * 从数组和 DOM 中移除图片，同时释放 Blob URL 资源
-     */
+    /** 删除单张图片 */
     async function deleteSingleImage(imageId) {
         if (guardProcessing()) return;
-
         const imageData = images.find(item => item.id === imageId);
-        if (!imageData) {
-            logWarn('图片删除', `未找到要删除的图片: ${imageId}`);
-            return;
-        }
+        if (!imageData) { logWarn('图片删除', `未找到要删除的图片: ${imageId}`); return; }
 
         try {
             await _deleteImagesByIds([imageId], false);
@@ -5422,13 +5333,7 @@
     // 单张图片处理函数
     // =============================================
 
-    /**
-     * 处理单张图片（用户界面调用）
-     * 提供用户界面级别的单张图片处理功能
-     *
-     * @param {string} imageId - 图片ID
-     * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'|'save'
-     */
+    /** 处理单张图片（UI 入口，含保存） */
     async function processSingle(imageId, operation) {
         if (isProcessing) return;
 
@@ -5465,12 +5370,7 @@
         }
     }
 
-    /**
-     * 保存单张图片到本地
-     * @param {string} imageId - 图片ID
-     *
-     * 根据当前图片状态和用户选择的格式保存单张图片
-     */
+    /** 保存单张图片到本地 */
     async function saveSingleImage(imageId) {
         const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
@@ -5750,50 +5650,26 @@
         }
 
         try {
-            // 断开旧的 ResizeObserver 并清理实例
-            if (colorPickerResizeObserver) {
-                colorPickerResizeObserver.disconnect();
-                colorPickerResizeObserver = null;
-            }
+            if (colorPickerResizeObserver) { colorPickerResizeObserver.disconnect(); colorPickerResizeObserver = null; }
             disposeColorPicker();
 
-            colorPickerInstance = createColorPicker({
-                width: 200,
-                layoutDirection: 'horizontal',
-                layout: [
-                    { component: iro.ui.Box, options: {} },
-                    { component: iro.ui.Slider, options: { sliderType: 'hue' } }
-                ],
-                color: opaqueBackgroundColor,
-                borderWidth: 1,
-                borderColor: '#ddd',
-                containerStyle: 'border-radius: 0;'
-            });
+            const BASE_OPTS = { width: 200, borderWidth: 1, borderColor: '#ddd', containerStyle: 'border-radius: 0;' };
+            const LAYOUT = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
 
+            colorPickerInstance = createColorPicker({ ...BASE_OPTS, layoutDirection: 'horizontal', layout: LAYOUT, color: opaqueBackgroundColor });
             logLog('颜色选择器初始化成功');
 
-            // 监听容器宽度：换行时切换为垂直布局
             let isWrapped = false;
             const pickerRow = document.getElementById('color-picker-box')?.parentElement;
             if (pickerRow) {
-                const layout = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
                 colorPickerResizeObserver = new ResizeObserver(() => {
                     const wrapped = pickerRow.clientHeight > 250;
                     if (wrapped === isWrapped) return;
                     isWrapped = wrapped;
                     const currentColor = colorPickerInstance.color.hsv;
-                    // 只清理实例和 DOM，不断开 Observer
                     disposeColorPicker();
                     document.getElementById('color-picker-box').innerHTML = '';
-                    colorPickerInstance = createColorPicker({
-                        width: 200,
-                        layoutDirection: wrapped ? 'vertical' : 'horizontal',
-                        layout,
-                        color: currentColor,
-                        borderWidth: 1,
-                        borderColor: '#ddd',
-                        containerStyle: 'border-radius: 0;'
-                    });
+                    colorPickerInstance = createColorPicker({ ...BASE_OPTS, layoutDirection: wrapped ? 'vertical' : 'horizontal', layout: LAYOUT, color: currentColor });
                 });
                 colorPickerResizeObserver.observe(pickerRow);
             }
@@ -5933,25 +5809,7 @@
         saveImages(format);
     });
 
-    // 使用 Viewer.js 的 showPreview 函数
-
-    /**
-     * 按照 Viewer.js 最佳实践实现的图片预览功能
-     * @param {string} imageId - 要预览的图片 ID
-     *
-     * 遵循 Viewer.js 官方推荐的实现方式：
-     * 1. 使用图片容器作为 Viewer 的目标元素
-     * 2. 利用 Viewer.js 的内置生命周期事件
-     * 3. 实现完善的资源管理和错误处理
-     * 4. 支持优雅降级到基础查看器
-     *
-     * 取消机制防止竞态条件：
-     * - 使用取消令牌避免多个预览实例同时存在
-     * - 快速连续点击时自动取消前一个操作
-     */
-    /**
-     * 为单张图片打开基础查看器（跳过创建全部图片元素）
-     */
+    /** 为单张图片打开基础查看器（无需构建全部图片元素） */
     async function openBasicViewer(imageData, token) {
         if (isPreviewStale(token)) return;
         logLog('启用基础图片查看器');
@@ -6233,7 +6091,7 @@
                 // UI组件
                 button: true,
                 navbar: true,
-                toolbar: toolbarConfig(),
+                toolbar: TOOLBAR_CONFIG,
                 title: false,
 
                 // 行为配置
@@ -6354,28 +6212,12 @@
         }
     }
 
-    /**
-     * 获取优化的工具栏配置
-     * @returns {Object} 工具栏配置
-     */
-    function toolbarConfig() {
-        return {
-            zoomIn: 1,
-            zoomOut: 1,
-            oneToOne: 1,
-            reset: 1,
-            prev: 1,
-            play: {
-                show: 1,
-                size: 'large'
-            },
-            next: 1,
-            rotateLeft: 1,
-            rotateRight: 1,
-            flipHorizontal: 1,
-            flipVertical: 1
-        };
-    }
+    /** Viewer.js 工具栏配置 */
+    const TOOLBAR_CONFIG = {
+        zoomIn: 1, zoomOut: 1, oneToOne: 1, reset: 1, prev: 1,
+        play: { show: 1, size: 'large' }, next: 1,
+        rotateLeft: 1, rotateRight: 1, flipHorizontal: 1, flipVertical: 1
+    };
 
     /**
      * 处理 Viewer.js 初始化失败的情况
@@ -6384,30 +6226,10 @@
      * @param {number} token - 并发控制令牌
      */
     async function fallbackViewer(container, imageData, token) {
-        // 检查是否被新调用取代
-        if (isPreviewStale(token)) {
-            logLog('预览操作已被取代，跳过失败处理');
-            destroyViewer(container);
-            return;
-        }
-
-        // 清理容器并释放 Blob URL
         destroyViewer(container);
-
-        // 启用基础图片查看器作为兜底方案
-        logLog('启用基础图片查看器作为替代方案');
-
-        // 获取当前图片 Blob 并创建临时 URL
-        try {
-            const blob = await storage.get(`current_${imageData.id}`);
-            if (blob) {
-                const url = URL.createObjectURL(blob);
-                showBasicViewer({ blobUrl: url, originalName: imageData.name });
-            } else {
-                logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
-            }
-        } catch (error) {
-            logError('Viewer.js', `获取图片 Blob 失败: ${error.message || error}`);
+        if (!isPreviewStale(token)) {
+            logLog('启用基础图片查看器作为替代方案');
+            await openBasicViewer(imageData, token);
         }
     }
 
