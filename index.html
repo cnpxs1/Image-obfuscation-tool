@@ -1942,31 +1942,50 @@
                     }
                 } catch (e) { /* 清理失败不影响切换 */ }
 
-                // 初始化新后端
+                // 初始化新后端（先清旧再建新：旧后端数据已安全快照至 oldData）
                 this.backend = null;
                 this.db = null;
                 this.activeBackend = '';
                 this.ready = this._init();
                 await this.ready;
 
-                // 迁移数据到新后端（逐条写入，避免并发事务争抢）
+                // 验证新后端已就绪：若 _init 全部失败，迁移数据将无处写入
+                if (!this.backend && !this.db && oldData.size > 0) {
+                    const targetLabel = newPreference === 'auto'
+                        ? '自动选择（Cache API / IndexedDB 均不可用）'
+                        : (newPreference === 'cache-api' ? 'Cache API' : 'IndexedDB');
+                    logError('存储适配层',
+                        `切换至 ${targetLabel} 失败，${oldData.size} 条缓存数据丢失`);
+                }
+
+                // 迁移数据到新后端：按 activeBackend 显式分派，避免依赖 this.backend 的隐式真假
                 if (oldData.size > 0) {
+                    const writeToCacheApi = this.activeBackend === 'cache-api' && this.backend;
+                    const writeToIndexedDb = this.activeBackend === 'indexeddb' && this.db;
                     let migrated = 0, failed = 0;
                     for (const [key, blob] of oldData) {
-                        try {
-                            if (this.backend) {
+                        if (writeToCacheApi) {
+                            try {
                                 const res = new Response(blob, {
                                     headers: { 'Content-Type': blob.type || 'image/png' }
                                 });
                                 await this.backend.put(key, res);
-                            } else {
+                                migrated++;
+                            } catch (e) { failed++; }
+                        } else if (writeToIndexedDb) {
+                            try {
                                 await this._dbTransaction('readwrite', store => store.put(blob, key));
-                            }
-                            migrated++;
-                        } catch (e) { failed++; }
+                                migrated++;
+                            } catch (e) { failed++; }
+                        } else {
+                            // 无可用后端：逐条记录失败
+                            failed++;
+                        }
                     }
                     if (migrated > 0) {
                         logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
+                    } else if (failed > 0) {
+                        logError('存储适配层', `数据迁移全部失败：${oldData.size} 条数据无法写入新后端`);
                     }
                 }
 
@@ -4132,6 +4151,8 @@
                 const idx = self.workers.indexOf(entry);
                 if (idx !== -1) self.workers.splice(idx, 1);
                 reject(err);
+                // 尝试重建 Worker 替代崩溃的实例，避免池容量持续缩减
+                self._tryRecreateWorker();
                 self._processQueue();
             };
 
@@ -4145,6 +4166,8 @@
                 const idx = self.workers.indexOf(entry);
                 if (idx !== -1) self.workers.splice(idx, 1);
                 reject(e);
+                // 尝试重建 Worker 替代崩溃的实例
+                self._tryRecreateWorker();
                 self._processQueue();
             }
         }
@@ -4152,10 +4175,15 @@
         _processQueue() {
             if (this.queue.length === 0) return;
             // 所有 Worker 均崩溃时，排空队列并 reject 全部等待任务，防止 Promise 永久 pending
+            // 使用 while 循环 + try/catch 确保单个 reject 异常不影响后续任务处理
             if (this.workers.length === 0) {
                 while (this.queue.length > 0) {
                     const item = this.queue.shift();
-                    item.reject(new Error('Worker 池已耗尽，所有 Worker 均不可用'));
+                    try {
+                        item.reject(new Error('Worker 池已耗尽，所有 Worker 均不可用'));
+                    } catch (_) {
+                        // reject 不应抛异常，但防御性捕获确保后续任务仍被处理
+                    }
                 }
                 return;
             }
@@ -7266,7 +7294,14 @@
         bindSelect('cache-backend-select', 'cacheBackend', async (v) => {
             // 有已导入图片时需用户确认（初始化时 images 为空，不会弹窗）
             if (images.length > 0) {
-                const label = v === 'auto' ? 'Auto' : (v === 'cache-api' ? 'Cache API' : 'IndexedDB');
+                // 解析 Auto → 实际目标后端，用于弹窗展示
+                const avail = window.__cacheBackendAvail || {};
+                const effective = v === 'auto'
+                    ? (avail.cacheApi ? 'cache-api' : (avail.indexedDb ? 'indexeddb' : ''))
+                    : v;
+                const label = v === 'auto'
+                    ? `Auto（${effective === 'cache-api' ? 'Cache API' : effective === 'indexeddb' ? 'IndexedDB' : '不可用'}）`
+                    : (v === 'cache-api' ? 'Cache API' : 'IndexedDB');
                 if (!confirm(`切换缓存方案将迁移全部 ${images.length} 张图片的缓存数据，是否继续？\n\n目标方案：${label}`)) {
                     const el = document.getElementById('cache-backend-select');
                     if (el) el.value = storage.preference;
