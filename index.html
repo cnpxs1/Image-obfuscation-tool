@@ -2132,7 +2132,13 @@
      */
     async function importZip(zipFile) {
         if (typeof fflate === 'undefined') {
-            try { await window.fflateResources.promise; } catch (e) {
+            try {
+                // Promise.race 超时防护：防止 CDN 请求挂起导致 Promise 永久 pending
+                await Promise.race([
+                    window.fflateResources.promise,
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('fflate 加载超时（12s）')), 12000))
+                ]);
+            } catch (e) {
                 logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
                 return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
             }
@@ -3601,7 +3607,12 @@
         }
 
         if (pool.length > 0) {
-            return pool.pop();
+            const canvas = pool.pop();
+            // 防御性校验：若 Canvas 尺寸异常（如被清理操作清零），丢弃并重建
+            if (canvas.width > 0 && canvas.height > 0) {
+                return canvas;
+            }
+            logWarn('Canvas池', `丢弃尺寸异常的缓存 Canvas (${canvas.width}x${canvas.height})，重建 ${key}`);
         }
 
         // 池为空时创建新Canvas并设置尺寸，初始化上下文避免后续getContext属性不匹配
@@ -3915,6 +3926,8 @@
                 );
 
             } catch (error) {
+                // 设置 settled 防止后续 onerror 重复 reject 已 resolve 的 Promise
+                settled = true;
                 logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
                 if (worker) worker.terminate();
                 if (blobUrl) URL.revokeObjectURL(blobUrl);
@@ -4197,6 +4210,21 @@
             this._dispatch(idle, next.task, next.resolve, next.reject);
         }
 
+        /**
+         * 尝试重建一个 Worker 替代已崩溃的实例
+         * - 仅当 Blob URL 仍有效且池未标记为失败时尝试
+         * - 创建失败时静默放弃（不标记 _failed，避免影响现有健康 Worker）
+         */
+        _tryRecreateWorker() {
+            if (this._failed || !this._blobUrl) return;
+            try {
+                const worker = new Worker(this._blobUrl);
+                this.workers.push({ worker: worker, busy: false });
+            } catch (_) {
+                // 重建失败（如 file:// 限制），不改变池状态
+            }
+        }
+
         /** 终止所有 Worker 并释放 Blob URL */
         terminate() {
             for (let i = 0; i < this.workers.length; i++) {
@@ -4390,12 +4418,28 @@
         const targetSet = new Set(targetIds);
 
         // 按 processOrder 顺序收集目标图片
+        // 使用 Map 快照防御 images 数组在构建期间被外部修改（如并发删除导致索引失效）
+        // 与 forEachTargetImage 的 Map 快照模式保持一致
+        const imageMap = new Map(images.map(item => [item.id, item]));
         const tasks = [];
+        const seen = new Set();
         for (let i = 0; i < processOrder.length; i++) {
             const idx = processOrder[i];
+            // 防御性边界检查：processOrder 索引可能因 images 变更而越界
+            if (idx < 0 || idx >= images.length) continue;
             const imgData = images[idx];
-            if (!targetSet.has(imgData.id)) continue;
+            if (!imgData || !targetSet.has(imgData.id) || seen.has(imgData.id)) continue;
+            seen.add(imgData.id);
             tasks.push(imgData);
+        }
+        // 补充 processOrder 中可能遗漏的目标图片（防御 processOrder 未及时同步的场景）
+        for (const id of targetIds) {
+            if (seen.has(id)) continue;
+            const imgData = imageMap.get(id);
+            if (imgData) {
+                tasks.push(imgData);
+                seen.add(id);
+            }
         }
 
         if (tasks.length === 0) {
