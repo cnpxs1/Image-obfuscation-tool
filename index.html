@@ -2063,6 +2063,8 @@
                 }
             } else if (this.db) {
                 return this._dbTransaction('readwrite', store => store.clear());
+            } else {
+                logWarn('存储适配层', '所有后端均不可用，无法执行清理操作');
             }
         }
 
@@ -2083,11 +2085,22 @@
 
         /** 删除指定图片的所有关联数据（原始、当前、缩略图） */
         async deleteImageData(id) {
-            await Promise.all([
-                this.delete(`original_${id}`),
-                this.delete(`current_${id}`),
-                this.delete(`thumb_${id}`)
-            ]);
+            if (this.backend) {
+                // Cache API：三路并发删除安全
+                await Promise.all([
+                    this.delete(`original_${id}`),
+                    this.delete(`current_${id}`),
+                    this.delete(`thumb_${id}`)
+                ]);
+            } else if (this.db) {
+                // IndexedDB：合并在单事务中执行，避免并发事务冲突
+                // _dbTransaction 依赖返回值绑定 onerror/onsuccess，故 return 最后一个 delete 的请求
+                await this._dbTransaction('readwrite', store => {
+                    store.delete(`original_${id}`);
+                    store.delete(`current_${id}`);
+                    return store.delete(`thumb_${id}`);
+                });
+            }
         }
     }
 
@@ -2247,6 +2260,10 @@
                         zip.add(entry);
                         const zipOndata = entry.ondata;
                         entry.ondata = function(err, chunk, final_) {
+                            if (!zipOndata) {
+                                reject(new Error('fflate 内部错误：AsyncZipDeflate ondata 回调未设置'));
+                                return;
+                            }
                             zipOndata.call(this, err, chunk, final_);
                             if (err) reject(err);
                             else if (final_) resolve();
@@ -2812,9 +2829,13 @@
             }
             list.insertBefore(frag, list.firstChild);
 
-            // 超出上限时移除底部旧 DOM 节点
+            // 超出上限时移除底部旧 DOM 节点，同步清理 renderedLogIds 防止内存泄漏
             while (list.children.length > MAX_LOGS) {
-                list.lastElementChild.remove();
+                const last = list.lastElementChild;
+                if (last && last.dataset && last.dataset.logId) {
+                    renderedLogIds.delete(last.dataset.logId);
+                }
+                last.remove();
             }
         }
 
@@ -4115,7 +4136,17 @@
             };
 
             // srcBuffer 用 Transferable 传递，Worker 获取所有权
-            entry.worker.postMessage(task, [task.srcBuffer]);
+            // 包裹 try/catch：若 Worker 在排队期间被意外终止，postMessage 可能同步抛异常
+            try {
+                entry.worker.postMessage(task, [task.srcBuffer]);
+            } catch (e) {
+                entry.worker.terminate();
+                entry.busy = false;
+                const idx = self.workers.indexOf(entry);
+                if (idx !== -1) self.workers.splice(idx, 1);
+                reject(e);
+                self._processQueue();
+            }
         }
 
         _processQueue() {
@@ -4212,7 +4243,7 @@
             const totalPixels = canvas.width * canvas.height;
             const { curve, shiftedCurve } = getCachedCurve(canvas.width, canvas.height);
 
-            const srcU32 = new Uint32Array(imgData.data.buffer);
+            const srcU32 = new Uint32Array(imgData.data.buffer, imgData.data.byteOffset, totalPixels);
             const newImageData = new ImageData(canvas.width, canvas.height);
             const dstU32 = new Uint32Array(newImageData.data.buffer);
 
@@ -4279,7 +4310,8 @@
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const totalPixels = canvas.width * canvas.height;
             // 分离 ArrayBuffer（getImageData 返回的 buffer 可能与 Canvas 共享，不能直接 Transfer）
-            const srcBuffer = imgData.data.buffer.slice(0);
+            // 注意：必须考虑 byteOffset，getImageData 的 ArrayBuffer 可能并非从偏移 0 开始
+            const srcBuffer = imgData.data.buffer.slice(imgData.data.byteOffset, imgData.data.byteOffset + imgData.data.byteLength);
 
             // --- 阶段 2：像素映射（Worker 池）---
             const curveResult = getCachedCurve(canvas.width, canvas.height);
