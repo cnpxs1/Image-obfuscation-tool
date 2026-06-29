@@ -3453,8 +3453,10 @@
         const order = new Uint32Array(total);
         let idx = 0;
 
-        const maxDepth = Math.ceil(Math.log2(Math.max(width, height))) * 2 + 4;
-        const stack = new Int32Array(maxDepth * 6);
+        // 预分配 Array 栈：初始容量用 +8 安全系数，配合动态扩容消除溢出风险
+        // 使用普 Array 替代 Int32Array，保留索引赋值性能，同时支持 stack.length 动态扩容
+        const initialDepth = Math.ceil(Math.log2(Math.max(width, height))) * 2 + 8;
+        const stack = new Array(initialDepth * 6);
         let sp;
 
         // 初始方向向量：dx1/dy1 和 dx2/dy2 各有一维为零
@@ -3522,6 +3524,7 @@
                     hY1 += sY1;
                 }
 
+                if (sp + 12 > stack.length) stack.length += 64;
                 stack[sp]     = x0 + hX1;
                 stack[sp + 1] = y0 + hY1;
                 stack[sp + 2] = dx1 - hX1;
@@ -3543,6 +3546,7 @@
                     hY2 += sY2;
                 }
 
+                if (sp + 18 > stack.length) stack.length += 64;
                 stack[sp]     = x0 + (dx1 - sX1) + (hX2 - sX2);
                 stack[sp + 1] = y0 + (dy1 - sY1) + (hY2 - sY2);
                 stack[sp + 2] = -hX2;
