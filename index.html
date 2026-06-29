@@ -5517,6 +5517,14 @@
      * 处理通过拖拽或文件选择添加的图片文件
      */
     async function handleFiles(files) {
+        // 入口加锁：防止快速连续拖拽/点击导致多个 handleFiles 并发执行，
+        // images 数组和 DOM 操作交错可能引发重复添加、processOrder 冲突
+        if (isProcessing) {
+            showTempStatus('⏳ 正在处理其他操作，请稍后', 2000);
+            return;
+        }
+        isProcessing = true;
+        try {
         // ========== 第一趟：分离 ZIP / 预统计有效图片数量 ==========
         const validImages = [];   // 普通图片（已验证）
         const zipFiles = [];      // ZIP 文件（保持原有逻辑不变）
@@ -5598,6 +5606,9 @@
 
         if (message) {
             showTempStatus(message, 3000);
+        }
+        } finally {
+            isProcessing = false;
         }
     }
 
