@@ -216,6 +216,25 @@
     特点：支持批量处理、拖拽上传、多种格式保存
     -->
     <style>
+        /* ========== 通用布局实用类（消除 flex 模式重复） ========== */
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flex-v-center {
+            display: flex;
+            align-items: center;
+        }
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+        }
+        .flex-wrap {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
         /* 全局样式 */
         body {
             margin: 0;
@@ -902,9 +921,6 @@
             inset: 0;
             background: rgba(0,0,0,0.3);
             z-index: 9999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.2s ease, visibility 0.2s ease;
@@ -951,9 +967,6 @@
             border: 2px solid #333;
             border-radius: 6px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 0;
         }
         .log-panel-close svg {
@@ -1429,13 +1442,11 @@
         <!-- 设置容器 -->
         <div id="settings-container" style="display: none; max-width: 700px; width: 90%; min-height: 200px; border: 1px solid #ccc; background: #fff; border-radius: 8px; margin: 20px auto; position: relative;">
             <!-- 关闭按钮./img/icons/close.svg -->
-            <button id="close-settings-btn" style="position: absolute; top: 4px; right: 4px; padding: 0; display: flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
-            </button>
+            <button id="close-settings-btn" class="flex-center" style="position: absolute; top: 4px; right: 4px; padding: 0; width: 1.5rem; height: 1.5rem; border: none; background: transparent; cursor: pointer;"></button>
             <!-- 设置内容 -->
             <div style="padding: 10px;">
                 <h3 style="margin-top: 0; margin-bottom: 15px; color: #333;">高级设置</h3>
-                <div id="settings-content">
+                <div>
                     <!-- 图片质量设置 -->
                     <div class="setting-section">
                         <div class="setting-info">
@@ -1481,7 +1492,7 @@
                                 </div>
 
                                 <!-- 颜色值输入框（宽度不足时换行） -->
-                                <div id="color-input-panel" style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
+                                <div style="min-width: 170px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;">
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <label for="hex-input" style="font-size: 0.9rem; color: #555;">HEX:</label>
                                         <input type="text" id="hex-input" placeholder="#FFFFFF"
@@ -1674,13 +1685,11 @@
         <div class="log-fab" id="logFab" style="display:none;"></div>
 
         <!-- 日志浮动面板 -->
-        <div class="log-panel-overlay" id="logPanelOverlay">
+        <div class="log-panel-overlay flex-center" id="logPanelOverlay">
             <div class="log-panel" id="logPanel">
                 <div class="log-panel-header">
                     <span class="log-panel-title">日志</span>
-                    <button class="log-panel-close" id="logPanelClose" title="关闭">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>
-                    </button>
+                    <button class="log-panel-close flex-center" id="logPanelClose" title="关闭"></button>
                 </div>
                 <div class="log-panel-list" id="logPanelList"></div>
                 <div class="log-panel-footer">
@@ -2045,7 +2054,7 @@
             if (this.backend) {
                 const response = await this.backend.match(key);
                 if (!response) return null;
-                return await response.blob();
+                return response.blob();
             } else {
                 return this._dbTransaction('readonly', store => store.get(key));
             }
@@ -2144,8 +2153,7 @@
             }
         }
 
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = `<div class="loading"></div> 正在解析 ZIP 文件...`;
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在解析 ZIP 文件...`;
 
         try {
             const zipData = new Uint8Array(await zipFile.arrayBuffer());
@@ -2178,7 +2186,7 @@
             }
 
             // 第二趟：逐张准备数据，再批量渲染 DOM
-            statusDiv.innerHTML = `<div class="loading"></div> 正在添加 ${entries.length} 张图片...`;
+            batchStatusEl.innerHTML = `<div class="loading"></div> 正在添加 ${entries.length} 张图片...`;
             const batch = [];
             for (let i = 0; i < entries.length; i++) {
                 const { fileData, baseName, ext } = entries[i];
@@ -2190,7 +2198,7 @@
                     errors.push({ name: baseName, error: e.message });
                     logError(baseName, `添加失败: ${e.message}`);
                 }
-                await updateProgressStatus(statusDiv, i + 1, entries.length, '添加图片');
+                await updateProgressStatus(batchStatusEl, i + 1, entries.length, '添加图片');
             }
             commitImageBatch(batch);
 
@@ -2219,8 +2227,8 @@
         const targetIds = guardEmptySelection();
         if (!targetIds) return;
 
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
+
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
 
         const targetFormat = format.toLowerCase();
         const webpSupported = targetFormat === 'webp' ? await isWebPSupported() : false;
@@ -2305,7 +2313,7 @@
 
                 // 每 5 张让出主线程并更新进度（已压缩数据保留在 zipChunks 中）
                 if ((i + 1) % 5 === 0 || i === targetIds.length - 1) {
-                    await updateProgressStatus(statusDiv, i + 1, targetIds.length, '压缩');
+                    await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, '压缩');
                 }
 
             } catch (error) {
@@ -2327,7 +2335,7 @@
             return;
         }
 
-        statusDiv.innerHTML = `<div class="loading"></div> 正在完成 ZIP 文件...`;
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在完成 ZIP 文件...`;
         await new Promise(resolve => setTimeout(resolve, 10));
 
         try {
@@ -2539,6 +2547,12 @@
     let isProcessing = false, processingTimer = null, timerEnabled = false;
     const OP = { encrypt: '混淆', decrypt: '解混淆', restore: '还原' };
 
+    // ==================== 高频 DOM 元素缓存（减少重复查询） ====================
+    /** @type {HTMLElement|null} 批量操作状态栏，在 DOMContentLoaded 中初始化 */
+    let batchStatusEl = null;
+    /** @type {HTMLElement|null} 日志面板遮罩层 */
+    let logPanelOverlayEl = null;
+
     function startProcessingTimer(n, op) { processingTimer = { s: performance.now(), n, op: OP[op] }; }
 
     /**
@@ -2738,6 +2752,8 @@
 
     /** 通用关闭按钮 × 图标 SVG */
     const CLOSE_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path stroke="#333" stroke-width="150" stroke-linecap="round" fill="none" d="M100 100L924 924M924 100L100 924"/></svg>';
+    /** 缩略图加载前占位符 SVG（网格/列表视图通用） */
+    const PLACEHOLDER_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
 
     // ---- UI 状态 ----
 
@@ -2883,7 +2899,7 @@
 
     function openLogPanel() {
         logPanelVisible = true;
-        document.getElementById('logPanelOverlay').classList.add('open');
+        logPanelOverlayEl.classList.add('open');
         currentFilter = new Set();
         lastFilter = ''; // 强制全量重建
         renderLogPanel(new Set());
@@ -2891,7 +2907,7 @@
 
     function closeLogPanel() {
         logPanelVisible = false;
-        document.getElementById('logPanelOverlay').classList.remove('open');
+        logPanelOverlayEl.classList.remove('open');
     }
 
     /**
@@ -3018,6 +3034,15 @@
     // ---- 共享工具函数 ----
 
     /**
+     * 根据图片 ID 获取对应的 DOM 元素（消除重复的 [data-id] 查询）
+     * @param {string} id - 图片 ID
+     * @returns {HTMLElement|null}
+     */
+    function getImageItemEl(id) {
+        return document.querySelector(`[data-id="${id}"]`);
+    }
+
+    /**
      * 创建点击外部关闭处理器，用于 tooltip 等浮层组件
      * @param {HTMLElement} el - 目标元素
      * @param {string[]} classList - 关闭时需移除的 CSS 类名
@@ -3090,15 +3115,15 @@
 
     /** 在 batchStatus 区域显示临时消息，默认 2 秒后清除 */
     function showTempStatus(message, duration = 2000) {
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = message;
-        setTimeout(() => { statusDiv.innerHTML = ''; }, duration);
+
+        batchStatusEl.innerHTML = message;
+        setTimeout(() => { batchStatusEl.innerHTML = ''; }, duration);
     }
 
     /** 首次创建进度 DOM 或复用已创建的节点，仅更新文本和宽度 */
-    function updateProgressStatus(statusDiv, current, total, actionText, delay = 0) {
+    function updateProgressStatus(statusEl, current, total, actionText, delay = 0) {
         const pct = Math.round(current / total * 100);
-        const cached = statusDiv._progressEls;
+        const cached = statusEl._progressEls;
         if (cached && cached.fill.isConnected) {
             cached.text.nodeValue = `正在${actionText} ${current}/${total} (${pct}%)`;
             cached.fill.style.width = `${pct}%`;
@@ -3111,10 +3136,10 @@
             bar.appendChild(fill);
             text.nodeValue = `正在${actionText} ${current}/${total} (${pct}%)`;
             fill.style.width = `${pct}%`;
-            statusDiv.textContent = '';
-            statusDiv.appendChild(text);
-            statusDiv.appendChild(bar);
-            statusDiv._progressEls = { text, fill };
+            statusEl.textContent = '';
+            statusEl.appendChild(text);
+            statusEl.appendChild(bar);
+            statusEl._progressEls = { text, fill };
         }
         if (delay > 0) {
             return new Promise(resolve => setTimeout(resolve, delay));
@@ -3343,7 +3368,7 @@
                         if (!thumbnailContainer.querySelector('.thumbnail-placeholder')) {
                             const placeholder = document.createElement('div');
                             placeholder.className = 'thumbnail-placeholder';
-                            placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
+                            placeholder.innerHTML = PLACEHOLDER_SVG;
                             placeholder.title = '加载中…';
                             thumbnailContainer.innerHTML = '';
                             thumbnailContainer.appendChild(placeholder);
@@ -3997,7 +4022,7 @@
     }
 
     function cleanupImageFromUi(imageId, skipUI = false) {
-        const item = document.querySelector(`[data-id="${imageId}"]`);
+        const item = getImageItemEl(imageId);
         if (item) item.remove();
         if (imageLazyLoader) imageLazyLoader.unobserve(imageId);
         images = images.filter(item => item.id !== imageId);
@@ -4067,7 +4092,7 @@
             if (!fullBlob) return;
 
             // 自适应：测量实际缩略图容器尺寸，而非硬编码固定值
-            const item = document.querySelector(`[data-id="${imageData.id}"]`);
+            const item = getImageItemEl(imageData.id);
             const container = item?.querySelector('.thumbnail-container');
             const dpr = window.devicePixelRatio || 1;
             const maxWidth = (container?.clientWidth || 250) * dpr;
@@ -4418,7 +4443,7 @@
         const targetIds = guardEmptySelection();
         if (!targetIds) return null;
 
-        const statusDiv = document.getElementById('batchStatus');
+
         const targetSet = new Set(targetIds);
 
         // 按 processOrder 顺序收集目标图片
@@ -4451,7 +4476,7 @@
             return null;
         }
 
-        statusDiv.innerHTML = '<div class="loading"></div> 正在处理 ' + tasks.length + ' 张图片...';
+        batchStatusEl.innerHTML = '<div class="loading"></div> 正在处理 ' + tasks.length + ' 张图片...';
 
         // 启动计时器
         if (tasks.length > 0) startProcessingTimer(tasks.length, operation);
@@ -4464,7 +4489,7 @@
             let successCount = 0, failureCount = 0;
             for (let i = 0; i < tasks.length; i++) {
                 const imageData = tasks[i];
-                const item = document.querySelector('[data-id="' + imageData.id + '"]');
+                const item = getImageItemEl(imageData.id);
                 const overlay = item ? showProcessingOverlay(item) : null;
                 try {
                     await processSingleImage(imageData, operation);
@@ -4474,7 +4499,7 @@
                     logError(imageData.name, ('处理失败: ' + (error.message || '未知错误')));
                 } finally {
                     if (overlay) overlay.remove();
-                    await updateProgressStatus(statusDiv, i + 1, tasks.length, '处理');
+                    await updateProgressStatus(batchStatusEl, i + 1, tasks.length, '处理');
                 }
             }
             stopProcessingTimer();
@@ -4491,7 +4516,7 @@
 
         const promises = tasks.map(function(imageData) {
             return (async function() {
-                const item = document.querySelector('[data-id="' + imageData.id + '"]');
+                const item = getImageItemEl(imageData.id);
                 const overlay = item ? showProcessingOverlay(item) : null;
 
                 await semaphore.acquire();
@@ -4504,7 +4529,7 @@
                 } finally {
                     if (overlay) overlay.remove();
                     completed++;
-                    await updateProgressStatus(statusDiv, completed, tasks.length, '处理');
+                    await updateProgressStatus(batchStatusEl, completed, tasks.length, '处理');
                     semaphore.release();
                 }
             })();
@@ -4596,7 +4621,7 @@
 
             // 1. 获取实际容器尺寸（响应式网格下宽度可变，高度固定 150px）
             const dpr = window.devicePixelRatio || 1;
-            const item = document.querySelector(`[data-id="${imageId}"]`);
+            const item = getImageItemEl(imageId);
             const container = item?.querySelector('.thumbnail-container');
             const rect = container?.getBoundingClientRect();
             const maxWidth = (rect?.width || 250) * dpr;
@@ -4720,8 +4745,8 @@
         const targetIds = guardEmptySelection();
         if (!targetIds) return null;
 
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
+
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
 
         // 用 Map 快照 ID→对象：循环内有 await，期间用户可能删除图片（images.filter 创建新数组），
         // Map 持有旧数组中的对象引用，避免迭代过程中索引失效
@@ -4742,7 +4767,7 @@
                 failureCount++;
                 logError(imageData.name, `${actionLabel}失败: ${error.message || '未知错误'}`);
             }
-            await updateProgressStatus(statusDiv, i + 1, targetIds.length, actionLabel, delayMs);
+            await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, actionLabel, delayMs);
         }
         showBatchStatus(successCount, failureCount, actionLabel);
         return { successCount, failureCount };
@@ -5106,7 +5131,7 @@
         const placeholder = document.createElement('div');
         placeholder.className = 'thumbnail-placeholder';
         if (currentViewMode === 'grid') {
-            placeholder.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" style="display:block;width:60px;height:60px;margin:auto;opacity:.3"><rect width="100" height="100" fill="#ccc" rx="8"/><text x="50" y="58" text-anchor="middle" font-size="40" fill="#999">…</text></svg>';
+            placeholder.innerHTML = PLACEHOLDER_SVG;
             placeholder.title = '加载中…';
         } else {
             placeholder.innerHTML = getPlaceholderSvg();
@@ -5271,7 +5296,7 @@
         event.stopPropagation();
 
         const checked = event.target.checked;
-        const item = document.querySelector(`[data-id="${imageId}"]`);
+        const item = getImageItemEl(imageId);
 
         if (checked) {
             selectedImages.add(imageId);
@@ -5423,7 +5448,7 @@
             if (operation === 'save') {
                 await saveSingleImage(imageId);
             } else {
-                const item = document.querySelector(`[data-id="${imageId}"]`);
+                const item = getImageItemEl(imageId);
                 if (item) overlay = showProcessingOverlay(item);
 
                 await processSingleImage(imageData, operation);
@@ -5456,8 +5481,7 @@
         // 获取用户选择的保存格式
         const format = document.getElementById('save-format-select').value;
 
-        const statusDiv = document.getElementById('batchStatus');
-        statusDiv.innerHTML = `<div class="loading"></div> 正在保存 "${imageData.name}"...`;
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在保存 "${imageData.name}"...`;
 
         try {
             await saveImageInFormat(imageData, format);
@@ -5548,14 +5572,14 @@
 
         const totalImages = validImages.length;
         const totalZips = zipFiles.length;
-        const statusDiv = document.getElementById('batchStatus');
+
 
         // 展示预统计结果
         if (totalImages > 0 || totalZips > 0) {
             const parts = [];
             if (totalImages > 0) parts.push(`${totalImages} 张图片`);
             if (totalZips > 0) parts.push(`${totalZips} 个 ZIP 文件`);
-            statusDiv.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')}`;
+            batchStatusEl.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')}`;
         } else if (errorCount > 0) {
             showTempStatus(`⚠️ 所有 ${errorCount} 个文件都不支持`, 3000);
             return;
@@ -5579,9 +5603,9 @@
             }
             // 每张图更新一次进度（短暂延迟让浏览器刷新 UI，同时避免 I/O 争用）
             if (i < totalImages - 1) {
-                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片', 16);
+                await updateProgressStatus(batchStatusEl, i + 1, totalImages, '准备图片', 16);
             } else {
-                await updateProgressStatus(statusDiv, i + 1, totalImages, '准备图片');
+                await updateProgressStatus(batchStatusEl, i + 1, totalImages, '准备图片');
             }
         }
         // 批量渲染所有普通图片的 DOM 容器（单次重排）
@@ -6573,12 +6597,12 @@
 
         // 创建快照避免数组变化导致索引错乱
         const snapshot = [...images];
-        const statusDiv = document.getElementById('batchStatus');
+
         const totalCount = snapshot.length;
         let successCount = 0;
         let failureCount = 0;
 
-        statusDiv.innerHTML = `<div class="loading"></div> 正在刷新缩略图 (0/${totalCount})...`;
+        batchStatusEl.innerHTML = `<div class="loading"></div> 正在刷新缩略图 (0/${totalCount})...`;
 
         try {
             // 串行刷新，避免大量并发导致内存压力
@@ -6603,7 +6627,7 @@
                 }
 
                 // 更新进度显示
-                await updateProgressStatus(statusDiv, i + 1, totalCount, '刷新缩略图', 10);
+                await updateProgressStatus(batchStatusEl, i + 1, totalCount, '刷新缩略图', 10);
             }
 
             showBatchStatus(successCount, failureCount, '刷新');
@@ -6966,13 +6990,17 @@
 
     // 页面加载完成后绑定事件（统一入口）
     document.addEventListener('DOMContentLoaded', function() {
+        // 初始化高频 DOM 元素缓存（避免后续重复查询）
+        batchStatusEl = document.getElementById('batchStatus');
+        logPanelOverlayEl = document.getElementById('logPanelOverlay');
+
         // 统一设置关闭按钮图标
         document.getElementById('close-settings-btn').innerHTML = CLOSE_ICON_SVG;
         document.getElementById('logPanelClose').innerHTML = CLOSE_ICON_SVG;
 
         // ---- 日志面板事件 ----
         const fab = document.getElementById('logFab');
-        const overlay = document.getElementById('logPanelOverlay');
+        const overlay = logPanelOverlayEl;
         const panel = document.getElementById('logPanel');
 
         fab.addEventListener('click', toggleLogPanel);
@@ -7328,7 +7356,7 @@
             lsToggle.addEventListener('change', function() {
                 try {
                     localStorageEnabled = this.checked;
-                    localStorage.setItem('localStorageEnabled', this.checked);
+                    saveSetting('localStorageEnabled', this.checked);
                     // 关闭时清空其他键，仅保留 localStorageEnabled 自身
                     if (!this.checked) {
                         for (let i = localStorage.length - 1; i >= 0; i--) {
@@ -7382,7 +7410,7 @@
             if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
             try {
                 localStorage.clear();
-                localStorage.setItem('localStorageEnabled', 'true');
+                saveSetting('localStorageEnabled', 'true');
             } catch (e) { /* localStorage 不可用，跳过 */ }
             localStorageEnabled = true;
             const lsToggle = document.getElementById('localstorage-toggle');
