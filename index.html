@@ -1883,87 +1883,99 @@
          * @param {'auto'|'cache-api'|'indexeddb'} newPreference
          */
         async reinit(newPreference) {
-            // 先等待当前正在进行的初始化完成，避免与首次 _init 并发
-            try { await this.ready; } catch (e) { /* 初始化失败也继续走重置流程 */ }
-
-            this.preference = newPreference;
-
-            // 解析 auto → 实际后端，同一后端无需迁移
-            const effective = newPreference === 'auto'
-                ? (window.__cacheBackendAvail?.cacheApi ? 'cache-api' : (window.__cacheBackendAvail?.indexedDb ? 'indexeddb' : ''))
-                : newPreference;
-            if (effective && effective === this.activeBackend) return;
-
-            // 读取旧后端所有数据
-            const oldData = new Map();
-            try {
-                if (this.activeBackend === 'cache-api' && this.backend) {
-                    const keys = await this.backend.keys();
-                    for (const request of keys) {
-                        try {
-                            const key = (typeof request === 'string' ? request : request.url).split('/').pop();
-                            const res = await this.backend.match(request);
-                            if (res) oldData.set(key, await res.blob());
-                        } catch (e) { /* 跳过单条失败 */ }
-                    }
-                } else if (this.activeBackend === 'indexeddb' && this.db) {
-                    await new Promise((resolve, reject) => {
-                        const tx = this.db.transaction([this.storeName], 'readonly');
-                        const s = tx.objectStore(this.storeName);
-                        Promise.all([
-                            new Promise(r => { const req = s.getAllKeys(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); }),
-                            new Promise(r => { const req = s.getAll(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); })
-                        ]).then(([keys, values]) => {
-                            keys.forEach((k, i) => { if (values[i] !== undefined) oldData.set(k, values[i]); });
-                            resolve();
-                        }).catch(() => resolve());
-                        tx.onerror = () => reject(tx.error);
-                    });
-                }
-            } catch (e) { /* 读取失败降级为空迁移 */ }
-
-            // 清空旧后端
-            try {
-                if (this.activeBackend === 'cache-api' && this.backend) {
-                    const keys = await this.backend.keys();
-                    await Promise.all(keys.map(k => this.backend.delete(k)));
-                    logLog(`已清除旧后端 Cache API 的 ${keys.length} 条数据`);
-                } else if (this.activeBackend === 'indexeddb' && this.db) {
-                    await this._dbTransaction('readwrite', store => store.clear());
-                    logLog('已清除旧后端 IndexedDB 的数据');
-                }
-            } catch (e) { /* 清理失败不影响切换 */ }
-
-            // 初始化新后端
-            this.backend = null;
-            this.db = null;
-            this.activeBackend = '';
-            this.ready = this._init();
-            await this.ready;
-
-            // 迁移数据到新后端（逐条写入，避免并发事务争抢）
-            if (oldData.size > 0) {
-                let migrated = 0, failed = 0;
-                for (const [key, blob] of oldData) {
-                    try {
-                        if (this.backend) {
-                            const res = new Response(blob, {
-                                headers: { 'Content-Type': blob.type || 'image/png' }
-                            });
-                            await this.backend.put(key, res);
-                        } else {
-                            await this._dbTransaction('readwrite', store => store.put(blob, key));
-                        }
-                        migrated++;
-                    } catch (e) { failed++; }
-                }
-                if (migrated > 0) {
-                    logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
-                }
+            // 自旋锁：等待上一次 reinit 完成，防止并发调用导致数据迁移竞争
+            if (this._reinitializing) {
+                try { await this._reinitializing; } catch (e) { /* 前次切换失败，继续尝试 */ }
             }
+            let _resolveReinitializing;
+            this._reinitializing = new Promise(function(resolve) { _resolveReinitializing = resolve; });
 
-            // 刷新缩略图
-            if (images.length > 0) await refreshAllThumbnails();
+            try {
+                // 先等待当前正在进行的初始化完成，避免与首次 _init 并发
+                try { await this.ready; } catch (e) { /* 初始化失败也继续走重置流程 */ }
+
+                this.preference = newPreference;
+
+                // 解析 auto → 实际后端，同一后端无需迁移
+                const effective = newPreference === 'auto'
+                    ? (window.__cacheBackendAvail?.cacheApi ? 'cache-api' : (window.__cacheBackendAvail?.indexedDb ? 'indexeddb' : ''))
+                    : newPreference;
+                if (effective && effective === this.activeBackend) return;
+
+                // 读取旧后端所有数据
+                const oldData = new Map();
+                try {
+                    if (this.activeBackend === 'cache-api' && this.backend) {
+                        const keys = await this.backend.keys();
+                        for (const request of keys) {
+                            try {
+                                const key = (typeof request === 'string' ? request : request.url).split('/').pop();
+                                const res = await this.backend.match(request);
+                                if (res) oldData.set(key, await res.blob());
+                            } catch (e) { /* 跳过单条失败 */ }
+                        }
+                    } else if (this.activeBackend === 'indexeddb' && this.db) {
+                        await new Promise((resolve, reject) => {
+                            const tx = this.db.transaction([this.storeName], 'readonly');
+                            const s = tx.objectStore(this.storeName);
+                            Promise.all([
+                                new Promise(r => { const req = s.getAllKeys(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); }),
+                                new Promise(r => { const req = s.getAll(); req.onsuccess = () => r(req.result); req.onerror = () => r([]); })
+                            ]).then(([keys, values]) => {
+                                keys.forEach((k, i) => { if (values[i] !== undefined) oldData.set(k, values[i]); });
+                                resolve();
+                            }).catch(() => resolve());
+                            tx.onerror = () => reject(tx.error);
+                        });
+                    }
+                } catch (e) { /* 读取失败降级为空迁移 */ }
+
+                // 清空旧后端
+                try {
+                    if (this.activeBackend === 'cache-api' && this.backend) {
+                        const keys = await this.backend.keys();
+                        await Promise.all(keys.map(k => this.backend.delete(k)));
+                        logLog(`已清除旧后端 Cache API 的 ${keys.length} 条数据`);
+                    } else if (this.activeBackend === 'indexeddb' && this.db) {
+                        await this._dbTransaction('readwrite', store => store.clear());
+                        logLog('已清除旧后端 IndexedDB 的数据');
+                    }
+                } catch (e) { /* 清理失败不影响切换 */ }
+
+                // 初始化新后端
+                this.backend = null;
+                this.db = null;
+                this.activeBackend = '';
+                this.ready = this._init();
+                await this.ready;
+
+                // 迁移数据到新后端（逐条写入，避免并发事务争抢）
+                if (oldData.size > 0) {
+                    let migrated = 0, failed = 0;
+                    for (const [key, blob] of oldData) {
+                        try {
+                            if (this.backend) {
+                                const res = new Response(blob, {
+                                    headers: { 'Content-Type': blob.type || 'image/png' }
+                                });
+                                await this.backend.put(key, res);
+                            } else {
+                                await this._dbTransaction('readwrite', store => store.put(blob, key));
+                            }
+                            migrated++;
+                        } catch (e) { failed++; }
+                    }
+                    if (migrated > 0) {
+                        logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
+                    }
+                }
+
+                // 刷新缩略图
+                if (images.length > 0) await refreshAllThumbnails();
+            } finally {
+                _resolveReinitializing();
+                this._reinitializing = null;
+            }
         }
 
         async _initIndexedDB() {
@@ -2038,7 +2050,16 @@
                 } catch (e) {
                     logWarn('存储适配层', `Cache API 重建失败: ${e.message || e}`);
                     this.backend = null;
-                    this.activeBackend = 'none';
+                    // 尝试回退到 IndexedDB，避免存储功能整体瘫痪
+                    try {
+                        await this._initIndexedDB();
+                        this.activeBackend = 'indexeddb';
+                        await this._dbTransaction('readwrite', store => store.clear());
+                        logLog('Cache API 重建失败，已回退到 IndexedDB 并完成清理');
+                    } catch (e2) {
+                        logWarn('存储适配层', `IndexedDB 回退也失败: ${e2.message || e2}`);
+                        this.activeBackend = 'none';
+                    }
                 }
             } else if (this.db) {
                 return this._dbTransaction('readwrite', store => store.clear());
@@ -2177,6 +2198,8 @@
         let successCount = 0;
         let failureCount = 0;
 
+        const usedNames = new Set();
+
         for (let i = 0; i < targetIds.length; i++) {
             const imageId = targetIds[i];
             const imageData = images.find(item => item.id === imageId);
@@ -2204,7 +2227,15 @@
 
                 const ext = getOutputExtension(targetFormat);
                 const statusSuffix = getStatusInfo(imageData.scrambleLevel).suffix;
-                const fileName = `${imageData.name.replace(/\.[^/.]+$/, '').replace(/[\\/:*?"<>|]/g, '_')}_${statusSuffix}.${ext}`;
+                let fileName = `${imageData.name.replace(/\.[^/.]+$/, '').replace(/[\\/:*?"<>|]/g, '_')}_${statusSuffix}.${ext}`;
+                // 同名冲突检测：同一 ZIP 内不允许重复文件名，重名时追加 (2)、(3)…
+                if (usedNames.has(fileName)) {
+                    let counter = 2;
+                    const baseName = fileName.slice(0, -(ext.length + 1));
+                    while (usedNames.has(`${baseName}_${counter}.${ext}`)) { counter++; }
+                    fileName = `${baseName}_${counter}.${ext}`;
+                }
+                usedNames.add(fileName);
 
                 const arrayBuffer = await outputBlob.arrayBuffer();
                 const fileData = new Uint8Array(arrayBuffer);
@@ -4075,7 +4106,10 @@
             };
 
             entry.worker.onerror = function(err) {
+                entry.worker.terminate();
                 entry.busy = false;
+                const idx = self.workers.indexOf(entry);
+                if (idx !== -1) self.workers.splice(idx, 1);
                 reject(err);
                 self._processQueue();
             };
@@ -4086,6 +4120,14 @@
 
         _processQueue() {
             if (this.queue.length === 0) return;
+            // 所有 Worker 均崩溃时，排空队列并 reject 全部等待任务，防止 Promise 永久 pending
+            if (this.workers.length === 0) {
+                while (this.queue.length > 0) {
+                    const item = this.queue.shift();
+                    item.reject(new Error('Worker 池已耗尽，所有 Worker 均不可用'));
+                }
+                return;
+            }
             let idle = null;
             for (let i = 0; i < this.workers.length; i++) {
                 if (!this.workers[i].busy) { idle = this.workers[i]; break; }
@@ -5915,6 +5957,7 @@
                 const timeoutPromise = new Promise((_, reject) => {
                     storageTimerId = setTimeout(() => reject(new Error('存储读取超时')), 8000);
                 });
+                timeoutIds.push(storageTimerId);
                 Promise.race([storagePromise, timeoutPromise]).then(blob => {
                     clearTimeout(storageTimerId);
                     if (!blob) throw new Error(`图片数据不存在：${imageData.name}`);
