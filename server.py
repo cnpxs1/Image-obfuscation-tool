@@ -1,17 +1,21 @@
 """使用 gzip 压缩的本地静态服务器"""
-import http.server
 import gzip
-import os
+import http.server
 import io
+import os
 import re
-import webbrowser
 import sys
 import time
+import webbrowser
 
 PORT = 8080
 COMPRESSIBLE = {".html", ".css", ".js", ".json", ".svg", ".xml", ".txt"}
 # 无扩展名的常见纯文本文件名（如 LICENSE、README 等）
-COMPRESSIBLE_NAMES = {"license", "readme", "makefile", "dockerfile", "changelog", "copying", "authors", "contributors", "news", "todo", "install", "notice"}
+COMPRESSIBLE_NAMES = {
+    "license", "readme", "makefile", "dockerfile",
+    "changelog", "copying", "authors", "contributors",
+    "news", "todo", "install", "notice",
+}
 
 
 class GzipHandler(http.server.SimpleHTTPRequestHandler):
@@ -145,7 +149,6 @@ def prompt_yn(message, timeout=5):
         chars.append(ch)
         print(ch, end="", flush=True)
         return "".join(chars).strip().lower()
-
 
 
 if __name__ == "__main__":
