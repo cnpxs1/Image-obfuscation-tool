@@ -1723,8 +1723,7 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;')
-            .replace(/\//g, '&#x2F;');
+            .replace(/'/g, '&#x27;');
     }
 
     /**
@@ -2134,6 +2133,8 @@
                     store.delete(`current_${id}`);
                     return store.delete(`thumb_${id}`);
                 });
+            } else {
+                logWarn('Storage', `删除图片 ${id} 时无可用后端，可能产生缓存残留`);
             }
         }
     }
@@ -2516,7 +2517,10 @@
 
         // 移动端点击行为
         if (window.innerWidth > 768) return;
+        // 清理之前可能残留的移动端 Closer，防止监听器泄漏
+        if (mobileTooltipCloser) { mobileTooltipCloser.unbind(); mobileTooltipCloser = null; }
         const closer = createClickOutsideCloser(el, ['tooltip-active', 'edge-left', 'edge-right']);
+        mobileTooltipCloser = closer;
 
         el.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -3055,24 +3059,25 @@
      * @returns {{ bind: Function, unbind: Function }}
      */
     function createClickOutsideCloser(el, classList) {
-        let listener = null;
+        let controller = null;
         function remove() {
-            if (listener) {
-                document.removeEventListener('click', listener);
-                listener = null;
+            if (controller) {
+                controller.abort();
+                controller = null;
             }
         }
         return {
             bind() {
                 remove();
-                listener = (ev) => {
+                controller = new AbortController();
+                const signal = controller.signal;
+                // 使用 passive 优化移动端滚动性能
+                document.addEventListener('click', (ev) => {
                     if (!el.contains(ev.target)) {
                         el.classList.remove(...classList);
                         remove();
                     }
-                };
-                const fn = listener;
-                setTimeout(() => document.addEventListener('click', fn), 0);
+                }, { signal, passive: true });
             },
             unbind: remove
         };
@@ -4405,7 +4410,7 @@
      * 替代 forEachTargetImage 中串行 await，实现流水线重叠
      * 按 processOrder 顺序遍历，并发数 = Worker 数量 × 2
      * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
-     * @returns {Promise<{successCount: number, failureCount: number}|null>}
+     * @returns {Promise<boolean|null>} true=处理完成，null=无目标（计时器未启动）
      */
     async function processBatchConcurrent(operation) {
         const targetIds = guardEmptySelection();
@@ -4469,9 +4474,8 @@
                     await updateProgressStatus(batchStatusEl, i + 1, tasks.length, '处理');
                 }
             }
-            stopProcessingTimer();
             showBatchStatus(successCount, failureCount, '处理');
-            return { successCount: successCount, failureCount: failureCount };
+            return true;
         }
 
         // 并发限制：Worker 数量的 2 倍（Worker 跑像素时，主线程可预读/编码下一张）
@@ -4504,9 +4508,8 @@
 
         await Promise.allSettled(promises);
 
-        stopProcessingTimer();
         showBatchStatus(successCount, failureCount, '处理');
-        return { successCount: successCount, failureCount: failureCount };
+        return true;
     }
 
     /**
@@ -4551,6 +4554,11 @@
      * @returns {Promise<Blob>}
      */
     async function generateThumbnailBlob(bitmap, maxWidth, maxHeight) {
+        // 极值防护：不可见容器可能返回 0 尺寸，降级使用默认值
+        if (maxWidth < 1 || maxHeight < 1) {
+            maxWidth = Math.max(maxWidth, 250);
+            maxHeight = Math.max(maxHeight, 150);
+        }
         const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
         const width = Math.round(bitmap.width * scale);
         const height = Math.round(bitmap.height * scale);
@@ -4751,30 +4759,32 @@
         if (isProcessing) return;
         isProcessing = true;
         try {
-            await processBatchConcurrent(operation);
+            const timerStarted = await processBatchConcurrent(operation);
+            // 仅在启动了计时器后停止（无目标时 timerStarted 为 null）
+            if (timerStarted) stopProcessingTimer();
         } catch (error) {
             logError('批量处理', '批量处理失败: ' + (error.message || error));
             showTempStatus('❌ 处理失败');
-        } finally {
-            // 兜底停止计时器：processBatchConcurrent 异常路径可能跳过其内部 stopProcessingTimer
+            // 异常可能发生在 timer 启动之后，兜底清理
             stopProcessingTimer();
+        } finally {
             isProcessing = false;
         }
     }
 
     /** 保存图片（根据 ZIP 开关选择打包/逐个下载） */
     async function saveImages(format) {
-        if (document.getElementById('zip-download-toggle')?.checked) {
-            await saveImagesAsZip(format);
-        } else {
-            try {
+        try {
+            if (document.getElementById('zip-download-toggle')?.checked) {
+                await saveImagesAsZip(format);
+            } else {
                 await forEachTargetImage('保存', 50, async (imageData) => {
                     await saveImageInFormat(imageData, format);
                 });
-            } catch (error) {
-                logError('批量保存', `保存失败: ${error.message || error}`);
-                showTempStatus('❌ 保存失败');
             }
+        } catch (error) {
+            logError('批量保存', `保存失败: ${error.message || error}`);
+            showTempStatus('❌ 保存失败');
         }
     }
 
@@ -5644,7 +5654,7 @@
      */
     function initColorPicker() {
         if (!useIroJs) return;
-        if (!window.iro || typeof iro.ColorPicker !== 'function') {
+        if (typeof window.iro === 'undefined' || typeof iro.ColorPicker !== 'function') {
             logWarn('颜色选择器', 'iro.js 未加载，颜色选择器不可用');
             return;
         }
@@ -5944,11 +5954,11 @@
         const timeoutIds = [];
         container._timeoutIds = timeoutIds;
 
-        const PLACEHOLDER_SRC = 'data:image/svg+xml,'
-            + '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
-            + '<path fill="%23515151" d="M93.125,85l36.25-61.875H15c-8.125,0-15,6.875-15,15.625v122.5c0,8.125,6.875,15,15,15l80.8315.0084,29.7935-53.7584-32.5-37.5h0ZM15,35h93.125l-30.625,51.875,30.625,35c-12.5,8.125-22.5,8.125-35.625-1.25-22.5-15-48.125,2.5-61.25,15V38.75c.0084-1.9916,1.875-3.75,3.75-3.75ZM83.125,165H15c-1.875,0-3.75-1.875-3.75-3.75v-13.125c8.125-8.125,35-33.75,56.25-20,12.5,8.125,28.4663,12.7402,43.0281,1.5492l-20.3216,35.3343-7.0815-.0084ZM185,23.125h-41.25l-36.875,58.75,33.125,37.5-30.6517,56.8834,75.6517-.0084c8.125,0,15-6.875,15-15V38.75c0-8.75-6.875-15.625-15-15.625h0ZM150.625,35h34.375c1.875,0,3.75,1.875,3.75,3.75v61.875c-9.375-9.375-19.375-15.625-28.125-16.25-5.625-.625-11.25,1.25-15.625,5l-8.125,8.125-15-16.875,28.75-45.625h0ZM185,165h-56.25l25.3286-47.191-10.9537-13.434,8.75-8.125c2.5-1.875,5-3.125,8.125-2.5,8.75.625,20,9.375,28.75,21.25v46.25c-.0197,1.7275-1.875,3.75-3.75,3.75h0Z"/>'
-            + '<circle cx="44.375" cy="68.75" r="14.0625" fill="none" stroke="%23515151" stroke-width="9.375"/>'
-            + '</svg>';
+        const PLACEHOLDER_SRC = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
+            + '<path fill="#515151" d="M93.125,85l36.25-61.875H15c-8.125,0-15,6.875-15,15.625v122.5c0,8.125,6.875,15,15,15l80.8315.0084,29.7935-53.7584-32.5-37.5h0ZM15,35h93.125l-30.625,51.875,30.625,35c-12.5,8.125-22.5,8.125-35.625-1.25-22.5-15-48.125,2.5-61.25,15V38.75c.0084-1.9916,1.875-3.75,3.75-3.75ZM83.125,165H15c-1.875,0-3.75-1.875-3.75-3.75v-13.125c8.125-8.125,35-33.75,56.25-20,12.5,8.125,28.4663,12.7402,43.0281,1.5492l-20.3216,35.3343-7.0815-.0084ZM185,23.125h-41.25l-36.875,58.75,33.125,37.5-30.6517,56.8834,75.6517-.0084c8.125,0,15-6.875,15-15V38.75c0-8.75-6.875-15.625-15-15.625h0ZM150.625,35h34.375c1.875,0,3.75,1.875,3.75,3.75v61.875c-9.375-9.375-19.375-15.625-28.125-16.25-5.625-.625-11.25,1.25-15.625,5l-8.125,8.125-15-16.875,28.75-45.625h0ZM185,165h-56.25l25.3286-47.191-10.9537-13.434,8.75-8.125c2.5-1.875,5-3.125,8.125-2.5,8.75.625,20,9.375,28.75,21.25v46.25c-.0197,1.7275-1.875,3.75-3.75,3.75h0Z"/>'
+            + '<circle cx="44.375" cy="68.75" r="14.0625" fill="none" stroke="#515151" stroke-width="9.375"/>'
+            + '</svg>');
 
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
@@ -6281,8 +6291,10 @@
         // 防抖延迟 150ms
         resizeDebounceTimer = setTimeout(() => {
             if (viewerInstance && viewerInstance.update) {
-                viewerInstance.update();
-                logLog('窗口大小改变，已更新 Viewer 布局');
+                try {
+                    viewerInstance.update();
+                    logLog('窗口大小改变，已更新 Viewer 布局');
+                } catch (_) { /* viewer 可能在定时器触发前已销毁 */ }
             }
         }, 150);
     }
