@@ -1,0 +1,77 @@
+/* 图片混淆工具 — 移动端响应式样式 */
+
+/* 移动端：缓存指示器适配 */
+@media screen and (max-width: 768px) {
+    .main-content {
+        position: relative; /* 为缓存指示器提供定位上下文 */
+    }
+
+    /* 移动端时缓存指示器相对于 main-content 定位，在其上层并随内容滚动 */
+    #cacheIndicator {
+        position: absolute;
+        margin-bottom: 10px;
+        cursor: pointer; /* 允许点击 */
+    }
+
+    /* 移动端：点击激活时显示气泡 */
+    #cacheIndicator.tooltip-active::after {
+        display: block;
+    }
+}
+
+/* 移动端：文字气泡点击激活 */
+.text-tooltip.tooltip-active::after {
+    display: block;
+}
+
+/* 设置面板：窄屏时切换为上下布局 */
+@media (max-width: 500px) {
+    .setting-section {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .setting-info {
+        flex: none;
+        border-right: none;
+        border-bottom: 1px solid #e0e0e0;
+        padding-right: 0;
+        padding-bottom: 8px;
+    }
+
+    .setting-controls > div:not(#color-picker-container) > div:not(#quality-row) {
+        justify-content: space-between;
+        width: 100%;
+    }
+}
+
+/* 日志面板：移动端适配 */
+@media screen and (max-width: 768px) {
+    .log-panel {
+        width: 90vw;
+        max-width: 90vw;
+        max-height: 70vh;
+    }
+
+    .log-panel-list { max-height: none; }
+
+    .log-panel-item {
+        font-size: 14px;
+        line-height: 1.5;
+        margin-bottom: 8px;
+    }
+}
+
+/* 列表视图：移动端适配 */
+@media (max-width: 768px) {
+    .image-item.list-view {
+        flex-wrap: wrap;
+    }
+    .image-item.list-view .image-actions {
+        width: 100%;
+        margin-top: 8px;
+    }
+    .image-item.list-view .action-group {
+        width: auto;
+    }
+}

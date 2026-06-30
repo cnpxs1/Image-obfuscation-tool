@@ -1,0 +1,632 @@
+/* 图片混淆工具 — 组件样式：按钮、卡片、开关、进度条、日志面板、设置控件等 */
+
+/* 通用按钮样式 */
+.normal_button {
+    min-width: 4rem;
+    height: 2rem;
+    line-height: 2rem;
+    font-size: 1rem;
+    padding: 0 0.5rem;
+    margin: 0.3rem;
+    border: 0;
+    border-radius: 6px;
+    display: inline-block;
+    position: relative;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+/* 隐藏的文件输入按钮 */
+.ipt_btn {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* 缩略图容器 */
+.thumbnail-container {
+    position: relative;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #f5f5f5;
+    cursor: pointer;
+}
+
+/* 文本截断样式 - 使用更兼容的方式 */
+.text-multiline {
+    line-height: 1.4em;
+    height: 2.8em;
+    overflow: hidden;
+    text-align: center;
+    word-wrap: break-word;
+    width: 100%;
+    box-sizing: border-box;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* 图片信息显示 */
+.image-info {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+    min-height: 3.5rem; /* 为两行文本预留空间 */
+    overflow-wrap: break-word;
+    word-break: break-word; /* 用于中文等语言 */
+}
+
+/* 图片操作按钮区域 */
+.image-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.5rem;
+    justify-content: center;
+}
+
+/* 操作按钮组 - 保证内部按钮不换行 */
+.action-group {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: nowrap;
+    width: calc(180px + 0.6rem); /* 3 个按钮宽度 (60px*3) + 2 个间隙 (0.3rem*2) */
+}
+
+/* 通用开关样式（不含颜色） */
+.toggle-switch-container {
+    display: inline-flex;
+    align-items: center;
+    height: 2rem;
+    padding: 0;
+    margin: 0.3rem;
+    border: 2px solid;
+    border-radius: 6px;
+    background: #fff;
+    gap: 0.5rem;
+    box-sizing: border-box;
+}
+.toggle-switch {
+    width: 4rem;
+    height: calc(2rem - 4px);
+    margin: 0;
+    border-radius: 4px;
+    display: block;
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    transition: 0.3s;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    position: absolute;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    left: 0.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: calc(1.5rem - 2px);
+    height: calc(1.5rem - 2px);
+    border-radius: 4px;
+    background: #fff;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translate(calc(2rem + 2px), -50%);
+}
+
+.toggle-switch-text {
+    position: relative;
+    top: -1px;
+}
+
+.toggle-switch-text::before {
+    margin-right: 0.5rem;
+}
+
+/* 打包下载开关：颜色与文本 */
+.zip-download-container {
+    border-color: #c8c8c8;
+}
+.zip-download-container:has(input:checked) {
+    border-color: #78c878;
+}
+.zip-download-container .toggle-switch {
+    background: #b4b4b4;
+}
+.zip-download-container .toggle-switch input:checked + .toggle-slider {
+    background: #4caf50;
+}
+.zip-download-text::before {
+    content: "逐个下载";
+}
+.zip-download-container:has(input:checked) .zip-download-text::before {
+    content: "打包下载";
+}
+
+/* 设置开关（小尺寸），用于 WebP 无损、调试模式等 */
+.toggle-switch:has(.setting-switch) {
+    width: 3rem;
+    height: 1.5rem;
+    border-radius: 3px;
+}
+.setting-switch + .toggle-slider {
+    background: #b4b4b4;
+}
+.setting-switch:checked + .toggle-slider {
+    background: #0091ff;
+}
+.setting-switch ~ .toggle-slider::before {
+    left: 3px;
+    width: calc(1.5rem - 5px);
+    height: calc(1.5rem - 5px);
+    border-radius: 3px;
+}
+.toggle-switch .setting-switch:checked ~ .toggle-slider::before {
+    transform: translate(calc(1.5rem - 1px), -50%);
+}
+
+/* 删除和保存按钮平均分配空间 */
+.action-group .action-btn {
+    flex: 1;
+    min-width: 0;
+}
+
+/* 操作按钮样式 */
+.action-btn {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    font-size: 1rem;
+    min-width: 60px;
+    height: 2rem;
+    line-height: 1.6rem;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn:hover {
+    background: #f0f0f0;
+}
+
+/* 删除按钮特殊样式 */
+.delete-btn {
+    background: #ff4444;
+    color: white;
+    border-color: #ff4444;
+}
+
+.delete-btn:hover {
+    background: #cc0000;
+}
+
+/* 状态徽章样式 */
+.status-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    margin-top: 0.3rem;
+    border: 1px solid transparent;
+}
+
+.status-original {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-color: #1976d2;
+}
+
+.status-encrypted {
+    background: #fce4ec;
+    color: #c2185b;
+    border-color: #c2185b;
+}
+
+.status-decrypted {
+    background: #e8f5e8;
+    color: #388e3c;
+    border-color: #388e3c;
+}
+
+/* 处理中遮罩层 */
+.processing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    z-index: 2;
+}
+
+/* 选择复选框 */
+.select-checkbox {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    z-index: 3;
+}
+
+/* 批量处理状态显示 */
+.batch-status {
+    text-align: center;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* 加载动画 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0091ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* 旋转动画 */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 进度条样式 */
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: #f0f0f0;
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #eb3678, #fb773c);
+    transition: width 0.3s ease;
+}
+
+/* 文件大小显示 */
+.file-size {
+    font-size: 0.8rem;
+    color: #888;
+}
+
+/* 图片信息行 */
+.image-info-row {
+    display: flex;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: #666;
+    margin: 0.2rem 0;
+    align-items: center;
+    text-align: center;
+}
+
+.image-info-row span {
+    display: inline-block;
+    min-width: 0;
+    flex: 0 0 auto;
+}
+
+/* 列表管理按钮容器 */
+.list-management-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* 分隔线样式 */
+.divider {
+    width: 1px;
+    height: 24px;
+    background-color: #969696;
+}
+
+/* 图标按钮基础样式 */
+.icon-btn {
+    color: #333333;
+    padding: 0;
+    border: 2px solid #646464;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+.icon-btn:hover {
+    background-color: #dcdcdc;
+}
+
+/* 刷新按钮 */
+.refresh-btn {
+    background-color: #f5f5f5;
+    min-width: 36px;
+    height: 36px;
+}
+
+/* 设置按钮 */
+.settings-btn {
+    background-color: #ffffff;
+    margin: 0.3rem;
+    width: 2rem;
+    height: 2rem;
+}
+
+/* 日志悬浮按钮 */
+.log-fab {
+    position: fixed;
+    right: 5px;
+    top: auto;
+    bottom: 20vh;
+    width: 28px;
+    background: #fff;
+    border: 2px solid #1296db;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+    cursor: pointer;
+    z-index: 9998;
+    transition: opacity 0.2s ease;
+}
+.log-fab-level {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0;
+}
+.log-fab-level svg {
+    width: 20px;
+    height: 20px;
+    display: block;
+}
+.log-fab-count {
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 1;
+    margin-top: 1px;
+    padding: 1px 3px;
+    border-radius: 6px;
+    min-width: 14px;
+    text-align: center;
+}
+
+/* 日志浮动面板 */
+.log-panel-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.3);
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.log-panel-overlay.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+.log-panel {
+    background: #fff;
+    border-radius: 12px;
+    width: 800px;
+    height: 900px;
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.9);
+    transition: transform 0.2s ease;
+}
+.log-panel-overlay.open .log-panel {
+    transform: scale(1);
+}
+
+.log-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+.log-panel-title {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #333;
+}
+.log-panel-close {
+    width: 28px;
+    height: 28px;
+    background: #fff;
+    border: 2px solid #333;
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 0;
+}
+.log-panel-close svg {
+    width: 14px;
+    height: 14px;
+}
+#close-settings-btn svg {
+    width: 1rem;
+    height: 1rem;
+}
+.log-panel-close:hover {
+    background: #f5f5f5;
+}
+
+.log-panel-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+    min-height: 0;
+    overflow-anchor: none;
+    scroll-behavior: auto;
+}
+
+.log-panel-item {
+    display: flex;
+    align-items: baseline;
+    padding: 4px 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 4px;
+    animation: logItemIn 0.15s ease-out;
+}
+@keyframes logItemIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.log-panel-item .log-timestamp {
+    color: #999;
+    font-size: 12px;
+    margin-right: 8px;
+    font-family: monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.log-panel-item .log-file {
+    font-weight: bold;
+    margin-right: 6px;
+    max-width: 30%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.log-panel-item .log-reason {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: right;
+    word-break: break-word;
+}
+
+.log-panel-item.level-error { color: #d81e06; }
+.log-panel-item.level-error .log-file { color: #d81e06; }
+.log-panel-item.level-warn  { color: #ec7a40; }
+.log-panel-item.level-warn  .log-file { color: #ec7a40; }
+.log-panel-item.level-info { color: #1296db; }
+.log-panel-item.level-info .log-file { color: #1296db; }
+
+.log-panel-empty {
+    text-align: center;
+    color: #999;
+    padding: 40px 16px;
+    font-size: 14px;
+}
+
+.log-panel-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.log-stats {
+    display: flex;
+    gap: 8px;
+}
+.log-stat-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 12px;
+    transition: background 0.15s ease;
+}
+.log-stat-btn:hover { background: #f0f0f0; }
+.log-stat-btn.active { border-color: currentColor; background: #eee; }
+.log-stat-btn svg { width: 14px; height: 14px; }
+
+.log-clear-btn {
+    padding: 6px 16px;
+    background: #d81e06;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.log-clear-btn:hover { background: #b71a05; }
+
+/* 颜色选择器容器直角样式 */
+#color-picker-box * {
+    border-radius: 0 !important;
+}
+
+/* 设置面板输入框统一样式 */
+.setting-num-input {
+    width: 5ch; padding: 3px 5px; border: 1px solid #ccc;
+    border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;
+}
+
+.setting-rgb-input {
+    width: 3ch; padding: 3px 5px; border: 1px solid #ccc;
+    border-radius: 4px; font-family: monospace; font-size: 1rem; text-align: center;
+}
+
+.setting-hex-input {
+    width: 7ch; padding: 3px 5px; border: 1px solid #ccc;
+    border-radius: 4px; font-family: monospace; font-size: 1rem; text-transform: uppercase;
+}
+
+.setting-label {
+    font-size: 0.85rem; color: #888; width: 5em; flex-shrink: 0; text-align: left;
+}
+.setting-row {
+    display: flex; align-items: center; gap: 6px;
+}
+.setting-controls-col {
+    display: flex; flex-direction: column; gap: 6px; width: 100%;
+}
+
+.setting-select {
+    font-size: 0.85rem; padding: 2px 0; border: 1px solid #555;
+    border-radius: 4px; background: #fff; color: #333; cursor: pointer;
+}

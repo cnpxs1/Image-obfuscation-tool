@@ -1,0 +1,30 @@
+/* 图片混淆工具 — CSS 变量、基础重置与 body 基础样式 */
+
+/* ========== 通用布局实用类（消除 flex 模式重复） ========== */
+.flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.flex-v-center {
+    display: flex;
+    align-items: center;
+}
+.flex-col {
+    display: flex;
+    flex-direction: column;
+}
+.flex-wrap {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+/* 全局样式 */
+body {
+    margin: 0;
+    padding: 1rem;
+    font-family: Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
