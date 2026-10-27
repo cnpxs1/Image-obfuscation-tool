@@ -193,19 +193,25 @@
         // 内置语言：优先 fetch i18n/{id}.json（用户可直接编辑生效），失败回退内嵌快照
         let parsed = null;
         const jsonSnapshot = getBuiltinSnapshots()[id];
-        try {
-            // 不使用时间戳查询参数：由 sw.js 对 i18n/ 路径采用 network-first，
-            // 既能保证编辑 JSON 后刷新生效，也避免每次请求生成新的缓存条目
-            const url = 'i18n/' + id + '.json';
-            const response = await fetch(url, { cache: 'no-store' });
-            if (response.ok) {
-                parsed = parseLanguageJson(await response.text());
-            } else {
-                console.warn('[i18n] ' + url + ' 加载失败 (HTTP ' + response.status + ')，使用内嵌快照');
+        const singleFile = typeof window !== 'undefined' && window.__SINGLE_FILE__ === true;
+        if (singleFile) {
+            // 单文件构建没有独立的 i18n 目录，直接使用内嵌快照
+            if (jsonSnapshot) parsed = parseLanguageJson(jsonSnapshot);
+        } else {
+            try {
+                // 不使用时间戳查询参数：由 sw.js 对 i18n/ 路径采用 network-first，
+                // 既能保证编辑 JSON 后刷新生效，也避免每次请求生成新的缓存条目
+                const url = 'i18n/' + id + '.json';
+                const response = await fetch(url, { cache: 'no-store' });
+                if (response.ok) {
+                    parsed = parseLanguageJson(await response.text());
+                } else {
+                    console.warn('[i18n] ' + url + ' 加载失败 (HTTP ' + response.status + ')，使用内嵌快照');
+                }
+            } catch (e) {
+                if (!jsonSnapshot) throw e;
+                // file:// 等无法 fetch 的场景
             }
-        } catch (e) {
-            if (!jsonSnapshot) throw e;
-            // file:// 等无法 fetch 的场景
         }
         if (!parsed && jsonSnapshot) {
             parsed = parseLanguageJson(jsonSnapshot);

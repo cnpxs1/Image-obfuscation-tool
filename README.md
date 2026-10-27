@@ -22,7 +22,7 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ## ✨ 核心特性
 
-- **纯前端零依赖**：仅由HTML+原生JavaScript编写，无框架依赖，单文件设计，双击即可运行，无需部署、无需配置环境
+- **纯前端运行**：运行时无后端依赖，所有像素运算在浏览器本地完成；构建使用 Vite + pnpm，产物同时提供多文件静态站点与完全自包含的单文件 HTML
 
 - **希尔伯特曲线算法**：采用空间填充分形曲线实现像素映射，有序打乱像素排布，混淆后保留图像空间结构，还原过程无像素丢失、无画质衰减
 
@@ -72,25 +72,55 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 - `meta.name` 必填，为下拉菜单中显示的语言名称；`meta.id` 缺省时取文件名。
 - 键名采用「段.键」的点分形式，程序自动展平；缺失的键自动回退到 `zh-CN` 对应值。
 - 文本中的 `{n}`、`{name}` 等占位符由程序替换为实际内容，请保留并仅调整位置。
-- 修改 `i18n/*.json` 后，若以 `file://` 方式打开（无法动态读取文件），需同步更新 `js/i18n/builtin-langs.js` 中的内嵌快照；本地开发环境可运行 `node dev-docs/gen-builtin-langs.js` 自动生成（该脚本为本地开发工具，不随仓库分发，也可参照生成文件的格式手动同步）。
+- 修改 `i18n/*.json` 后，`pnpm build` 会自动重新生成 `js/i18n/builtin-langs.js` 内嵌快照（单文件与 `file://` 使用）；也可单独运行 `pnpm gen-langs`。
+
+---
+
+## 🛠️ 开发与构建
+
+需要 Node.js（`>= 20.19` 或 `>= 22.12`）与 pnpm。
+
+```bash
+pnpm install        # 安装 Vite、Viewer.js、fflate、iro.js 等依赖
+pnpm dev            # 启动 Vite 开发服务器（默认 http://localhost:5173）
+pnpm build          # 生成多文件站点、单文件 HTML，并调用 7-Zip 打包 zip
+pnpm preview        # 预览 dist/static 多文件产物
+```
+
+构建产物：
+
+| 路径 | 说明 |
+| --- | --- |
+| `dist/static/` | 多文件静态站点，可直接部署到任意静态服务器 |
+| `dist/single/index.html` | 完全自包含的单文件 HTML（第三方库与图标均已内联） |
+| `dist/single/index.zip` | 单文件 HTML 经 7-Zip 最高压缩等级（`-mx=9`）打包的压缩包 |
+
+- `assets/` 下的第三方库副本由 `pnpm sync-assets` 从 `node_modules` 生成，已加入 `.gitignore`；`pnpm dev` / `pnpm build` 会自动执行同步。
+- 单文件打包依赖本机 7-Zip，脚本会自动探测常见安装路径，也可通过环境变量 `SEVEN_ZIP` 指定 `7z.exe` 路径。
+- 单文件 HTML 保持 CDN 优先加载，CDN 失败时使用内联的 Viewer.js / fflate / iro.js 降级。
+- 构建会剔除自有 HTML/JS/CSS 的注释与多余空白（HTML 由 html-minifier-terser 处理，JS/CSS 由 esbuild 压缩）；第三方库的 `/*! ... */` 版权注释会保留，多文件产物仍附带 `assets/*/LICENSE`。
+- 分步构建：`pnpm build:static`、`pnpm build:single`、`pnpm zip`；`build:single` 会自动先执行 `build:static`，确保内联的是最新产物。
 
 ---
 
 ## 🚀 快速开始
 
-### 一、本地部署（推荐）
-若需模拟生产环境或解决部分浏览器的跨域限制，可使用 Python 或 Node.js 启动本地服务器：
-- **Python:** 安装 `python` 后，在根目录执行 `python -m http.server 8080` 或直接运行 [server.py](server.py)
-- **Node.js:** 安装 `Node.js` 后，在根目录执行 `npx http-server -p 8080`
-- 随后在浏览器访问 `http://localhost:8080`或`http://127.0.0.1:8080`
+### 一、使用构建产物（推荐）
+1. 安装依赖并构建：`pnpm install && pnpm build`
+2. 多文件部署：将 `dist/static/` 上传到任意静态服务器
+3. 单文件使用：直接打开 `dist/single/index.html`，或分发 `dist/single/index.zip`
 
-### 二、直接打开（简单）
-1. 克隆仓库至本地：`git clone https://github.com/cnpxs1/Image-obfuscation-tool.git`
-2. 进入项目根目录，找到核心入口文件 **index.html**
-3. 双击文件，使用任意现代浏览器打开即可使用
+### 二、本地开发
+1. 执行 `pnpm install`
+2. 执行 `pnpm dev`，访问 Vite 输出的地址（默认 `http://localhost:5173`）
 
-### 三、在线预览（GitHub Pages）
+### 三、无 Node 环境预览
+无 Node 环境时建议直接使用构建产物：部署 `dist/static/`，或打开 `dist/single/index.html`。若已获得包含 `assets/` 的源码包（或已在其他环境中执行过 `pnpm sync-assets`），也可使用 `python server.py` 或 `python -m http.server 8080` 启动静态服务器；`server.py` 仍保留 gzip 与 no-cache 支持。
+
+### 四、在线预览（GitHub Pages）
 直接访问在线地址：<https://cnpxs1.github.io/Image-obfuscation-tool/>
+
+该站点需以 `dist/static/` 构建产物部署；源码根目录的 `assets/` 由 pnpm 生成且不入库，直接以源码根目录部署将缺少第三方库降级副本。
 
 **温馨提示**：工具不兼容 IE 等老旧浏览器；处理 4K 及以上超大分辨率图片时，处理速度受设备 CPU/内存性能影响，请耐心等待运算完成。
 
@@ -143,35 +173,30 @@ Image-obfuscation-tool 是一款**纯前端运行**的图像工具，依托**希
 
 ```plaintext
 Image-obfuscation-tool/
-├── index.html            # 核心主文件，集成UI界面、算法逻辑、功能交互
-├── server.py             # Gzip 压缩本地静态服务（Python）
-├── sw.js                 # Service Worker，PWA离线缓存服务
-├── manifest.json         # PWA应用清单，定义应用名称、图标、主题
-├── favicon.svg           # 网站图标（SVG格式）
+├── package.json          # pnpm 依赖与构建脚本
+├── pnpm-workspace.yaml   # pnpm 允许执行构建脚本的依赖（esbuild）
+├── vite.config.js        # Vite 开发服务器与多文件静态构建
+├── index.html            # 入口 HTML（骨架 + 脚本加载清单）
+├── css/                  # 样式表（按依赖顺序加载）
+├── js/                   # 模块化经典脚本（utils / core / io / ui / i18n / app / events）
+├── i18n/                 # 语言文件（zh-CN / en-US / template）
+├── img/                  # 图标素材与占位图
+├── assets/               # 第三方库本地降级副本（pnpm sync-assets 生成，不入库）
+├── scripts/
+│   ├── sync-assets.mjs   # 从 node_modules 同步第三方库到 assets/
+│   ├── build-entry.js    # Vite 构建占位入口
+│   ├── build-single.mjs  # 生成完全自包含的单文件 HTML
+│   └── zip-single.mjs    # 调用 7-Zip 打包单文件 zip
+├── dist/                 # 构建产物（不入库）
+│   ├── static/           # 多文件静态站点
+│   └── single/           # index.html + index.zip
+├── server.py             # 无构建预览用的 gzip 静态服务器
+├── sw.js                 # Service Worker，PWA 离线缓存
+├── manifest.json         # PWA 应用清单
+├── favicon.svg           # 网站图标
 ├── README.md             # 项目说明文档
-├── LICENSE               # MIT开源许可证文件
-├── .gitignore            # Git忽略规则配置
-├── assets/               # 第三方静态资源
-│   ├── viewerjs/         # viewer.js静态资源
-│   ├── fflate/           # fflate静态资源
-│   └── irojs/            # iro.js静态资源
-└── img/                  # 图标素材
-    ├── placeholder.svg   # 图片占位图
-    ├── img-error.svg     # 图片加载失败占位图
-    └── icons/            # SVG图标资源目录
-        ├── close.svg     # 关闭
-        ├── error.svg     # 错误
-        ├── grid.svg      # 网格模式
-        ├── info.svg      # 信息
-        ├── list.svg      # 列表模式
-        ├── refresh.svg   # 刷新
-        ├── settings.svg  # 设置
-        ├── warn.svg      # 警告
-        └── favicon/      # 网站图标（Favicon）
-            ├── RGB/      # 标准色域图标
-            ├── RGBA/     # 透明通道图标
-            └── PWA/      # PWA可安装图标
-
+├── LICENSE               # MIT 开源许可证
+└── .gitignore            # Git 忽略规则
 ```
 
 ---

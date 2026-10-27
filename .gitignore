@@ -2,7 +2,9 @@
 node_modules/
 package-lock.json
 yarn.lock
-pnpm-lock.yaml
+
+# 由 pnpm 依赖生成的第三方库本地降级副本
+assets/
 
 # 项目构建打包产物
 dist/

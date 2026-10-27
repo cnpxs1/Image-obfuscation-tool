@@ -1,8 +1,8 @@
 // 图片混淆工具 — 内置语言 JSON 快照（自动生成，勿手改）
 // ============================================================
 // 由 i18n/zh-CN.json 与 i18n/en-US.json 生成，内容保持一致。
-// 仅用于 file:// 等无法 fetch 的场景兜底；
-// 修改 i18n/*.json 后，请重新生成本文件（node dev-docs/gen-builtin-langs.js）。
+// 仅用于 file:// 与单文件构建等无法 fetch 的场景兜底；
+// 修改 i18n/*.json 后，请重新生成本文件（node scripts/gen-builtin-langs.mjs）。
 // ============================================================
 
 const BUILTIN_LANGS_JSON = {

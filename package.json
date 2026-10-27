@@ -1,0 +1,31 @@
+{
+  "name": "image-obfuscation-tool",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "基于希尔伯特曲线的纯前端图像混淆/解混淆工具",
+  "scripts": {
+    "sync-assets": "node scripts/sync-assets.mjs",
+    "predev": "pnpm sync-assets",
+    "dev": "vite",
+    "gen-langs": "node scripts/gen-builtin-langs.mjs",
+    "prebuild": "pnpm sync-assets && node scripts/gen-builtin-langs.mjs",
+    "prebuild:static": "pnpm sync-assets && node scripts/gen-builtin-langs.mjs",
+    "build:static": "vite build",
+    "prebuild:single": "pnpm build:static",
+    "build:single": "node scripts/build-single.mjs",
+    "zip": "node scripts/zip-single.mjs",
+    "build": "vite build && node scripts/build-single.mjs && node scripts/zip-single.mjs",
+    "preview": "vite preview --outDir dist/static"
+  },
+  "dependencies": {
+    "@jaames/iro": "5.5.2",
+    "fflate": "0.8.3",
+    "viewerjs": "1.11.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "html-minifier-terser": "^7.2.0",
+    "vite": "^8.3.5"
+  }
+}

@@ -12,6 +12,11 @@ logInfo = function(fileName, reason, metadata) { console.info('[INFO] ' + fileNa
 logWarn = function(fileName, reason, metadata) { console.warn('[WARN] ' + fileName + ' - ' + reason, metadata || {}); };
 logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fileName + ' - ' + reason, metadata || {}); };
 
+// ---- 单文件构建内联资源标志 ----
+// 单文件 HTML 会把第三方库内联并设置 window.__INLINE_ASSETS__，
+// 此处用于在 CDN 与本地 assets 均不可用时使用内联副本，CDN 优先顺序保持不变
+var INLINE_ASSETS = window.__INLINE_ASSETS__ || {};
+
 // ---- 通用 CDN 回退加载器 ----
 /**
  * 通用 CDN 回退加载函数
@@ -38,6 +43,16 @@ function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, 
     function load(cdnUrl, index) {
         if (index === void 0) index = 0;
         if (stateObj.loaded || stateObj.loading) return;
+
+        // 单文件构建：本地 assets 已内联，跳过不存在的 ./assets 请求
+        if (INLINE_ASSETS[globalName] && window[globalName] !== undefined && cdnUrl.indexOf('./assets/') === 0) {
+            stateObj.loaded = true;
+            stateObj.loading = false;
+            if (typeof stateObj._resolve === 'function') { stateObj._resolve(); }
+            console.log(globalName + ' 使用内联降级资源');
+            return;
+        }
+
         stateObj.loading = true;
 
         var script = document.createElement('script');
@@ -50,10 +65,12 @@ function loadScriptWithFallback(globalName, stateObj, primaryUrl, fallbackUrls, 
                 console.log(globalName + ' 加载成功:', cdnUrl);
             } else {
                 console.warn('[WARN] ' + globalName + ' - 脚本加载但未定义，视为失败');
-                tryNext(cdnUrl, index + 1);
+                tryNext(cdnUrl, index);
             }
         };
-        script.onerror = function() { tryNext(cdnUrl, index + 1); };
+        // 传入当前失败项的下标，tryNext 会从 fallbackUrls[index] 开始尝试，
+        // 避免跳过第一个备选 CDN（原 index + 1 会导致 off-by-one）
+        script.onerror = function() { tryNext(cdnUrl, index); };
         document.head.appendChild(script);
     }
     load(primaryUrl, 0);
@@ -92,6 +109,16 @@ window.viewerResources = { cssLoaded: false, jsLoaded: false, localFallback: fal
     window.loadLocalViewerResource = function(type) {
         if (viewerRes.localFallback) return;
         var isCss = type === 'css';
+
+        // 单文件构建：Viewer.js 的 CSS/JS 已内联，直接视为本地降级成功
+        if (INLINE_ASSETS.viewer && window.Viewer) {
+            if (isCss) viewerRes.cssLoaded = true; else viewerRes.jsLoaded = true;
+            viewerRes.currentCDN = 'inline';
+            console.log('Viewer.js 使用内联降级资源 (' + type.toUpperCase() + ')');
+            viewerRes._notifyReady();
+            return;
+        }
+
         var url = './assets/viewerjs/viewer.min.' + (isCss ? 'css' : 'js');
         console.warn('[WARN] Viewer.js - CDN 加载失败，尝试本地 ' + type.toUpperCase());
 

@@ -341,8 +341,8 @@
     <!-- 事件绑定入口（DOMContentLoaded 统一注册所有监听器） -->
     <script src="js/events.js"></script>
 
-    <!-- Service Worker 注册 -->
-    <script>
+    <!-- Service Worker 注册（单文件构建会移除本块） -->
+    <script id="sw-register">
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js', { scope: './' })
