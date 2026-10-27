@@ -6,7 +6,7 @@ yarn.lock
 # 由 pnpm 依赖生成的第三方库本地降级副本
 assets/
 
-# 项目构建打包产物
+# 项目构建打包产物（dist 由 CI 自动更新到仓库，本地默认忽略）
 dist/
 build/
 
