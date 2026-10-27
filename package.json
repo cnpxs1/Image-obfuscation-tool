@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@12.15.0",
   "description": "基于希尔伯特曲线的纯前端图像混淆/解混淆工具",
   "scripts": {
     "sync-assets": "node scripts/sync-assets.mjs",

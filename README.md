@@ -100,6 +100,7 @@ pnpm preview        # 预览 dist/static 多文件产物
 - 单文件 HTML 保持 CDN 优先加载，CDN 失败时使用内联的 Viewer.js / fflate / iro.js 降级。
 - 构建会剔除自有 HTML/JS/CSS 的注释与多余空白（HTML 由 html-minifier-terser 处理，JS/CSS 由 esbuild 压缩）；第三方库的 `/*! ... */` 版权注释会保留，多文件产物仍附带 `assets/*/LICENSE`。
 - 分步构建：`pnpm build:static`、`pnpm build:single`、`pnpm zip`；`build:single` 会自动先执行 `build:static`，确保内联的是最新产物。
+- GitHub Actions（`.github/workflows/ci.yml`）在 push 到 `main`/`dev` 或 PR 时仅构建多文件静态站点，并将 `dist/static` 上传为 `static-web` artifact；不构建单文件与 zip。
 
 ---
 
@@ -173,6 +174,7 @@ pnpm preview        # 预览 dist/static 多文件产物
 
 ```plaintext
 Image-obfuscation-tool/
+├── .github/workflows/ci.yml  # GitHub Actions：仅构建多文件静态站点
 ├── package.json          # pnpm 依赖与构建脚本
 ├── pnpm-workspace.yaml   # pnpm 允许执行构建脚本的依赖（esbuild）
 ├── vite.config.js        # Vite 开发服务器与多文件静态构建
