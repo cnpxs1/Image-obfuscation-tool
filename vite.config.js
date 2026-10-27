@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
+// 本地构建输出到 dist/static；仓库根 dist/ 的其他内容由 CI 维护
 const OUT_DIR = path.join(ROOT, 'dist/static');
 
 // 需要原样复制到 dist/static 的源码资源
@@ -114,9 +115,19 @@ function disableSwInDevPlugin() {
 }
 
 export default defineConfig({
+    root: ROOT,
     base: './',
     publicDir: false,
+    cacheDir: path.join(ROOT, 'node_modules/.vite'),
+    server: {
+        watch: {
+            // 构建产物与同步生成的 assets 不参与 dev 监听，避免 dev/build 互相干扰
+            ignored: ['**/dist/**', '**/assets/**'],
+        },
+    },
     build: {
+        // 本地构建输出到 dist/static
+        outDir: 'dist/static',
         // 不写出 Rollup 产物，多文件站点由 staticBuildPlugin 生成
         write: false,
         rollupOptions: {

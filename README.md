@@ -95,6 +95,8 @@ pnpm preview        # 预览 dist/static 多文件产物
 | `dist/single/index.html` | 完全自包含的单文件 HTML（第三方库与图标均已内联） |
 | `dist/single/index.zip` | 单文件 HTML 经 7-Zip 最高压缩等级（`-mx=9`）打包的压缩包 |
 
+`dist/static/` 与 `dist/single/` 是本地构建输出；`dist/` 根下的其他文件由 CI 自动更新。`pnpm dev` 只启动源码开发服务器，不会写入 `dist/static/`喵～
+
 - `assets/` 下的第三方库副本由 `pnpm sync-assets` 从 `node_modules` 生成，已加入 `.gitignore`；`pnpm dev` / `pnpm build` 会自动执行同步。
 - 单文件打包依赖本机 7-Zip，脚本会自动探测常见安装路径，也可通过环境变量 `SEVEN_ZIP` 指定 `7z.exe` 路径。
 - 单文件 HTML 保持 CDN 优先加载，CDN 失败时使用内联的 Viewer.js / fflate / iro.js 降级。
@@ -117,12 +119,12 @@ pnpm preview        # 预览 dist/static 多文件产物
 2. 执行 `pnpm dev`，访问 Vite 输出的地址（默认 `http://localhost:5173`）
 
 ### 三、无 Node 环境预览
-无 Node 环境时建议直接使用构建产物：部署 `dist/static/`，或打开 `dist/single/index.html`。若已获得包含 `assets/` 的源码包（或已在其他环境中执行过 `pnpm sync-assets`），也可使用 `python server.py` 或 `python -m http.server 8080` 启动静态服务器；`server.py` 仍保留 gzip 与 no-cache 支持。
+无 Node 环境时可直接使用仓库根 `dist/`（CI 自动更新的多文件站点）或发布包中的 `dist/static/`、`dist/single/` 产物。若已获得包含 `assets/` 的源码包（或已在其他环境中执行过 `pnpm sync-assets`），也可使用 `python server.py` 或 `python -m http.server 8080` 启动静态服务器；`server.py` 仍保留 gzip 与 no-cache 支持。
 
 ### 四、在线预览（GitHub Pages）
 直接访问在线地址：<https://cnpxs1.github.io/Image-obfuscation-tool/>
 
-该站点需以 `dist/static/` 构建产物部署；源码根目录的 `assets/` 由 pnpm 生成且不入库，直接以源码根目录部署将缺少第三方库降级副本。
+该站点由 CI 自动更新的仓库根 `dist/` 部署；`dist/static/` 与 `dist/single/` 是本地构建输出。源码根目录的 `assets/` 由 pnpm 生成且不入库，直接以源码根目录部署将缺少第三方库降级副本。
 
 **温馨提示**：工具不兼容 IE 等老旧浏览器；处理 4K 及以上超大分辨率图片时，处理速度受设备 CPU/内存性能影响，请耐心等待运算完成。
 
@@ -190,7 +192,7 @@ Image-obfuscation-tool/
 │   ├── build-entry.js    # Vite 构建占位入口
 │   ├── build-single.mjs  # 生成完全自包含的单文件 HTML
 │   └── zip-single.mjs    # 调用 7-Zip 打包单文件 zip
-├── dist/                 # 构建产物（不入库）
+├── dist/                 # 构建产物（不入库；static/ 与 single/ 本地生成，根目录由 CI 更新）
 │   ├── static/           # 多文件静态站点
 │   └── single/           # index.html + index.zip
 ├── server.py             # 无构建预览用的 gzip 静态服务器
