@@ -468,6 +468,7 @@ var activeBasicViewerClose;
                 scalable: true,
                 transition: false,   // 关闭动画
                 fullscreen: true,
+                preload: true,       // 预加载相邻图片，提升批量预览切换速度
 
                 // 过滤器：排除加载失败的占位图，仅允许有效图片
                 filter(image) {

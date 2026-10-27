@@ -148,7 +148,7 @@ window.viewerResources = { cssLoaded: false, jsLoaded: false, localFallback: fal
             if (failedCDN === 'bootcdn') {
                 console.log('尝试 cdnjs CSS');
                 window.createViewerFallback('link',
-                    'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.css',
+                    'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.15.2/viewer.min.css',
                     function() { viewerRes.cssLoaded = true; viewerRes.currentCDN = 'cdnjs'; console.log('cdnjs CSS 加载成功'); viewerRes._notifyReady(); },
                     function() { console.warn('[WARN] Viewer.js - cdnjs CSS 加载失败'); window.loadLocalViewerResource('css'); }
                 );
@@ -157,7 +157,7 @@ window.viewerResources = { cssLoaded: false, jsLoaded: false, localFallback: fal
             if (failedCDN === 'bootcdn') {
                 console.log('尝试 cdnjs JS');
                 window.createViewerFallback('script',
-                    'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js',
+                    'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.15.2/viewer.min.js',
                     function() { viewerRes.jsLoaded = true; viewerRes.currentCDN = 'cdnjs'; console.log('cdnjs JS 加载成功'); viewerRes._notifyReady(); },
                     function() { console.warn('[WARN] Viewer.js - cdnjs JS 加载失败'); window.loadLocalViewerResource('js'); }
                 );
@@ -259,7 +259,7 @@ function getViewerLoadPromise() {
     var link = document.createElement('link');
     link.id = 'viewer-css';
     link.rel = 'stylesheet';
-    link.href = 'https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.css';
+    link.href = 'https://cdn.bootcdn.net/ajax/libs/viewerjs/1.15.2/viewer.min.css';
     link.onload = function() {
         if (window.viewerResources) {
             window.viewerResources.cssLoaded = true;
@@ -277,7 +277,7 @@ function getViewerLoadPromise() {
 (function() {
     var script = document.createElement('script');
     script.id = 'viewer-js-bootcdn';
-    script.src = 'https://cdn.bootcdn.net/ajax/libs/viewerjs/1.11.7/viewer.min.js';
+    script.src = 'https://cdn.bootcdn.net/ajax/libs/viewerjs/1.15.2/viewer.min.js';
     script.defer = true;
     script.onload = function() {
         if (window.viewerResources) {

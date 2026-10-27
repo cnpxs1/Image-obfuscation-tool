@@ -22,7 +22,7 @@
   "dependencies": {
     "@jaames/iro": "5.5.2",
     "fflate": "0.8.3",
-    "viewerjs": "1.11.7"
+    "viewerjs": "1.15.2"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

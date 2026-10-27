@@ -173,8 +173,8 @@ importers:
         specifier: 0.8.3
         version: 0.8.3
       viewerjs:
-        specifier: 1.11.7
-        version: 1.11.7
+        specifier: 1.15.2
+        version: 1.15.2
     devDependencies:
       esbuild:
         specifier: ^0.28.2
@@ -670,8 +670,8 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
-  viewerjs@1.11.7:
-    resolution: {integrity: sha512-0JuVqOmL5v1jmEAlG5EBDR3XquxY8DWFQbFMprOXgaBB0F7Q/X9xWdEaQc59D8xzwkdUgXEMSSknTpriq95igg==}
+  viewerjs@1.15.2:
+    resolution: {integrity: sha512-CYEqSFfPUSnmn1PjrhYxXOScaUC7n8+NpSqI+MrOSM8wcKPe35MlwQYwksuD5rjFkYv/ePmY5NsUa51uRNN2jA==}
 
   vite@8.3.5:
     resolution: {integrity: sha512-z1YpjieJ9g0ebTmQpLBv/oq9E3F9EIlOe+7LahW8SrE3LTiG3udBRUXQOlYXP9b+IC2q2phHeVxj9xGlw34OEQ==}
@@ -1075,7 +1075,7 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  viewerjs@1.11.7: {}
+  viewerjs@1.15.2: {}
 
   vite@8.3.5(esbuild@0.28.2)(terser@5.51.2):
     dependencies:
