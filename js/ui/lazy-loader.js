@@ -109,7 +109,7 @@ class ImageLazyLoader {
             item.dataset.lazyLoaded = 'true';
             this.loaded.add(imageId);
         } catch (e) {
-            logWarn('懒加载', `缩略图加载失败: ${imageData.name} - ${e.message}`);
+            logWarn(t('log.category.lazy'), t('log.msg.thumbLoadFailed', { name: imageData.name, msg: e.message }));
             // 保留 placeholder，允许视图切换后重新加载
         } finally {
             this.loading.delete(imageId);

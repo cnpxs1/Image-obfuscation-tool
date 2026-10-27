@@ -139,10 +139,7 @@
 .toggle-switch-text {
     position: relative;
     top: -1px;
-}
-
-.toggle-switch-text::before {
-    margin-right: 0.5rem;
+    margin-right: 0.5rem; /* 原伪元素布局的右侧留白（文字与容器右边框的间距） */
 }
 
 /* 打包下载开关：颜色与文本 */
@@ -158,12 +155,7 @@
 .zip-download-container .toggle-switch input:checked + .toggle-slider {
     background: #4caf50;
 }
-.zip-download-text::before {
-    content: "逐个下载";
-}
-.zip-download-container:has(input:checked) .zip-download-text::before {
-    content: "打包下载";
-}
+/* 打包下载开关文字：由 JS 以文本节点驱动（随语言与开关状态刷新），不再使用伪元素 content */
 
 /* 设置开关（小尺寸），用于 WebP 无损、调试模式等 */
 .toggle-switch:has(.setting-switch) {
@@ -629,4 +621,33 @@
 .setting-select {
     font-size: 0.85rem; padding: 2px 0; border: 1px solid #555;
     border-radius: 4px; background: #fff; color: #333; cursor: pointer;
+}
+
+/* ===== 界面语言切换栏 ===== */
+.i18n-bar {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; flex-wrap: wrap; margin: 10px auto 0; padding: 4px 10px;
+    max-width: 700px; width: 90%; font-size: 0.85rem; color: #666;
+}
+.i18n-bar-label {
+    white-space: nowrap;
+}
+.i18n-lang-select {
+    font-size: 0.85rem; padding: 2px 6px; border: 1px solid #ccc;
+    border-radius: 4px; background: #fff; color: #333; cursor: pointer;
+    max-width: 200px;
+}
+.i18n-btn {
+    font-size: 0.8rem; padding: 3px 10px; border: 1px solid #0091ff;
+    border-radius: 4px; background: #fff; color: #0091ff; cursor: pointer;
+    white-space: nowrap;
+}
+.i18n-btn:hover {
+    background: #0091ff; color: #fff;
+}
+.i18n-btn-danger {
+    border-color: #ff1100; color: #ff1100;
+}
+.i18n-btn-danger:hover {
+    background: #ff1100; color: #fff;
 }

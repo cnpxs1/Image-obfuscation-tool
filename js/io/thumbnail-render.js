@@ -54,7 +54,7 @@
                 await drawThumbnailFromBlob(canvas, thumbBlob, thumbnailContainer);
             }
         } catch (e) {
-            logWarn('图片处理', `缩略图绘制失败: ${e.message}`);
+            logWarn(t('log.category.image'), t('log.msg.thumbDrawFailed', { msg: e.message }));
             // 即使失败，若 Canvas 已有内容也会返回
         }
 
@@ -208,7 +208,7 @@
                 }
             }
         } catch (e) {
-            logWarn('图片处理', `更新缩略图失败: ${e.message || e}`);
+            logWarn(t('log.category.image'), t('log.msg.thumbUpdateFailed', { msg: e.message || e }));
         } finally {
             bitmap?.close();
         }

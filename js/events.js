@@ -3,6 +3,20 @@
 // 事件监听器设置
 // =============================================
 
+// ---- 打包/逐个下载开关文字（文件作用域：尽早生效，避免语言初始化时序竞态） ----
+function refreshZipToggleText() {
+    const textEl = document.querySelector('.zip-download-text');
+    if (!textEl) return;
+    const checked = document.getElementById('zip-download-toggle')?.checked;
+    textEl.textContent = checked ? t('common.zipDownloadOn') : t('common.zipDownloadOff');
+}
+// 脚本加载即刷新一次；语言切换时刷新；初始化完成后兜底刷新（防止首个 i18n:changed 在监听器注册前发出）
+refreshZipToggleText();
+window.addEventListener('i18n:changed', refreshZipToggleText);
+if (typeof I18n !== 'undefined' && I18n._ready) {
+    I18n._ready.then(function() { refreshZipToggleText(); }).catch(function() { /* 初始化失败时保持默认文字 */ });
+}
+
 // 页面加载完成后绑定事件（统一入口）
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化高频 DOM 元素缓存（避免后续重复查询）
@@ -100,8 +114,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 加载视图模式偏好
     loadViewModePreference();
 
-    // 初始化保存按钮文字
+    // 初始化保存按钮文字与图片计数器
     updateSaveButtonText();
+    updateImageCounter();
 
     // ---- 视图切换按钮事件 ----
     const viewToggleBtn = document.getElementById('view-toggle-btn');
@@ -315,11 +330,11 @@ document.addEventListener('DOMContentLoaded', function() {
         clearAllCanvasPools();
 
         window.viewerLoadPromise = null;
-        logLog('页面卸载：已重置Viewer加载Promise');
+        logLog(t('log.msg.unloadResetViewer'));
 
         const cleanedOverlays = clearOverlays();
         if (cleanedOverlays > 0) {
-            logLog(`页面卸载时清理了 ${cleanedOverlays} 个遮罩层`);
+            logLog(t('log.msg.unloadClearedOverlays', { n: cleanedOverlays }));
         }
 
         if (cacheIndicatorTouchListeners) {
@@ -343,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 URL.revokeObjectURL(img.src);
             }
             basicViewer.remove();
-            logLog('页面卸载：已清理基础图片查看器');
+            logLog(t('log.msg.unloadCleanedBasicViewer'));
         }
 
         try {
@@ -355,8 +370,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 caches.delete('image-obfuscation-cache-v1').catch(() => {});
             }
         } catch (e) { /* 忽略异常 */ }
-        logLog('页面卸载：已清除所有图片缓存');
-        logLog('页面卸载：所有图片资源将由浏览器自动回收');
+        logLog(t('log.msg.unloadClearedCache'));
+        logLog(t('log.msg.unloadAutoRecycle'));
     });
 
     // ---- 页面可见性变化处理 ----
@@ -364,10 +379,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if (document.hidden) {
             smartClearCanvasPools();
             clearOverlays();
-            logLog('页面隐藏：已执行智能Canvas池清理');
+            logLog(t('log.msg.hiddenCanvasCleanup'));
         } else {
             preCreateCommonCanvases();
-            logLog('页面可见：已预创建常用Canvas');
+            logLog(t('log.msg.visibleCanvasPrecreate'));
         }
     });
 
@@ -458,10 +473,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
     bindToggle('webp-lossless-toggle', 'webpLossless');
     bindToggle('zip-download-toggle', 'zipDownload');
+    // bindToggle 恢复 checked 时不会触发 change，需显式同步一次开关文字
+    refreshZipToggleText();
     bindSelect('save-format-select', 'saveFormat');
     bindSelect('log-level-select', 'logLevel', (v) => { logLevel = v; });
     bindToggle('viewerjs-toggle', 'viewerJs', (v) => { useViewerJs = v; });
     bindToggle('irojs-toggle', 'iroJs', (v) => { useIroJs = v; });
+
+    // 开关状态变化时同步更新打包/逐个下载文字（函数定义在文件作用域）
+    document.getElementById('zip-download-toggle')?.addEventListener('change', refreshZipToggleText);
 
     // 缓存方案下拉菜单
     bindSelect('cache-backend-select', 'cacheBackend', async (v) => {
@@ -471,9 +491,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? (avail.cacheApi ? 'cache-api' : (avail.indexedDb ? 'indexeddb' : ''))
                 : v;
             const label = v === 'auto'
-                ? `Auto（${effective === 'cache-api' ? 'Cache API' : effective === 'indexeddb' ? 'IndexedDB' : '不可用'}）`
-                : (v === 'cache-api' ? 'Cache API' : 'IndexedDB');
-            if (!confirm(`切换缓存方案将迁移全部 ${images.length} 张图片的缓存数据，是否继续？\n\n目标方案：${label}`)) {
+                ? t('storage.auto') + '（' + (effective === 'cache-api' ? t('storage.cacheApi') : effective === 'indexeddb' ? t('storage.indexeddb') : t('storage.unavailable')) + '）'
+                : (v === 'cache-api' ? t('storage.cacheApi') : t('storage.indexeddb'));
+            if (!confirm(t('confirm.migrateCache', { n: images.length, label: label }))) {
                 const el = document.getElementById('cache-backend-select');
                 if (el) el.value = storage.preference;
                 saveSetting('cacheBackend', storage.preference);
@@ -482,16 +502,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         try {
             await storage.reinit(v);
-            logLog(`缓存方案已切换至: ${v === 'auto' ? 'Auto (实际使用 ' + (storage.activeBackend === 'cache-api' ? 'Cache API' : 'IndexedDB') + ')' : (v === 'cache-api' ? 'Cache API' : 'IndexedDB')}`);
+            const effectiveLabel = v === 'auto'
+                ? t('storage.auto') + ' (' + t('log.msg.actualBackend', { backend: storage.activeBackend === 'cache-api' ? t('storage.cacheApi') : t('storage.indexeddb') }) + ')'
+                : (v === 'cache-api' ? t('storage.cacheApi') : t('storage.indexeddb'));
+            logLog(t('log.msg.cacheBackendSwitched', { label: effectiveLabel }));
         } catch (e) {
-            logWarn('存储适配层', `切换失败: ${e.message || e}`);
+            logWarn(t('log.category.storage'), t('log.msg.switchFailed', { msg: e.message || e }));
         }
     });
     bindToggle('timer-toggle', 'processingTimer', (v) => { timerEnabled = v; });
 
     // 清除 localStorage 按钮
     document.getElementById('clear-localstorage-btn')?.addEventListener('click', () => {
-        if (!confirm('确定要清除全部 localStorage 数据吗？\n\n页面将刷新以应用默认设置。')) return;
+        if (!confirm(t('confirm.clearLocalStorage'))) return;
         try {
             localStorage.clear();
             saveSetting('localStorageEnabled', 'true');
@@ -499,7 +522,7 @@ document.addEventListener('DOMContentLoaded', function() {
         localStorageEnabled = true;
         const lsToggleEl = document.getElementById('localstorage-toggle');
         if (lsToggleEl) lsToggleEl.checked = true;
-        logInfo('localStorage', '已清除全部 localStorage 数据');
+        logInfo(t('log.category.localStorage'), t('log.msg.localStorageCleared'));
         location.reload();
     });
 
@@ -518,5 +541,16 @@ document.addEventListener('DOMContentLoaded', function() {
     imageLazyLoader = new ImageLazyLoader({
         rootMargin: '300px',
         threshold: 0.01
+    });
+
+    // ---- 语言切换后刷新所有动态文案（打包下载文字由文件作用域监听刷新） ----
+    window.addEventListener('i18n:changed', () => {
+        updateSaveButtonText();
+        updateImageCounter();
+        for (const img of images) updateImageInfo(img.id);
+        if (storage && storage.activeBackend) {
+            updateCacheIndicator(storage.activeBackend === 'cache-api' ? 'Cache API' : 'IndexedDB');
+        }
+        if (logPanelVisible) renderLogPanel(currentFilter);
     });
 });

@@ -148,7 +148,7 @@
                 while (this.queue.length > 0) {
                     const item = this.queue.shift();
                     try {
-                        item.reject(new Error('Worker 池已耗尽，所有 Worker 均不可用'));
+                        item.reject(new Error(t('log.msg.workerPoolExhausted')));
                     } catch (_) {
                         // reject 不应抛异常，但防御性捕获确保后续任务仍被处理
                     }
@@ -216,7 +216,7 @@
     /** 共享还原逻辑：从 original 备份恢复，processSingleImage 和 processOneImageConcurrent 共用 */
     async function restoreImageData(imageData) {
         const originalBlob = await storage.get(`original_${imageData.id}`);
-        if (!originalBlob) throw new Error('原始图片数据不存在');
+        if (!originalBlob) throw new Error(t('error.originalMissing'));
         await storage.set(`current_${imageData.id}`, originalBlob);
         imageData.scrambleLevel = 0;
         imageData.format = (originalBlob.type || 'image/png').replace('image/', '').toUpperCase();
@@ -234,7 +234,7 @@
 
         // 获取当前图片 Blob
         const sourceBlob = await storage.get(`current_${imageData.id}`);
-        if (!sourceBlob) throw new Error('图片数据不存在');
+        if (!sourceBlob) throw new Error(t('error.dataMissing'));
 
         // 通过 ImageBitmap 加载到 canvas
         const bitmap = await createImageBitmap(sourceBlob, { premultiplyAlpha: 'none' });
@@ -290,7 +290,7 @@
 
         // --- 阶段 1：I/O 读取 + 解码（主线程）---
         const sourceBlob = await storage.get('current_' + imageData.id);
-        if (!sourceBlob) throw new Error('图片数据不存在');
+        if (!sourceBlob) throw new Error(t('error.dataMissing'));
 
         const bitmap = await createImageBitmap(sourceBlob, { premultiplyAlpha: 'none' });
         const canvas = getCanvasFromPool(bitmap.width, bitmap.height);
@@ -376,11 +376,11 @@
         }
 
         if (tasks.length === 0) {
-            showTempStatus('⚠️ 请先选择图片');
+            showTempStatus(t('toast.selectFirst'));
             return null;
         }
 
-        batchStatusEl.innerHTML = '<div class="loading"></div> 正在处理 ' + tasks.length + ' 张图片...';
+        batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.processing', { n: tasks.length });
 
         startProcessingTimer(tasks.length, operation);
 
@@ -388,7 +388,7 @@
 
         // Worker 池不可用（如 file:// 协议下 Chrome 拒绝 Worker），降级到串行处理
         if (pool.failed) {
-            logWarn('Worker 池', 'Worker 不可用，降级到串行处理');
+            logWarn(t('log.category.worker'), t('log.msg.workerUnavailableSerial'));
             let successCount = 0, failureCount = 0;
             for (let i = 0; i < tasks.length; i++) {
                 const imageData = tasks[i];
@@ -399,13 +399,13 @@
                     successCount++;
                 } catch (error) {
                     failureCount++;
-                    logError(imageData.name, ('处理失败: ' + (error.message || '未知错误')));
+                    logError(imageData.name, t('log.msg.processFailedDetail', { msg: error.message || t('error.unknown') }));
                 } finally {
                     if (overlay) overlay.remove();
-                    await updateProgressStatus(batchStatusEl, i + 1, tasks.length, '处理');
+                    await updateProgressStatus(batchStatusEl, i + 1, tasks.length, 'action.process');
                 }
             }
-            showBatchStatus(successCount, failureCount, '处理');
+            showBatchStatus(successCount, failureCount, 'action.process');
             return true;
         }
 
@@ -427,11 +427,11 @@
                     successCount++;
                 } catch (error) {
                     failureCount++;
-                    logError(imageData.name, ('处理失败: ' + (error.message || '未知错误')));
+                    logError(imageData.name, t('log.msg.processFailedDetail', { msg: error.message || t('error.unknown') }));
                 } finally {
                     if (overlay) overlay.remove();
                     completed++;
-                    await updateProgressStatus(batchStatusEl, completed, tasks.length, '处理');
+                    await updateProgressStatus(batchStatusEl, completed, tasks.length, 'action.process');
                     semaphore.release();
                 }
             })();
@@ -439,6 +439,6 @@
 
         await Promise.allSettled(promises);
 
-        showBatchStatus(successCount, failureCount, '处理');
+        showBatchStatus(successCount, failureCount, 'action.process');
         return true;
     }

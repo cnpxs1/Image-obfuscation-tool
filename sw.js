@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v3';
 const PRECACHE_NAME = `image-tool-precache-${CACHE_VERSION}`;
 const RUNTIME_NAME = `image-tool-runtime-${CACHE_VERSION}`;
 
@@ -11,7 +11,12 @@ const PRECACHE_URLS = [
     './assets/irojs/iro.js',
     './assets/fflate/fflate.js',
     './img/icons/favicon/PWA/pwa-192.png',
-    './img/icons/favicon/PWA/pwa-512.png'
+    './img/icons/favicon/PWA/pwa-512.png',
+    './i18n/zh-CN.json',
+    './i18n/en-US.json',
+    './i18n/template.json',
+    './js/i18n/builtin-langs.js',
+    './js/i18n/i18n.js'
 ];
 
 // ---- Install: 预缓存所有静态资源 ----
@@ -53,11 +58,37 @@ self.addEventListener('fetch', event => {
         return;
     }
 
+    // 脚本/样式/语言文件 → Network-first（修改后刷新即可生效，离线回退缓存）
+    // 注意：这些资源若使用 Cache-first，开发时修改 JS/CSS 后会被 runtime 缓存挡住
+    if (url.pathname.indexOf('/js/') !== -1 ||
+        url.pathname.indexOf('/css/') !== -1 ||
+        url.pathname.indexOf('/i18n/') !== -1) {
+        event.respondWith(networkFirstForAsset(request, 3000));
+        return;
+    }
+
     // 同源静态资源 → Cache-first
     event.respondWith(cacheFirst(request));
 });
 
 // ---- 缓存策略实现 ----
+
+// Network-first + 超时回退缓存（用于语言文件等需要及时更新的静态资源）
+// 与 networkFirstWithTimeout 的区别：失败时不做 index.html 兜底，避免把 HTML 当作 JSON 返回
+async function networkFirstForAsset(request, timeoutMs) {
+    try {
+        const networkResponse = await timeoutFetch(request, timeoutMs);
+        if (networkResponse.ok) {
+            const cache = await caches.open(RUNTIME_NAME);
+            await cache.put(request, networkResponse.clone());
+        }
+        return networkResponse;
+    } catch (e) {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        return new Response('', { status: 503, headers: { 'Content-Type': 'application/json' } });
+    }
+}
 
 // Network-first + 超时回退缓存（用于 index.html）
 async function networkFirstWithTimeout(request, timeoutMs) {

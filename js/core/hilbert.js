@@ -21,7 +21,7 @@
         const q = cacheHits + cacheMisses, s = curveCache.size;
         if (!q) return;
         const f = [...curveCache.values()].map(e => e.frequency);
-        logLog(`曲线缓存: 命中率 ${(cacheHits/q*100).toFixed(1)}% (${cacheHits}/${q}) | 条目 ${s}/${MAX_CACHE_SIZE} | 频率 ${s?Math.min(...f):0}~${s?Math.max(...f):0} | 淘汰 ${cacheEvictions} | 访问 ${accessCounter}`);
+        logLog(t('log.msg.curveCacheStats', { hitRate: (cacheHits/q*100).toFixed(1), hits: cacheHits, q: q, size: s, max: MAX_CACHE_SIZE, minF: s?Math.min(...f):0, maxF: s?Math.max(...f):0, evictions: cacheEvictions, access: accessCounter }));
     }
 
     function getCachedCurve(width, height) {

@@ -6,7 +6,7 @@ var activeBasicViewerClose;
     // getViewerLoadPromise 已在 js/lib/cdn.js 中定义，此处直接使用
     // 基础图片查看器 - 当所有Viewer.js 资源都失效时的兜底方案
     function showBasicViewer(imageData) {
-        logLog('启动基础图片查看器');
+        logLog(t('log.msg.basicViewerStarted'));
 
         // 彻底清理可能存在的旧实例（释放事件监听器 + Blob URL + overflow 状态）
         if (activeBasicViewerClose) {
@@ -39,7 +39,7 @@ var activeBasicViewerClose;
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '×';
         closeBtn.tabIndex = 0;
-        closeBtn.setAttribute('aria-label', '关闭');
+        closeBtn.setAttribute('aria-label', t('common.close'));
         closeBtn.style.cssText = `
             position: absolute; right: 20px; top: 20px; width: 40px; height: 40px;
             background-color: rgba(0, 0, 0, 0.5); border: none; border-radius: 50%;
@@ -115,16 +115,16 @@ var activeBasicViewerClose;
                 if (img.src && img.src.startsWith('blob:')) {
                     try {
                         URL.revokeObjectURL(img.src);
-                        logLog('已释放基础查看器的 Blob URL');
+                        logLog(t('log.msg.releasedBlobUrl'));
                     } catch (error) {
-                        logWarn('基础图片查看器', `释放 Blob URL 失败: ${error.message || error}`);
+                        logWarn(t('log.category.basicViewer'), t('log.msg.releaseBlobUrlFailed', { msg: error.message || error }));
                     }
                 }
                 document.body.style.overflow = '';
                 if (activeBasicViewerClose === closeBasicViewer) {
                     activeBasicViewerClose = null;
                 }
-                logLog('基础查看器已关闭并清理资源');
+                logLog(t('log.msg.basicViewerClosed'));
             };
 
             viewerContainer.addEventListener('transitionend', finalize);
@@ -150,11 +150,11 @@ var activeBasicViewerClose;
         // ========== 图片加载回调 ==========
 
         img.onload = () => {
-            logLog('基础查看器：图片加载完成');
+            logLog(t('log.msg.basicViewerImageLoaded'));
         };
 
         img.onerror = () => {
-            logError('基础图片查看器', '图片加载失败');
+            logError(t('log.category.basicViewer'), t('log.msg.basicViewerImageFailed'));
         };
 
         // ========== 展示 ==========
@@ -171,7 +171,7 @@ var activeBasicViewerClose;
             }, 250);
         });
 
-        logLog('基础图片查看器启动成功');
+        logLog(t('log.msg.basicViewerReady'));
     }
 
     // ==================== Viewer.js 集成 ====================
@@ -179,18 +179,18 @@ var activeBasicViewerClose;
     /** 为单张图片打开基础查看器（无需构建全部图片元素） */
     async function openBasicViewer(imageData, token) {
         if (isPreviewStale(token)) return;
-        logLog('启用基础图片查看器');
+        logLog(t('log.msg.enableBasicViewer'));
         try {
             const blob = await storage.get(`current_${imageData.id}`);
             if (blob && !isPreviewStale(token)) {
                 const url = URL.createObjectURL(blob);
                 showBasicViewer({ blobUrl: url, originalName: imageData.name });
             } else if (!blob) {
-                logError('Viewer.js', `无法获取图片数据: ${imageData.id}`);
+                logError(t('log.category.viewer'), t('log.msg.getImageDataFailed', { id: imageData.id }));
             }
         } catch (error) {
             if (!isPreviewStale(token)) {
-                logError('Viewer.js', `获取图片 Blob 失败: ${error.message || error}`);
+                logError(t('log.category.viewer'), t('log.msg.getBlobFailed', { msg: error.message || error }));
             }
         }
     }
@@ -198,7 +198,7 @@ var activeBasicViewerClose;
     async function showPreview(imageId) {
         const imageData = images.find(item => item.id === imageId);
         if (!imageData) {
-            logWarn('Viewer.js', `未找到指定图片: ${imageId}`);
+            logWarn(t('log.category.viewer'), t('log.msg.viewerNotFound', { id: imageId }));
             return;
         }
 
@@ -223,14 +223,14 @@ var activeBasicViewerClose;
         try {
             await getViewerLoadPromise();
         } catch (err) {
-            logError('Viewer.js', `资源加载失败: ${err.message || err}`);
+            logError(t('log.category.viewer'), t('log.msg.viewerResourceLoadFailed', { msg: err.message || err }));
         }
 
         if (isPreviewStale(token)) return;
 
         // 5. Viewer.js 不可用，降级到基础查看器（跳过创建全部图片元素）
         if (!window.Viewer) {
-            logError('Viewer.js', 'Viewer.js 不可用');
+            logError(t('log.category.viewer'), t('log.msg.viewerUnavailable'));
             await openBasicViewer(imageData, token);
             return;
         }
@@ -241,7 +241,7 @@ var activeBasicViewerClose;
             galleryContainer = await buildGallery();
         } catch (createError) {
             if (isPreviewStale(token)) return;
-            logError('Viewer.js', `创建画廊容器失败: ${createError.message || createError}`);
+            logError(t('log.category.viewer'), t('log.msg.galleryCreateFailed', { msg: createError.message || createError }));
             await openBasicViewer(imageData, token);
             return;
         }
@@ -257,7 +257,7 @@ var activeBasicViewerClose;
                 destroyViewer(galleryContainer);
                 return;
             }
-            logError('Viewer.js', `初始化失败: ${error.message || error}`);
+            logError(t('log.category.viewer'), t('log.msg.viewerInitFailed', { msg: error.message || error }));
             await fallbackViewer(galleryContainer, imageData, token);
         }
     }
@@ -274,9 +274,9 @@ var activeBasicViewerClose;
         if (viewerInstance) {
             try {
                 viewerInstance.destroy();
-                logLog('已销毁之前的 viewer 实例');
+                logLog(t('log.msg.destroyedOldViewer'));
             } catch (error) {
-                logWarn('Viewer.js', `销毁 viewer 实例时出错: ${error.message || error}`);
+                logWarn(t('log.category.viewer'), t('log.msg.destroyViewerFailed', { msg: error.message || error }));
             }
             viewerInstance = null;
         }
@@ -319,7 +319,7 @@ var activeBasicViewerClose;
 
         // 预先创建所有图片元素，按顺序同步添加到 DOM，然后等待它们加载完成
         const imgElements = new Array(images.length); // 预分配数组
-        logLog(`开始创建图片元素，共 ${images.length} 张`);
+        logLog(t('log.msg.creatingImageElements', { n: images.length }));
 
         const loadPromises = images.map((imageData, index) => {
             return new Promise((resolve) => {
@@ -327,17 +327,17 @@ var activeBasicViewerClose;
                 const storagePromise = storage.get(`current_${imageData.id}`);
                 let storageTimerId;
                 const timeoutPromise = new Promise((_, reject) => {
-                    storageTimerId = setTimeout(() => reject(new Error('存储读取超时')), 8000);
+                    storageTimerId = setTimeout(() => reject(new Error(t('log.msg.storageReadTimeout'))), 8000);
                 });
                 timeoutIds.push(storageTimerId);
                 Promise.race([storagePromise, timeoutPromise]).then(blob => {
                     clearTimeout(storageTimerId);
-                    if (!blob) throw new Error(`图片数据不存在：${imageData.name}`);
+                    if (!blob) throw new Error(t('log.msg.imageDataMissing', { name: imageData.name }));
 
                     const blobUrl = URL.createObjectURL(blob);
                     const img = document.createElement('img');
                     img.src = blobUrl;
-                    img.alt = escapeHtml(imageData.name) || `图片 ${index + 1}`;
+                    img.alt = escapeHtml(imageData.name) || t('log.msg.imageAlt', { n: index + 1 });
                     img.dataset.imageId = imageData.id;
                     img.dataset.index = index.toString();
                     img.dataset.blobUrl = blobUrl;
@@ -346,13 +346,13 @@ var activeBasicViewerClose;
 
                     // 保存引用到数组（保持顺序）- 在创建 img 后立即同步赋值
                     imgElements[index] = img;
-                    logLog(`[索引${index}] 已创建图片元素：${imageData.name}`);
+                    logLog(t('log.msg.imageElementCreated', { idx: index, name: imageData.name }));
 
                     // 动态超时：按 blob 大小估算，每 MB 给 3 秒，最少 8 秒，最多 60 秒
                     const blobSizeMB = (blob?.size || 0) / (1024 * 1024);
                     const dynTimeout = Math.max(8000, Math.min(60000, blobSizeMB * 3000));
                     const timeoutId = setTimeout(() => {
-                        logError(imageData.name, `图片加载超时(${(dynTimeout/1000).toFixed(0)}s)，使用占位图`);
+                        logError(imageData.name, t('log.msg.imageLoadTimeout', { n: (dynTimeout/1000).toFixed(0) }));
                         releaseImgBlob(img);
                         img.onerror = null;
                         img.dataset.loadFailed = 'true';
@@ -363,13 +363,13 @@ var activeBasicViewerClose;
 
                     img.onload = () => {
                         clearTimeout(timeoutId);
-                        logLog(`图片 ${img.alt} 加载完成 (${img.naturalWidth}x${img.naturalHeight})`);
+                        logLog(t('log.msg.imageLoaded', { name: img.alt, w: img.naturalWidth, h: img.naturalHeight }));
                         resolve(img);
                     };
 
                     img.onerror = () => {
                         clearTimeout(timeoutId);
-                        logError(imageData.name, '图片加载失败');
+                        logError(imageData.name, t('log.msg.imageLoadFailed'));
                         releaseImgBlob(img);
                         img.onerror = null;
                         img.dataset.loadFailed = 'true';
@@ -379,11 +379,11 @@ var activeBasicViewerClose;
                 }).catch((err) => {
                     clearTimeout(storageTimerId);
                     // 捕获 storage.get 失败或 then 中抛出的异常，防止 Promise 永久 pending
-                    logError(imageData.name, `图片获取异常：${err?.message || err}`);
+                    logError(imageData.name, t('log.msg.imageGetException', { msg: err?.message || err }));
                     const img = document.createElement('img');
                     img.src = PLACEHOLDER_SRC;
                     img.dataset.loadFailed = 'true';
-                    img.alt = escapeHtml(imageData.name) || `图片 ${index + 1}`;
+                    img.alt = escapeHtml(imageData.name) || t('log.msg.imageAlt', { n: index + 1 });
                     img.dataset.imageId = imageData.id;
                     img.dataset.index = index.toString();
                     imgElements[index] = img;
@@ -395,18 +395,18 @@ var activeBasicViewerClose;
         // 等待所有图片元素创建完成后再添加到 DOM
         await Promise.allSettled(loadPromises);
 
-        logLog(`Map 完成：imgElements 长度=${imgElements.length}, 已赋值=${imgElements.filter(x => x).length}`);
+        logLog(t('log.msg.imageElementsReady', { total: imgElements.length, assigned: imgElements.filter(x => x).length }));
 
         // 按顺序将所有图片添加到容器（保证 DOM 顺序与 images 数组一致）
         imgElements.forEach((img, index) => {
             if (img) {
                 container.appendChild(img);
             } else {
-                logWarn('Viewer.js', `图片索引 ${index} 对应的元素未创建成功`);
+                logWarn(t('log.category.viewer'), t('log.msg.imageElementMissing', { idx: index }));
             }
         });
 
-        logLog(`共创建 ${imgElements.length} 个图片元素，实际添加到 DOM ${container.children.length} 个`);
+        logLog(t('log.msg.imageElementsAppended', { total: imgElements.length, added: container.children.length }));
 
         // 存储加载 Promise 到容器
         container._loadPromises = Promise.allSettled(loadPromises);
@@ -425,7 +425,7 @@ var activeBasicViewerClose;
     async function initViewer(imageData, container, targetImageId, token) {
         // 最终检查是否被新调用取代
         if (isPreviewStale(token)) {
-            logLog('预览操作已被取代，跳过 Viewer 实例创建');
+            logLog(t('log.msg.previewSuperseded'));
             destroyViewer(container);
             return;
         }
@@ -433,9 +433,9 @@ var activeBasicViewerClose;
         try {
             // 等待所有图片至少尝试加载完成
             if (container._loadPromises) {
-                logLog('等待图片加载完成...');
+                logLog(t('log.msg.waitingImages'));
                 await container._loadPromises;
-                logLog('所有图片加载尝试完成');
+                logLog(t('log.msg.allImagesLoaded'));
             }
 
             // 额外等待一小段时间，确保 DOM 渲染完成
@@ -477,7 +477,7 @@ var activeBasicViewerClose;
 
                 // 生命周期事件
                 ready() {
-                    logLog('Viewer.js 已准备就绪');
+                    logLog(t('log.msg.viewerReady'));
                 },
 
                 shown() {
@@ -495,9 +495,9 @@ var activeBasicViewerClose;
                     });
 
                     if (failedImages.length === 0) {
-                        logLog(`已加载${loadedCount}张图片`);
+                        logLog(t('log.msg.loadedImages', { n: loadedCount }));
                     } else {
-                        logLog(`已加载${loadedCount}张图片，图片${failedImages.join('、')}失败`);
+                        logLog(t('log.msg.loadedImagesPartial', { n: loadedCount, ids: failedImages.join('、') }));
                     }
                 },
 
@@ -505,26 +505,26 @@ var activeBasicViewerClose;
                     const { detail } = event;
                     const currentImage = detail.image;
                     const currentIndex = detail.index;
-                    logLog(`当前查看图片：${currentImage.alt || '未知'} (索引：${currentIndex})`);
+                    logLog(t('log.msg.viewingImage', { alt: currentImage.alt || t('log.msg.unknown'), idx: currentIndex }));
 
                     // 每次切换图片时检查加载状态
                     if (!currentImage.complete || currentImage.naturalWidth === 0) {
-                        logWarn('Viewer.js', '当前图片尚未加载完成');
+                        logWarn(t('log.category.viewer'), t('log.msg.currentImageNotLoaded'));
                     }
                 },
 
                 hide() {
-                    logLog('Viewer.js 开始隐藏');
+                    logLog(t('log.msg.viewerHide'));
                 },
 
                 hidden() {
-                    logLog('Viewer.js 已隐藏');
+                    logLog(t('log.msg.viewerHidden'));
                     viewerInstance = null; // Viewer.js 已自毁，避免 destroyViewer 重复销毁
                     destroyViewer(container);
                 },
 
                 play() {
-                    logLog('全屏');
+                    logLog(t('log.msg.fullscreen'));
                 }
             });
 
@@ -537,44 +537,44 @@ var activeBasicViewerClose;
             // 定位到目标图片 - 通过 data-imageId 属性查找 DOM 中的实际位置
             // 检查 Viewer 实例是否仍然有效（用户可能在延时期间快速关闭了查看器）
             if (!viewerInstance) {
-                logLog('Viewer 实例已被销毁，跳过图片定位');
+                logLog(t('log.msg.viewerDestroyedSkipLocate'));
                 return;
             }
 
             const targetImg = container.querySelector(`img[data-image-id="${targetImageId}"]`);
             if (targetImg) {
                 const domIndex = Array.from(container.children).indexOf(targetImg);
-                logLog(`容器中共有 ${container.children.length} 张图片`);
-                logLog(`找到目标图片，DOM 索引：${domIndex}`);
+                logLog(t('log.msg.containerImageCount', { n: container.children.length }));
+                logLog(t('log.msg.targetImageFound', { idx: domIndex }));
                 viewerInstance.view(domIndex);
             } else {
                 // 详细调试信息
-                logError('Viewer.js', `未在 DOM 中找到目标图片：${targetImageId}`);
-                logLog(`容器中的图片元素:`);
+                logError(t('log.category.viewer'), t('log.msg.targetImageNotFound', { id: targetImageId }));
+                logLog(t('log.msg.containerImagesHeader'));
                 Array.from(container.children).forEach((img, idx) => {
-                    const imageId = img.dataset?.imageId || '无 ID';
+                    const imageId = img.dataset?.imageId || t('log.msg.noId');
                     logLog(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                 });
 
                 // 尝试使用 Viewer.js 的 images 数组访问（Viewer.js 1.x 使用 images 而非 list）
                 if (viewerInstance && viewerInstance.images) {
-                    logLog(`Viewer.js images 中有 ${viewerInstance.images.length} 张图片`);
+                    logLog(t('log.msg.viewerImagesCount', { n: viewerInstance.images.length }));
                     viewerInstance.images.forEach((img, idx) => {
-                        const imageId = img.dataset?.imageId || '无 ID';
+                        const imageId = img.dataset?.imageId || t('log.msg.noId');
                         logLog(`[${idx}] ID: ${imageId}, Alt: ${img.alt}`);
                     });
 
                     // 尝试在 Viewer.js 的 images 中查找
                     const foundIndex = viewerInstance.images.findIndex(img => img.dataset?.imageId === targetImageId);
                     if (foundIndex >= 0) {
-                        logLog(`在 Viewer.js images 中找到目标图片，索引：${foundIndex}`);
+                        logLog(t('log.msg.targetImageFoundViewer', { idx: foundIndex }));
                         viewerInstance.view(foundIndex);
                     }
                 }
             }
 
         } catch (error) {
-            logError('Viewer.js', `初始化过程中发生错误: ${error.message || error}`);
+            logError(t('log.category.viewer'), t('log.msg.viewerInitError', { msg: error.message || error }));
             await fallbackViewer(container, imageData, token);
         }
     }
@@ -595,7 +595,7 @@ var activeBasicViewerClose;
     async function fallbackViewer(container, imageData, token) {
         destroyViewer(container);
         if (!isPreviewStale(token)) {
-            logLog('启用基础图片查看器作为替代方案');
+            logLog(t('log.msg.fallbackBasicViewer'));
             await openBasicViewer(imageData, token);
         }
     }
@@ -614,7 +614,7 @@ var activeBasicViewerClose;
             try {
                 viewerInstance.destroy();
             } catch (e) {
-                logWarn('Viewer.js', `销毁 Viewer 实例出错: ${e.message || e}`);
+                logWarn(t('log.category.viewer'), t('log.msg.viewerDestroyError', { msg: e.message || e }));
             }
             viewerInstance = null;
         }
@@ -628,7 +628,7 @@ var activeBasicViewerClose;
             revokeBlobUrls(container);
             container.parentNode.removeChild(container);
         }
-        logLog('Viewer.js 资源已清理');
+        logLog(t('log.msg.viewerResourcesCleaned'));
     }
 
     /**
@@ -650,7 +650,7 @@ var activeBasicViewerClose;
             if (viewerInstance && viewerInstance.update) {
                 try {
                     viewerInstance.update();
-                    logLog('窗口大小改变，已更新 Viewer 布局');
+                    logLog(t('log.msg.windowResized'));
                 } catch (_) { /* viewer 可能在定时器触发前已销毁 */ }
             }
         }, 150);

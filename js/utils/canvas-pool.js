@@ -39,7 +39,7 @@ function getCanvasFromPool(width, height) {
         if (canvas.width > 0 && canvas.height > 0) {
             return canvas;
         }
-        logWarn('Canvas池', `丢弃尺寸异常的缓存 Canvas (${canvas.width}x${canvas.height})，重建 ${key}`);
+        logWarn(t('log.category.canvas'), t('log.msg.discardedCanvas', { w: canvas.width, h: canvas.height, key: key }));
     }
 
     // 池为空时创建新Canvas并设置尺寸，初始化上下文避免后续getContext属性不匹配
@@ -99,7 +99,7 @@ function smartClearCanvasPools() {
                 // 保留指定数量的Canvas
                 pool.length = 0;
                 pool.push(...canvasesToKeep);
-                logLog(`保留常用尺寸 ${key}: ${canvasesToKeep.length} 个Canvas`);
+                logLog(t('log.msg.retainedCanvas', { key: key, n: canvasesToKeep.length }));
             }
         } else {
             // 非常用尺寸完全清理
@@ -109,7 +109,7 @@ function smartClearCanvasPools() {
             });
             const cleanedCount = pool.length;
             pool.length = 0;
-            logLog(`清理非常用尺寸 ${key}: ${cleanedCount} 个Canvas`);
+            logLog(t('log.msg.cleanedUnusedCanvas', { key: key, n: cleanedCount }));
         }
     });
 
@@ -120,7 +120,7 @@ function smartClearCanvasPools() {
         }
     }
 
-    logLog('智能清理完成，保留了常用尺寸的Canvas');
+    logLog(t('log.msg.smartCleanDone'));
 }
 
 /**
@@ -155,7 +155,7 @@ function preCreateCommonCanvases() {
         }
     });
 
-    logLog(`预创建常用Canvas完成 (${topSizes.length} 种尺寸)`);
+    logLog(t('log.msg.precreateDone', { n: topSizes.length }));
 }
 
 /**
@@ -174,5 +174,5 @@ function clearAllCanvasPools() {
     });
     canvasPoolBySize.clear();
     recentCanvasSizes.clear();
-    logLog('已清理所有Canvas池');
+    logLog(t('log.msg.allCanvasCleared'));
 }

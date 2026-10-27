@@ -12,15 +12,15 @@
                 // Promise.race 超时防护：防止 CDN 请求挂起导致 Promise 永久 pending
                 await Promise.race([
                     window.fflateResources.promise,
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('fflate 加载超时（12s）')), 12000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(t('log.msg.fflateTimeout', { sec: 12 }))), 12000))
                 ]);
             } catch (e) {
-                logError(zipFile.name, 'fflate 库未加载，无法解压 ZIP');
-                return { added: 0, errors: [{ name: zipFile.name, error: 'fflate 库未加载' }] };
+                logError(zipFile.name, t('log.msg.fflateNotLoaded'));
+                return { added: 0, errors: [{ name: zipFile.name, error: t('log.msg.fflateLoadError') }] };
             }
         }
 
-        batchStatusEl.innerHTML = `<div class="loading"></div> 正在解析 ZIP 文件...`;
+        batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.parsingZip');
 
         try {
             const zipData = new Uint8Array(await zipFile.arrayBuffer());
@@ -40,20 +40,20 @@
                 if (!baseName) continue;
 
                 if (!isValidImageBytes(fileData)) {
-                    errors.push({ name: baseName, error: '文件内容不是有效的图片格式' });
-                    logWarn(baseName, '文件扩展名与内容不匹配，已跳过');
+                    errors.push({ name: baseName, error: t('log.msg.invalidImageContent') });
+                    logWarn(baseName, t('log.msg.extMismatch'));
                     continue;
                 }
                 entries.push({ fileData, baseName, ext });
             }
 
             if (entries.length === 0) {
-                showTempStatus('⚠️ ZIP 文件中未找到支持的图片格式', 3000);
+                showTempStatus(t('zip.noImages'), 3000);
                 return { added: 0, errors };
             }
 
             // 第二趟：逐张准备数据，再批量渲染 DOM
-            batchStatusEl.innerHTML = `<div class="loading"></div> 正在添加 ${entries.length} 张图片...`;
+            batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.addingZip', { n: entries.length });
             const batch = [];
             for (let i = 0; i < entries.length; i++) {
                 const { fileData, baseName, ext } = entries[i];
@@ -63,18 +63,18 @@
                     batch.push(await prepareImageData(file));
                 } catch (e) {
                     errors.push({ name: baseName, error: e.message });
-                    logError(baseName, `添加失败: ${e.message}`);
+                    logError(baseName, t('log.msg.zipAddFailed', { msg: e.message }));
                 }
-                await updateProgressStatus(batchStatusEl, i + 1, entries.length, '添加图片');
+                await updateProgressStatus(batchStatusEl, i + 1, entries.length, 'action.add');
             }
             commitImageBatch(batch);
 
-            showTempStatus(`✅ 已从 ZIP 添加 ${batch.length} 张图片${errors.length ? `，${errors.length} 个文件失败` : ''}`, 3000);
+            showTempStatus(t('zip.added', { n: batch.length, extra: errors.length ? t('zip.addedFailedPart', { n: errors.length }) : '' }), 3000);
             return { added: batch.length, errors };
 
         } catch (error) {
-            showTempStatus(`❌ ZIP 解压失败: ${error.message}`, 3000);
-            logError(zipFile.name, `ZIP 解压失败: ${error.message}`);
+            showTempStatus(t('zip.extractFailed', { msg: error.message }), 3000);
+            logError(zipFile.name, t('log.msg.zipExtractFailed', { msg: error.message }));
             return { added: 0, errors: [{ name: zipFile.name, error: error.message }] };
         }
     }
@@ -86,8 +86,8 @@
      */
     async function saveImagesAsZip(format) {
         if (typeof fflate === 'undefined') {
-            logError('fflate', 'fflate 未加载，ZIP 打包功能不可用');
-            showTempStatus('❌ ZIP 打包功能不可用（fflate 库未加载）', 3000);
+            logError(t('log.category.fflate'), t('log.msg.zipPackUnavailable'));
+            showTempStatus(t('zip.packUnavailable'), 3000);
             return;
         }
 
@@ -95,7 +95,7 @@
         if (!targetIds) return;
 
 
-        batchStatusEl.innerHTML = `<div class="loading"></div> 正在准备打包 ${targetIds.length} 张图片...`;
+        batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.preparingZip', { n: targetIds.length });
 
         const targetFormat = format.toLowerCase();
         const webpSupported = targetFormat === 'webp' ? await isWebPSupported() : false;
@@ -125,13 +125,13 @@
                 let blob = await storage.get(`current_${imageData.id}`);
                 if (!blob) {
                     failureCount++;
-                    logError(imageData.name, '图片数据不存在');
+                    logError(imageData.name, t('error.dataMissing'));
                     continue;
                 }
 
                 if (targetFormat === 'webp' && !webpSupported) {
                     failureCount++;
-                    logError(imageData.name, '浏览器不支持 WebP');
+                    logError(imageData.name, t('error.webpUnsupported'));
                     continue;
                 }
 
@@ -161,7 +161,7 @@
                         const zipOndata = entry.ondata;
                         entry.ondata = function(err, chunk, final_) {
                             if (!zipOndata) {
-                                reject(new Error('fflate 内部错误：AsyncZipDeflate ondata 回调未设置'));
+                                reject(new Error(t('log.msg.fflateInternalError')));
                                 return;
                             }
                             zipOndata.call(this, err, chunk, final_);
@@ -180,12 +180,12 @@
 
                 // 每 5 张让出主线程并更新进度（已压缩数据保留在 zipChunks 中）
                 if ((i + 1) % 5 === 0 || i === targetIds.length - 1) {
-                    await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, '压缩');
+                    await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, 'action.compress');
                 }
 
             } catch (error) {
                 failureCount++;
-                logError(imageData.name, `打包失败: ${error.message || '未知错误'}`);
+                logError(imageData.name, t('log.msg.zipPackFailed', { msg: error.message || t('error.unknown') }));
             }
 
             // 流错误不可恢复，立即终止循环
@@ -193,16 +193,16 @@
         }
 
         if (streamError) {
-            showTempStatus('❌ ZIP 流写入错误，打包中断', 3000);
+            showTempStatus(t('zip.streamError'), 3000);
             return;
         }
 
         if (successCount === 0) {
-            showTempStatus('❌ 打包失败，没有可用的图片', 3000);
+            showTempStatus(t('zip.noImagesToPack'), 3000);
             return;
         }
 
-        batchStatusEl.innerHTML = `<div class="loading"></div> 正在完成 ZIP 文件...`;
+        batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.finishingZip');
         await new Promise(resolve => setTimeout(resolve, 10));
 
         try {
@@ -221,12 +221,12 @@
 
             const zipBlob = new Blob([zipData], { type: 'application/zip' });
             const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            downloadBlob(zipBlob, `混淆图片_${timestamp}.zip`);
+            downloadBlob(zipBlob, t('zip.fileNamePrefix') + '_' + timestamp + '.zip');
 
-            showTempStatus(`✅ 打包完成，已下载 ${successCount} 张图片${failureCount ? `，${failureCount} 张失败` : ''}`, 3000);
+            showTempStatus(t('zip.packDone', { n: successCount, extra: failureCount ? t('zip.packFailedPart', { n: failureCount }) : '' }), 3000);
 
         } catch (error) {
-            showTempStatus(`❌ ZIP 创建失败: ${error.message}`, 3000);
-            logError('ZIP打包', `创建失败: ${error.message}`);
+            showTempStatus(t('zip.createFailed', { msg: error.message }), 3000);
+            logError(t('log.category.zipPack'), t('log.msg.zipCreateFailed', { msg: error.message }));
         }
     }

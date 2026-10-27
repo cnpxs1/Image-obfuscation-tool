@@ -34,10 +34,10 @@
         placeholder.className = 'thumbnail-placeholder';
         if (currentViewMode === 'grid') {
             placeholder.innerHTML = PLACEHOLDER_SVG;
-            placeholder.title = '加载中…';
+            placeholder.title = t('view.loading');
         } else {
             placeholder.innerHTML = getPlaceholderSvg();
-            placeholder.title = '点击预览图片';
+            placeholder.title = t('view.clickToPreview');
         }
         thumbnailContainer.appendChild(placeholder);
         item.appendChild(thumbnailContainer);
@@ -54,9 +54,9 @@
         infoDiv.innerHTML = `
             <div class="text-multiline" style="font-weight: bold;">${escapeHtml(imageData.name)}</div>
             <div class="image-info-row">
-                <span>${imageData.width > 0 ? `${imageData.width}×${imageData.height}` : '<span style="color:#999;">尺寸未知</span>'}</span>
+                <span>${imageData.width > 0 ? `${imageData.width}×${imageData.height}` : '<span style="color:#999;">' + t('status.unknownSize') + '</span>'}</span>
             </div>
-            <div class="file-size">格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}</div>
+            <div class="file-size">${t('status.formatLine', { fmt: imageData.format || 'N/A', size: formatFileSize(imageData.size) })}</div>
             <div class="status-badge ${statusClass}">${statusText}</div>
         `;
         item.appendChild(infoDiv);
@@ -65,12 +65,12 @@
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'image-actions';
         actionsDiv.innerHTML = `
-            <button class="action-btn" data-operation="encrypt">混淆</button>
-            <button class="action-btn" data-operation="decrypt">解混淆</button>
-            <button class="action-btn" data-operation="restore">还原</button>
+            <button class="action-btn" data-operation="encrypt">${t('common.encrypt')}</button>
+            <button class="action-btn" data-operation="decrypt">${t('common.decrypt')}</button>
+            <button class="action-btn" data-operation="restore">${t('common.restore')}</button>
             <div class="action-group">
-                <button class="action-btn delete-btn" data-operation="delete">删除</button>
-                <button class="action-btn" data-operation="save">保存</button>
+                <button class="action-btn delete-btn" data-operation="delete">${t('common.delete')}</button>
+                <button class="action-btn" data-operation="save">${t('common.save')}</button>
             </div>
         `;
         item.appendChild(actionsDiv);
@@ -85,7 +85,8 @@
         imageData.domCache = {
             sizeRow: infoDiv.querySelector('.image-info-row'),
             fileSize: infoDiv.querySelector('.file-size'),
-            statusBadge: infoDiv.querySelector('.status-badge')
+            statusBadge: infoDiv.querySelector('.status-badge'),
+            actions: actionsDiv
         };
 
         return item;
@@ -104,7 +105,7 @@
     async function refreshAllThumbnails() {
         // 列表模式下不执行缩略图刷新
         if (currentViewMode === 'list') {
-            showTempStatus('ℹ️ 当前为列表模式，不显示缩略图，无需刷新');
+            showTempStatus(t('toast.listModeNoThumbs'));
             return;
         }
 
@@ -112,13 +113,13 @@
 
         // 防止重复刷新
         if (isRefreshingThumbnails) {
-            logLog('刷新缩略图正在进行中，请稍后再试');
+            logLog(t('log.msg.refreshInProgress'));
             return;
         }
 
         // 检查是否有图片
         if (images.length === 0) {
-            showTempStatus('⚠️ 没有图片需要刷新');
+            showTempStatus(t('toast.nothingToRefresh'));
             return;
         }
 
@@ -137,7 +138,7 @@
         let successCount = 0;
         let failureCount = 0;
 
-        batchStatusEl.innerHTML = `<div class="loading"></div> 正在刷新缩略图 (0/${totalCount})...`;
+        batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.refreshingThumbs', { cur: 0, total: totalCount });
 
         try {
             // 串行刷新，避免大量并发导致内存压力
@@ -153,25 +154,25 @@
                         await updateThumbnail(imageData.id, blob);
                         successCount++;
                     } else {
-                        logWarn(imageData.name, 'Blob 数据不存在');
+                        logWarn(imageData.name, t('log.msg.blobMissing'));
                         failureCount++;
                     }
                 } catch (error) {
                     failureCount++;
-                    logError(imageData.name, `刷新缩略图失败: ${error.message || '未知错误'}`);
+                    logError(imageData.name, t('log.msg.refreshThumbFailed', { msg: error.message || t('error.unknown') }));
                 }
 
                 // 更新进度显示
-                await updateProgressStatus(batchStatusEl, i + 1, totalCount, '刷新缩略图', 10);
+                await updateProgressStatus(batchStatusEl, i + 1, totalCount, 'action.refreshThumbs', 10);
             }
 
-            showBatchStatus(successCount, failureCount, '刷新');
+            showBatchStatus(successCount, failureCount, 'action.refresh');
 
             const logFn = failureCount === 0 ? logLog : failureCount === totalCount ? logError : logWarn;
-            logFn('缩略图刷新', `缩略图刷新完成：成功 ${successCount}，失败 ${failureCount}`);
+            logFn(t('log.category.thumbs'), t('log.msg.thumbRefreshDone', { ok: successCount, fail: failureCount }));
         } catch (error) {
-            logError('缩略图刷新', `刷新缩略图过程出错: ${error.message || error}`);
-            showTempStatus('❌ 刷新缩略图失败', 3000);
+            logError(t('log.category.thumbs'), t('log.msg.thumbRefreshProcessError', { msg: error.message || error }));
+            showTempStatus(t('toast.refreshFailed'), 3000);
         } finally {
             isRefreshingThumbnails = false;
             // 恢复按钮状态

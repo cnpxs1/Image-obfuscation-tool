@@ -105,11 +105,11 @@ window.viewerResources = { cssLoaded: false, jsLoaded: false, localFallback: fal
             function() {
                 console.error('[ERROR] Viewer.js - 本地 ' + type.toUpperCase() + ' 加载失败');
                 viewerRes.localFallback = true;
-                viewerRes._notifyFailed('Viewer.js 资源加载失败');
+                viewerRes._notifyFailed((typeof t === 'function') ? t('log.msg.viewerLoadFailedDetail') : 'Viewer.js 资源加载失败');
                 if (!viewerRes.promptShown) {
                     viewerRes.promptShown = true;
                     setTimeout(function() {
-                        alert('❌ Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
+                        alert((typeof t === 'function') ? t('alert.viewerLoadFailed') : '❌ Viewer.js 资源加载失败\n\n系统将使用基础图片查看器为您展示图片。\n如需完整功能，请检查网络连接或本地资源后刷新页面。');
                     }, 100);
                 }
             }
@@ -154,7 +154,7 @@ try {
                 'https://unpkg.com/@jaames/iro@5.5.2/dist/iro.min.js',
                 './assets/irojs/iro.js'
             ],
-            function() { logError('iro.js', '所有源均加载失败，颜色选择器功能将不可用'); }
+            function() { logError('iro.js', (typeof t === 'function') ? t('log.msg.allSourcesFailed', { name: 'iro.js' }) : '所有源均加载失败，颜色选择器功能将不可用'); }
         );
     } else {
         window.iroResources._reject(new Error('iro.js 已被用户禁用'));
@@ -176,7 +176,7 @@ function disableZipToggle() {
     var zipToggle = document.getElementById('zip-download-toggle');
     if (zipToggle) {
         zipToggle.disabled = true;
-        zipToggle.title = 'fflate 库加载失败，ZIP 功能不可用';
+        zipToggle.title = (typeof t === 'function') ? t('i18n.zipUnavailable') : 'fflate 库加载失败，ZIP 功能不可用';
     }
 }
 
@@ -188,7 +188,7 @@ loadScriptWithFallback(
         './assets/fflate/fflate.js'
     ],
     function() {
-        logError('fflate', '所有源均加载失败，ZIP 功能将不可用');
+        logError('fflate', (typeof t === 'function') ? t('log.msg.allSourcesFailed', { name: 'fflate' }) : '所有源均加载失败，ZIP 功能将不可用');
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', disableZipToggle);
         } else {
@@ -209,14 +209,14 @@ function getViewerLoadPromise() {
 
     window.viewerLoadPromise = new Promise(function(resolve, reject) {
         if (viewerRes.jsLoaded && viewerRes.cssLoaded && window.Viewer) { resolve(); return; }
-        if (viewerRes.localFallback) { reject(new Error('Viewer.js 资源加载失败')); return; }
+        if (viewerRes.localFallback) { reject(new Error((typeof t === 'function') ? t('log.msg.viewerLoadFailedDetail') : 'Viewer.js 资源加载失败')); return; }
 
         viewerRes._resolve = resolve;
         viewerRes._reject = reject;
 
         viewerRes._timeout = setTimeout(function() {
-            logError('Viewer.js', '加载超时 (5s)');
-            reject(new Error('Viewer.js 加载超时'));
+            logError('Viewer.js', (typeof t === 'function') ? t('log.msg.loadTimeout', { sec: 5 }) : '加载超时 (5s)');
+            reject(new Error((typeof t === 'function') ? t('log.msg.loadTimeout', { sec: 5 }) : 'Viewer.js 加载超时'));
             viewerRes._resolve = viewerRes._reject = null;
         }, 5000);
     }).catch(function(err) {

@@ -30,8 +30,8 @@ function updateCacheIndicator(cacheType) {
         indicator.style.display = 'block';
         // 设置气泡提示数据
         const tooltipText = cacheType === 'Cache API'
-            ? '当前使用 Cache API 存储(性能更优)'
-            : '当前使用 IndexedDB 存储';
+            ? t('storage.indicatorCacheApi')
+            : t('storage.indicatorIndexedDb');
         indicator.setAttribute('data-tooltip', tooltipText);
         indicator.removeAttribute('title');
 
@@ -266,14 +266,14 @@ function showProcessingOverlay(item) {
 }
 
 /** 显示批量操作结果状态消息 */
-function showBatchStatus(successCount, failureCount, actionVerb) {
+function showBatchStatus(successCount, failureCount, actionVerbKey) {
     let message;
     if (failureCount === 0) {
-        message = `✅ 全部${actionVerb}成功 (${successCount} 张)`;
+        message = t('toast.allSucceeded', { action: t(actionVerbKey), n: successCount });
     } else if (successCount === 0) {
-        message = `❌ 全部${actionVerb}失败 (${failureCount} 张)`;
+        message = t('toast.allFailed', { action: t(actionVerbKey), n: failureCount });
     } else {
-        message = `✅ 成功 ${successCount} 张，❌ 失败 ${failureCount} 张`;
+        message = t('toast.partial', { ok: successCount, fail: failureCount });
     }
     showTempStatus(message, 3000);
 }

@@ -44,11 +44,11 @@ function isWebPSupported() {
         try {
             canvas.toBlob((blob) => {
                 const supported = blob !== null;
-                logLog(`WebP 支持检测: ${supported ? '支持' : '不支持'}`);
+                logLog(t('log.msg.webpSupported', { result: supported ? t('log.msg.yes') : t('log.msg.no') }));
                 resolve(supported);
             }, 'image/webp');
         } catch (e) {
-            logWarn('浏览器检测', `WebP 支持检测失败: ${e.message || e}`);
+            logWarn(t('log.category.browser'), t('log.msg.webpCheckFailed', { msg: e.message || e }));
             resolve(false);
         }
     });
@@ -74,12 +74,12 @@ function clearOverlays() {
         });
 
         if (cleanedCount > 0) {
-            logLog(`已清理 ${cleanedCount} 个残留的处理遮罩层`);
+            logLog(t('log.msg.overlaysCleaned', { n: cleanedCount }));
         }
 
         return cleanedCount;
     } catch (error) {
-        logError('遮罩层清理', `全局遮罩层清理失败: ${error.message || error}`);
+        logError(t('log.category.overlay'), t('log.msg.overlayCleanFailed', { msg: error.message || error }));
         return 0;
     }
 }

@@ -46,12 +46,12 @@
             if (this.preference === 'cache-api' && !cacheApiSupported) {
                 tryCacheApi = false;
                 tryIndexedDb = indexedDbSupported;
-                logInfo('存储适配层', 'Cache API 不可用，自动切换至 IndexedDB');
+                logInfo(t('log.category.storage'), t('log.msg.cacheApiUnavailable'));
             }
             if (this.preference === 'indexeddb' && !indexedDbSupported) {
                 tryIndexedDb = false;
                 tryCacheApi = cacheApiSupported;
-                logWarn('存储适配层', 'IndexedDB 不可用，自动切换至 Cache API');
+                logWarn(t('log.category.storage'), t('log.msg.indexedDbUnavailable'));
             }
 
             // 尝试 Cache API
@@ -60,15 +60,15 @@
                     await caches.delete(this.cacheName);
                     this.backend = await caches.open(this.cacheName);
                     this.activeBackend = 'cache-api';
-                    logLog('使用 Cache API');
-                    logLog('已清理旧数据');
+                    logLog(t('log.msg.usingCacheApi'));
+                    logLog(t('log.msg.clearedOldData'));
                     setTimeout(() => {
                         updateCacheIndicator('Cache API');
                         updateCacheSelectOptions();
                     }, 100);
                     return;
                 } catch (e) {
-                    logInfo('存储适配层', `Cache API 不可用，降级到 IndexedDB: ${e.message || e}`);
+                    logInfo(t('log.category.storage'), t('log.msg.cacheApiDegraded', { msg: e.message || e }));
                     window.__cacheBackendAvail.cacheApi = false;
                 }
             }
@@ -79,22 +79,22 @@
                     await this._initIndexedDB();
                     await this._dbTransaction('readwrite', store => store.clear());
                     this.activeBackend = 'indexeddb';
-                    logLog('使用 IndexedDB');
-                    logLog('已清理旧数据');
+                    logLog(t('log.msg.usingIndexedDb'));
+                    logLog(t('log.msg.clearedOldData'));
                     setTimeout(() => {
                         updateCacheIndicator('IndexedDB');
                         updateCacheSelectOptions();
                     }, 100);
                     return;
                 } catch (e) {
-                    logWarn('存储适配层', `IndexedDB 不可用: ${e.message || e}`);
+                    logWarn(t('log.category.storage'), t('log.msg.indexedDbFailed', { msg: e.message || e }));
                     window.__cacheBackendAvail.indexedDb = false;
                 }
             }
 
             // 两个都不可用（极端情况）
             this.activeBackend = 'none';
-            logWarn('存储适配层', '所有存储后端均不可用，图片处理将无法缓存');
+            logWarn(t('log.category.storage'), t('log.msg.allBackendsUnavailable'));
             setTimeout(() => updateCacheSelectOptions(), 100);
         }
 
@@ -156,10 +156,10 @@
                     if (this.activeBackend === 'cache-api' && this.backend) {
                         const keys = await this.backend.keys();
                         await Promise.all(keys.map(k => this.backend.delete(k)));
-                        logLog(`已清除旧后端 Cache API 的 ${keys.length} 条数据`);
+                        logLog(t('log.msg.clearedOldCacheApi', { n: keys.length }));
                     } else if (this.activeBackend === 'indexeddb' && this.db) {
                         await this._dbTransaction('readwrite', store => store.clear());
-                        logLog('已清除旧后端 IndexedDB 的数据');
+                        logLog(t('log.msg.clearedOldIndexedDb'));
                     }
                 } catch (e) { /* 清理失败不影响切换 */ }
 
@@ -173,10 +173,10 @@
                 // 验证新后端已就绪：若 _init 全部失败，迁移数据将无处写入
                 if (!this.backend && !this.db && oldData.size > 0) {
                     const targetLabel = newPreference === 'auto'
-                        ? '自动选择（Cache API / IndexedDB 均不可用）'
-                        : (newPreference === 'cache-api' ? 'Cache API' : 'IndexedDB');
-                    logError('存储适配层',
-                        `切换至 ${targetLabel} 失败，${oldData.size} 条缓存数据丢失`);
+                        ? t('storage.switchTargetAuto')
+                        : (newPreference === 'cache-api' ? t('storage.cacheApi') : t('storage.indexeddb'));
+                    logError(t('log.category.storage'),
+                        t('log.msg.switchFailedDataLost', { target: targetLabel, n: oldData.size }));
                 }
 
                 // 迁移数据到新后端：按 activeBackend 显式分派，避免依赖 this.backend 的隐式真假
@@ -204,9 +204,10 @@
                         }
                     }
                     if (migrated > 0) {
-                        logLog(`已迁移 ${migrated} 条缓存数据${failed > 0 ? `，${failed} 条失败` : ''}`);
+                        const extra = failed > 0 ? t('log.msg.migratedFailedPart', { n: failed }) : '';
+                        logLog(t('log.msg.migrated', { n: migrated, extra: extra }));
                     } else if (failed > 0) {
-                        logError('存储适配层', `数据迁移全部失败：${oldData.size} 条数据无法写入新后端`);
+                        logError(t('log.category.storage'), t('log.msg.migrationAllFailed', { n: oldData.size }));
                     }
                 }
 
@@ -249,11 +250,11 @@
             } catch (err) {
                 const name = (err && err.name) || '';
                 if (name === 'QuotaExceededError') {
-                    const quotaErr = new Error('存储空间已满，请清理部分图片后重试');
+                    const quotaErr = new Error(t('error.quotaExceeded'));
                     quotaErr.type = 'quota';
                     throw quotaErr;
                 }
-                const storageErr = new Error(`存储写入失败: ${err.message || err}`);
+                const storageErr = new Error(t('error.storageWriteFailed', { msg: err.message || err }));
                 storageErr.type = 'storage';
                 storageErr.cause = err;
                 throw storageErr;
@@ -288,30 +289,30 @@
                     await caches.delete(this.cacheName);
                     this.backend = await caches.open(this.cacheName);
                 } catch (e) {
-                    logWarn('存储适配层', `Cache API 重建失败: ${e.message || e}`);
+                    logWarn(t('log.category.storage'), t('log.msg.cacheApiRecreateFailed', { msg: e.message || e }));
                     this.backend = null;
                     // 尝试回退到 IndexedDB，避免存储功能整体瘫痪
                     try {
                         await this._initIndexedDB();
                         this.activeBackend = 'indexeddb';
                         await this._dbTransaction('readwrite', store => store.clear());
-                        logLog('Cache API 重建失败，已回退到 IndexedDB 并完成清理');
+                        logLog(t('log.msg.cacheApiRebuildFellBack'));
                     } catch (e2) {
-                        logWarn('存储适配层', `IndexedDB 回退也失败: ${e2.message || e2}`);
+                        logWarn(t('log.category.storage'), t('log.msg.indexedDbFallbackFailed', { msg: e2.message || e2 }));
                         this.activeBackend = 'none';
                     }
                 }
             } else if (this.db) {
                 return this._dbTransaction('readwrite', store => store.clear());
             } else {
-                logWarn('存储适配层', '所有后端均不可用，无法执行清理操作');
+                logWarn(t('log.category.storage'), t('log.msg.clearNoBackend'));
             }
         }
 
         /** IndexedDB 事务 Promise 封装，消除重复的事务样板代码 */
         _dbTransaction(mode, operationFn) {
             if (!this.db) {
-                throw new Error('IndexedDB 未初始化，存储操作不可用');
+                throw new Error(t('error.indexedDbNotInit'));
             }
             return new Promise((resolve, reject) => {
                 const transaction = this.db.transaction([this.storeName], mode);
@@ -341,7 +342,7 @@
                     return store.delete(`thumb_${id}`);
                 });
             } else {
-                logWarn('Storage', `删除图片 ${id} 时无可用后端，可能产生缓存残留`);
+                logWarn(t('log.category.storage2'), t('log.msg.deleteNoBackend', { id: id }));
             }
         }
     }

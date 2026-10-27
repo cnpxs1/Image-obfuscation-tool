@@ -125,7 +125,7 @@
         return new Promise((resolve, reject) => {
             canvas.toBlob((blob) => {
                 if (blob) resolve(blob);
-                else reject(new Error(`Canvas toBlob 返回 null（格式：${mime}）`));
+                else reject(new Error(t('error.canvasToBlobNull', { mime: mime })));
             }, mime, quality);
         });
     }
@@ -204,11 +204,11 @@
                 };
 
                 worker.onerror = function(error) {
-                    finalize(new Error(`Web Worker处理失败: ${error.message}`));
+                    finalize(new Error(t('error.workerFailed', { msg: error.message })));
                 };
 
                 worker.addEventListener('messageerror', function() {
-                    finalize(new Error('Web Worker消息传输失败'));
+                    finalize(new Error(t('error.workerMessageFailed')));
                 });
 
                 const ctx = canvas.getContext('2d', { premultipliedAlpha: false });
@@ -226,7 +226,7 @@
             } catch (error) {
                 // 设置 settled 防止后续 onerror 重复 reject 已 resolve 的 Promise
                 settled = true;
-                logWarn('图片处理', `Web Worker不可用，回退到同步处理: ${error.message || error}`);
+                logWarn(t('log.category.image'), t('log.msg.workerUnavailable', { msg: error.message || error }));
                 if (worker) worker.terminate();
                 if (blobUrl) URL.revokeObjectURL(blobUrl);
                 resolve(canvasToBmp(canvas));
@@ -241,17 +241,17 @@
      * @returns {{text: string, className: string, suffix: string}} 状态显示信息
      */
     function getStatusInfo(level) {
-        if (level === 0) return { text: '原始图片', className: 'status-original', suffix: 'original' };
+        if (level === 0) return { text: t('status.original'), className: 'status-original', suffix: 'original' };
         if (level > 0) {
             return {
-                text: level === 1 ? '已混淆' : `已${level}次混淆`,
+                text: level === 1 ? t('status.encrypted') : t('status.encryptedMulti', { n: level }),
                 className: 'status-encrypted',
                 suffix: level === 1 ? 'encrypted' : `encrypted_${level}`
             };
         }
         const absLevel = Math.abs(level);
         return {
-            text: absLevel === 1 ? '已解混淆' : `已${absLevel}次解混淆`,
+            text: absLevel === 1 ? t('status.decrypted') : t('status.decryptedMulti', { n: absLevel }),
             className: 'status-decrypted',
             suffix: absLevel === 1 ? 'decrypted' : `decrypted_${absLevel}`
         };

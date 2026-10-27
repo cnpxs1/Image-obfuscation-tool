@@ -12,7 +12,8 @@ let processOrder = [];
 /** 批量导入计数器，确保高并发场景下 ID 唯一性 */
 let _batchIdCounter = 0;
 var isProcessing = false, processingTimer = null, timerEnabled = false;
-const OP = { encrypt: '混淆', decrypt: '解混淆', restore: '还原' };
+/** 操作显示名（翻译键），encrypt/decrypt/restore 对应 op 段下的键 */
+const OP = { encrypt: 'op.encrypt', decrypt: 'op.decrypt', restore: 'op.restore' };
 
 // ==================== 高频 DOM 元素缓存（减少重复查询） ====================
 /** @type {HTMLElement|null} 批量操作状态栏，在 DOMContentLoaded 中初始化 */
@@ -26,9 +27,14 @@ function startProcessingTimer(n, op) { processingTimer = { s: performance.now(),
  * 停止处理计时器，计算并输出耗时统计信息
  */
 function stopProcessingTimer() {
-    if (!timerEnabled) return; const t = processingTimer; if (!t) return;
-    const e = performance.now() - t.s;
-    logLog(`[处理计时] ${t.op ? '[' + t.op + '] ' : ''}处理 ${t.n} 张图片，总耗时 ${e < 1e3 ? Math.round(e) + 'ms' : e < 6e4 ? (e / 1e3).toFixed(2) + 's' : Math.floor(e / 6e4) + 'min ' + ((e % 6e4) / 1e3).toFixed(1) + 's'}`);
+    if (!timerEnabled) return;
+    // 注意：局部变量不得命名为 t，否则会遮蔽全局翻译函数 t()
+    const timer = processingTimer;
+    if (!timer) return;
+    const e = performance.now() - timer.s;
+    const opLabel = timer.op ? '[' + t(timer.op) + '] ' : '';
+    const timeText = e < 1e3 ? Math.round(e) + 'ms' : e < 6e4 ? (e / 1e3).toFixed(2) + 's' : Math.floor(e / 6e4) + 'min ' + ((e % 6e4) / 1e3).toFixed(1) + 's';
+    logLog(t('log.msg.timerSummary', { op: opLabel, n: timer.n, time: timeText }));
     processingTimer = null;
 }
 
@@ -151,7 +157,7 @@ function updateProcessOrder() {
 function guardEmptySelection() {
     const targetIds = getTargetImageIds();
     if (targetIds.length === 0) {
-        showTempStatus('⚠️ 请先选择图片');
+        showTempStatus(t('toast.selectFirst'));
         return null;
     }
     return targetIds;
@@ -159,16 +165,17 @@ function guardEmptySelection() {
 
 /**
  * 批量遍历目标图片的通用循环骨架，消除 processBatch / saveImages 中的重复代码
- * @param {string} actionLabel - 操作名称（处理/保存）
+ * @param {string} actionVerbKey - 动作动词的翻译键（action.process / action.save ...）
  * @param {number|undefined} delayMs - 进度更新的延时
  * @param {Function} processorFn - (imageData, imageId) => Promise<void>
  * @returns {Promise<{successCount: number, failureCount: number}|null>}
  */
-async function forEachTargetImage(actionLabel, delayMs, processorFn) {
+async function forEachTargetImage(actionVerbKey, delayMs, processorFn) {
     const targetIds = guardEmptySelection();
     if (!targetIds) return null;
 
-    batchStatusEl.innerHTML = `<div class="loading"></div> 正在${actionLabel} ${targetIds.length} 张图片...`;
+    const progressKey = actionVerbKey === 'action.save' ? 'progress.saving' : 'progress.processing';
+    batchStatusEl.innerHTML = '<div class="loading"></div> ' + t(progressKey, { n: targetIds.length });
 
     const imageMap = new Map(images.map(item => [item.id, item]));
     let successCount = 0, failureCount = 0;
@@ -185,11 +192,11 @@ async function forEachTargetImage(actionLabel, delayMs, processorFn) {
             successCount++;
         } catch (error) {
             failureCount++;
-            logError(imageData.name, `${actionLabel}失败: ${error.message || '未知错误'}`);
+            logError(imageData.name, t('log.msg.processFailedDetail', { msg: error.message || t('error.unknown') }));
         }
-        await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, actionLabel, delayMs);
+        await updateProgressStatus(batchStatusEl, i + 1, targetIds.length, actionVerbKey, delayMs);
     }
-    showBatchStatus(successCount, failureCount, actionLabel);
+    showBatchStatus(successCount, failureCount, actionVerbKey);
     return { successCount, failureCount };
 }
 
@@ -204,8 +211,8 @@ async function processBatch(operation) {
         const timerStarted = await processBatchConcurrent(operation);
         if (timerStarted) stopProcessingTimer();
     } catch (error) {
-        logError('批量处理', '批量处理失败: ' + (error.message || error));
-        showTempStatus('❌ 处理失败');
+        logError(t('log.category.batch'), t('log.msg.batchProcessFailed', { msg: error.message || error }));
+        showTempStatus(t('toast.processFailed'));
         stopProcessingTimer();
     } finally {
         isProcessing = false;
@@ -218,13 +225,13 @@ async function saveImages(format) {
         if (document.getElementById('zip-download-toggle')?.checked) {
             await saveImagesAsZip(format);
         } else {
-            await forEachTargetImage('保存', 50, async (imageData) => {
+            await forEachTargetImage('action.save', 50, async (imageData) => {
                 await saveImageInFormat(imageData, format);
             });
         }
     } catch (error) {
-        logError('批量保存', `保存失败: ${error.message || error}`);
-        showTempStatus('❌ 保存失败');
+        logError(t('log.category.batchSave'), t('log.msg.saveFailedDetail', { msg: error.message || t('error.unknown') }));
+        showTempStatus(t('toast.saveFailed'));
     }
 }
 
@@ -233,11 +240,11 @@ async function saveImages(format) {
  */
 async function saveImageInFormat(imageData, format) {
     const blob = await storage.get(`current_${imageData.id}`);
-    if (!blob) throw new Error('图片数据不存在');
+    if (!blob) throw new Error(t('error.dataMissing'));
 
     const targetFormat = format.toLowerCase();
     if (targetFormat === 'webp' && !(await isWebPSupported())) {
-        throw new Error('浏览器不支持 WebP');
+        throw new Error(t('error.webpUnsupported'));
     }
     const outputBlob = await convertImageBlob(blob, targetFormat);
 
@@ -257,7 +264,7 @@ async function saveImageInFormat(imageData, format) {
 function updateSaveButtonText() {
     const saveBtn = document.getElementById('save-format-btn');
     if (saveBtn) {
-        saveBtn.textContent = selectedImages.size > 0 ? '保存所选' : '保存所有';
+        saveBtn.textContent = selectedImages.size > 0 ? t('common.saveSelected') : t('common.saveAll');
     }
 }
 
@@ -329,7 +336,7 @@ async function _deleteImagesByIds(imageIds, isBatch) {
     if (images.length === 0) {
         toggleEmptyState(true);
         await storage.clear();
-        logLog('所有图片已删除：已清除全部缓存');
+        logLog(t('log.msg.allDeleted'));
     }
 
     updateProcessOrder();
@@ -338,28 +345,28 @@ async function _deleteImagesByIds(imageIds, isBatch) {
 /** 删除选中的图片 */
 async function deleteSelectedImages() {
     if (guardProcessing()) return;
-    if (selectedImages.size === 0) { showTempStatus('⚠️ 请先选择要删除的图片'); return; }
+    if (selectedImages.size === 0) { showTempStatus(t('toast.selectToDelete')); return; }
 
     const idsToDelete = Array.from(selectedImages);
     await _deleteImagesByIds(idsToDelete, true);
     selectedImages.clear();
     updateSaveButtonText();
     updateImageCounter();
-    logLog(`已删除 ${idsToDelete.length} 张选中的图片`);
+    logLog(t('log.msg.deletedSelected', { n: idsToDelete.length }));
 }
 
 /** 删除单张图片 */
 async function deleteSingleImage(imageId) {
     if (guardProcessing()) return;
     const imageData = images.find(item => item.id === imageId);
-    if (!imageData) { logWarn('图片删除', `未找到要删除的图片: ${imageId}`); return; }
+    if (!imageData) { logWarn(t('log.category.delete'), t('log.msg.imageNotFound', { id: imageId })); return; }
 
     try {
         await _deleteImagesByIds([imageId], false);
-        logLog('已删除图片:', imageData.name);
+        logLog(t('log.msg.deletedImage'), imageData.name);
     } catch (error) {
-        logError('图片删除', `删除图片时出错: ${error.message || error}`);
-        alert('删除图片失败: ' + (error.message || '未知错误'));
+        logError(t('log.category.delete'), t('log.msg.deleteError', { msg: error.message || t('error.unknown') }));
+        alert(t('alert.deleteFailed', { msg: error.message || t('error.unknown') }));
     }
 }
 
@@ -391,11 +398,11 @@ async function processSingle(imageId, operation) {
 
             await processSingleImage(imageData, operation);
 
-            showTempStatus(`✅ "${imageData.name}" 处理完成`);
+            showTempStatus(t('toast.singleDone', { name: imageData.name }));
         }
     } catch (error) {
-        logError(imageData.name, `处理失败: ${error.message || error}`);
-        showTempStatus(`❌ "${imageData.name}" 处理失败`);
+        logError(imageData.name, t('log.msg.processFailedDetail', { msg: error.message || t('error.unknown') }));
+        showTempStatus(t('toast.singleFailed', { name: imageData.name }));
     } finally {
         overlay?.remove();
         stopProcessingTimer();
@@ -407,20 +414,20 @@ async function processSingle(imageId, operation) {
 async function saveSingleImage(imageId) {
     const imageData = images.find(item => item.id === imageId);
     if (!imageData) {
-        logError('图片管理', `未找到指定图片: ${imageId}`);
+        logError(t('log.category.manage'), t('log.msg.manageNotFound', { id: imageId }));
         return;
     }
 
     const format = document.getElementById('save-format-select').value;
 
-    batchStatusEl.innerHTML = `<div class="loading"></div> 正在保存 "${imageData.name}"...`;
+    batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.savingSingle', { name: escapeHtml(imageData.name) });
 
     try {
         await saveImageInFormat(imageData, format);
-        showTempStatus(`✅ "${imageData.name}" 保存完成`);
+        showTempStatus(t('toast.singleSaved', { name: imageData.name }));
     } catch (error) {
-        logError(imageData.name, `保存失败: ${error.message || error}`);
-        showTempStatus(`❌ "${imageData.name}" 保存失败`);
+        logError(imageData.name, t('log.msg.saveFailedDetail', { msg: error.message || t('error.unknown') }));
+        showTempStatus(t('toast.singleSaveFailed', { name: imageData.name }));
     }
 }
 
@@ -452,11 +459,11 @@ function updateImageInfo(imageId) {
         const hasSize = imageData.width > 0 && imageData.height > 0;
         cache.sizeRow.innerHTML = `<span>${hasSize ?
             `${imageData.width}×${imageData.height}` :
-            '<span style="color: #999; font-style: italic;">尺寸未知</span>'}</span>`;
+            '<span style="color: #999; font-style: italic;">' + t('status.unknownSize') + '</span>'}</span>`;
     }
 
     if (cache.fileSize) {
-        cache.fileSize.textContent = `格式：${imageData.format || 'N/A'} | ${formatFileSize(imageData.size)}`;
+        cache.fileSize.textContent = t('status.formatLine', { fmt: imageData.format || 'N/A', size: formatFileSize(imageData.size) });
     }
 
     if (cache.statusBadge) {
@@ -464,11 +471,26 @@ function updateImageInfo(imageId) {
         cache.statusBadge.className = `status-badge ${statusInfo.className}`;
         cache.statusBadge.textContent = statusInfo.text;
     }
+
+    // 操作按钮文字（语言切换后刷新）
+    if (cache.actions) {
+        const btnText = {
+            encrypt: t('common.encrypt'),
+            decrypt: t('common.decrypt'),
+            restore: t('common.restore'),
+            delete: t('common.delete'),
+            save: t('common.save')
+        };
+        cache.actions.querySelectorAll('.action-btn').forEach(btn => {
+            const op = btn.dataset.operation;
+            if (btnText[op]) btn.textContent = btnText[op];
+        });
+    }
 }
 
 /** 更新图片计数器显示 */
 function updateImageCounter() {
-    document.getElementById('imageCounter').textContent = `共 ${images.length} 张图片`;
+    document.getElementById('imageCounter').textContent = t(images.length === 1 ? 'counter.totalOne' : 'counter.total', { n: images.length });
 }
 
 /** 切换空状态提示的显示/隐藏 */

@@ -43,9 +43,9 @@ var isProcessing;
     /** 存储错误统一处理，消除重复的 quota / 通用错误弹窗 */
     function handleStorageError(storageErr) {
         if (storageErr.type === 'quota') {
-            alert('存储空间已满，无法添加图片。\n\n请删除部分已导入的图片后重试，或减少单次导入的图片数量。');
+            alert(t('alert.storageFull'));
         } else {
-            alert(`图片存储失败: ${storageErr.message}`);
+            alert(t('alert.storageFailed', { msg: storageErr.message }));
         }
     }
 
@@ -64,7 +64,7 @@ var isProcessing;
             const buffer = await file.arrayBuffer();
             blob = new Blob([buffer], { type: file.type });
         } catch (firstError) {
-            logWarn(file.name, `arrayBuffer 读取失败，尝试 FileReader: ${firstError.message || firstError}`);
+            logWarn(file.name, t('log.msg.arrayBufferFailed', { msg: firstError.message || firstError }));
             try {
                 // 回退到 FileReader
                 /** @type {ArrayBuffer} */
@@ -76,7 +76,7 @@ var isProcessing;
                 });
                 blob = new Blob([buffer], { type: file.type });
             } catch (secondError) {
-                logWarn(file.name, `FileReader 读取也失败，尝试 createImageBitmap 直接获取图像: ${secondError.message || secondError}`);
+                logWarn(file.name, t('log.msg.fileReaderFailed', { msg: secondError.message || secondError }));
                 try {
                     // 最终回退：尝试直接使用 createImageBitmap 获取图像数据（绕过文件读取）
                     const bitmap = await createImageBitmap(file, { premultiplyAlpha: 'none' });
@@ -90,9 +90,9 @@ var isProcessing;
                         releaseCanvasToPool(canvas);
                     }
                     originalFormat = 'PNG'; // 强制格式为 PNG
-                    logWarn(file.name, '已将图片转换为 PNG 格式存储（回退方案）');
+                    logWarn(file.name, t('log.msg.convertedToPng'));
                 } catch (thirdError) {
-                    logError(file.name, `所有读取方式均失败: ${thirdError.message || thirdError}`);
+                    logError(file.name, t('log.msg.allReadFailed', { msg: thirdError.message || thirdError }));
                     throw thirdError; // 彻底失败
                 }
             }
@@ -231,7 +231,7 @@ var isProcessing;
         // 入口加锁：防止快速连续拖拽/点击导致多个 handleFiles 并发执行，
         // images 数组和 DOM 操作交错可能引发重复添加、processOrder 冲突
         if (isProcessing) {
-            showTempStatus('⏳ 正在处理其他操作，请稍后', 2000);
+            showTempStatus(t('toast.busy'), 2000);
             return;
         }
         isProcessing = true;
@@ -250,7 +250,7 @@ var isProcessing;
             }
             // 普通图片：先校验格式，统计有效数量
             if (!isValidImageFile(file)) {
-                logWarn(file.name, '不是支持/有效的图片文件');
+                logWarn(file.name, t('log.msg.notSupportedFile'));
                 errorCount++;
                 continue;
             }
@@ -264,11 +264,11 @@ var isProcessing;
         // 展示预统计结果
         if (totalImages > 0 || totalZips > 0) {
             const parts = [];
-            if (totalImages > 0) parts.push(`${totalImages} 张图片`);
-            if (totalZips > 0) parts.push(`${totalZips} 个 ZIP 文件`);
-            batchStatusEl.innerHTML = `<div class="loading"></div> 开始导入 ${parts.join(' + ')}`;
+            if (totalImages > 0) parts.push(t('progress.partImages', { n: totalImages }));
+            if (totalZips > 0) parts.push(t('progress.partZips', { n: totalZips }));
+            batchStatusEl.innerHTML = '<div class="loading"></div> ' + t('progress.importing', { parts: parts.join(' + ') });
         } else if (errorCount > 0) {
-            showTempStatus(`⚠️ 所有 ${errorCount} 个文件都不支持`, 3000);
+            showTempStatus(t('toast.allUnsupported', { n: errorCount }), 3000);
             return;
         } else {
             return;
@@ -285,14 +285,14 @@ var isProcessing;
                 regularImageDataBatch.push(imageData);
                 addedCount++;
             } catch (err) {
-                logError(validImages[i].name, `添加失败: ${err.message || '未知错误'}`);
+                logError(validImages[i].name, t('log.msg.addFailed', { msg: err.message || t('error.unknown') }));
                 errorCount++;
             }
             // 每张图更新一次进度（短暂延迟让浏览器刷新 UI，同时避免 I/O 争用）
             if (i < totalImages - 1) {
-                await updateProgressStatus(batchStatusEl, i + 1, totalImages, '准备图片', 16);
+                await updateProgressStatus(batchStatusEl, i + 1, totalImages, 'action.prepare', 16);
             } else {
-                await updateProgressStatus(batchStatusEl, i + 1, totalImages, '准备图片');
+                await updateProgressStatus(batchStatusEl, i + 1, totalImages, 'action.prepare');
             }
         }
         // 批量渲染所有普通图片的 DOM 容器（单次重排）
@@ -308,11 +308,11 @@ var isProcessing;
         // ========== 结果汇总 ==========
         let message = '';
         if (addedCount > 0 && errorCount > 0) {
-            message = ` 已添加 ${addedCount} 张图片， ${errorCount} 个文件被拒绝或读取失败`;
+            message = ' ' + t('toast.addedPartial', { n: addedCount, m: errorCount });
         } else if (addedCount > 0) {
-            message = ` 已添加 ${addedCount} 张图片`;
+            message = ' ' + t('toast.added', { n: addedCount });
         } else if (errorCount > 0) {
-            message = ` 所有 ${errorCount} 个文件都被拒绝或读取失败`;
+            message = ' ' + t('toast.allRejected', { n: errorCount });
         }
 
         if (message) {

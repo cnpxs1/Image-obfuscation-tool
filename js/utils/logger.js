@@ -16,6 +16,20 @@ logError = function(fileName, reason, metadata) { console.error('[ERROR] ' + fil
 /** @type {Array<Object>} 日志数据存储 */
 let logs = [];
 
+/** 按当前界面语言格式化日志时间；自定义语言的 meta.lang 非法时回退 zh-CN */
+function formatLogTimestamp(timestamp) {
+    const options = {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    };
+    const locale = (typeof I18n !== 'undefined' && I18n.locale) || 'zh-CN';
+    try {
+        return timestamp.toLocaleString(locale, options);
+    } catch (e) {
+        return timestamp.toLocaleString('zh-CN', options);
+    }
+}
+
 /**
  * 日志管理器
  * 统一管理三级日志的添加、查询和清理
@@ -31,10 +45,7 @@ const LogManager = {
             reason,
             level,
             timestamp,
-            formattedTime: timestamp.toLocaleString('zh-CN', {
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-            }),
+            formattedTime: formatLogTimestamp(timestamp),
             metadata: metadata,
         };
         logs.push(logEntry);
@@ -224,7 +235,7 @@ function renderLogPanel(levels) {
         renderedLogIds.clear();
 
         if (filteredLogs.length === 0) {
-            list.innerHTML = '<div class="log-panel-empty">暂无日志</div>';
+            list.innerHTML = '<div class="log-panel-empty">' + t('log.empty') + '</div>';
         } else {
             const frag = document.createDocumentFragment();
             for (let i = filteredLogs.length - 1; i >= 0; i--) {

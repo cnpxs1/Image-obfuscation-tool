@@ -99,7 +99,7 @@ async function switchViewMode() {
                         const placeholder = document.createElement('div');
                         placeholder.className = 'thumbnail-placeholder';
                         placeholder.innerHTML = PLACEHOLDER_SVG;
-                        placeholder.title = '加载中…';
+                        placeholder.title = t('view.loading');
                         thumbnailContainer.innerHTML = '';
                         thumbnailContainer.appendChild(placeholder);
                     }
@@ -120,7 +120,7 @@ async function switchViewMode() {
                     placeholder = document.createElement('div');
                     placeholder.className = 'thumbnail-placeholder';
                     placeholder.innerHTML = getPlaceholderSvg();
-                    placeholder.title = '点击预览图片';
+                    placeholder.title = t('view.clickToPreview');
                     thumbnailContainer.innerHTML = '';
                     thumbnailContainer.appendChild(placeholder);
                 }
@@ -128,7 +128,7 @@ async function switchViewMode() {
         }
 
         // 显示提示信息
-        showTempStatus(currentViewMode === 'grid' ? '✅ 已切换到网格视图（显示缩略图）' : '✅ 已切换到列表视图（不显示缩略图，节省内存）');
+        showTempStatus(currentViewMode === 'grid' ? t('toast.gridMode') : t('toast.listMode'));
     } finally {
         isSwitchingViewMode = false;
     }

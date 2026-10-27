@@ -99,7 +99,7 @@
     function initColorPicker() {
         if (!useIroJs) return;
         if (typeof window.iro === 'undefined' || typeof iro.ColorPicker !== 'function') {
-            logWarn('颜色选择器', 'iro.js 未加载，颜色选择器不可用');
+            logWarn(t('log.category.color'), t('log.msg.iroNotLoaded'));
             return;
         }
 
@@ -111,7 +111,7 @@
             const LAYOUT = [{ component: iro.ui.Box }, { component: iro.ui.Slider, options: { sliderType: 'hue' } }];
 
             colorPickerInstance = createColorPicker({ ...BASE_OPTS, layoutDirection: 'horizontal', layout: LAYOUT, color: opaqueBackgroundColor });
-            logLog('颜色选择器初始化成功');
+            logLog(t('log.msg.colorPickerInitSuccess'));
 
             let isWrapped = false;
             const pickerRow = document.getElementById('color-picker-box')?.parentElement;
@@ -128,7 +128,7 @@
                 colorPickerResizeObserver.observe(pickerRow);
             }
         } catch (error) {
-            logError('颜色选择器', `初始化失败: ${error.message || error}`);
+            logError(t('log.category.color'), t('log.msg.colorPickerInitFailed', { msg: error.message || error }));
         }
     }
 
@@ -243,12 +243,12 @@
     function showLicenseInfo() {
         const newTab = window.open('', '_blank');
         if (!newTab) {
-            alert('请允许弹出窗口以查看许可证信息');
+            alert(t('alert.popupBlocked'));
             return;
         }
 
         const doc = newTab.document;
-        doc.title = '开源许可证 - 图片混淆工具';
+        doc.title = t('license.pageTitle');
 
         // 添加 viewport meta 标签以支持移动端响应式
         const meta = doc.createElement('meta');
@@ -425,7 +425,7 @@
             const a = doc.createElement('a');
             a.href = url;
             a.target = '_blank';
-            a.textContent = text || '查看完整许可证';
+            a.textContent = text || t('license.viewFull');
             p.appendChild(a);
             return p;
         }
@@ -448,7 +448,7 @@
             const toggleBtn = doc.createElement('button');
             toggleBtn.id = 'toggle-long-license';
             toggleBtn.className = 'license-toggle-btn';
-            toggleBtn.textContent = '展开';
+            toggleBtn.textContent = t('common.expand');
             licenseContainer.appendChild(toggleBtn);
 
             let isExpanded = false;
@@ -464,24 +464,24 @@
                                 pre.textContent = licenseText;
                                 fullDiv.appendChild(pre);
                             } else {
-                                logError('LICENSE', `加载LICENSE文件失败: HTTP ${response.status}`);
-                                fullDiv.textContent = '许可证文件加载失败';
+                                logError(t('log.category.license'), t('log.msg.licenseLoadFailedHttp', { status: response.status }));
+                                fullDiv.textContent = t('license.loadFailed');
                                 fullDiv.style.color = 'red';
                             }
                         } catch (error) {
-                            logError('LICENSE', `加载LICENSE文件失败: ${error.message || error}`);
-                            fullDiv.textContent = '许可证文件加载失败';
+                            logError(t('log.category.license'), t('log.msg.licenseLoadFailed', { msg: error.message || error }));
+                            fullDiv.textContent = t('license.loadFailed');
                             fullDiv.style.color = 'red';
                         }
                     }
                     summaryDiv.style.display = 'none';
                     fullDiv.style.display = 'block';
-                    toggleBtn.textContent = '收起';
+                    toggleBtn.textContent = t('common.collapse');
                     isExpanded = true;
                 } else {
                     summaryDiv.style.display = 'block';
                     fullDiv.style.display = 'none';
-                    toggleBtn.textContent = '展开';
+                    toggleBtn.textContent = t('common.expand');
                     isExpanded = false;
                 }
             });
@@ -494,37 +494,37 @@
 
         const h1 = doc.createElement('h1');
         h1.className = 'main-title';
-        h1.textContent = '开源许可证';
+        h1.textContent = t('license.title');
         container.appendChild(h1);
 
         /* Image-Obfuscation-Tool */
         const section1 = doc.createElement('div');
         section1.appendChild(createTitle('Image-Obfuscation-Tool', 'https://github.com/cnpxs1/Image-obfuscation-tool'));
-        section1.appendChild(createDesc('基于希尔伯特曲线的轻量化纯前端图像混淆/解混淆工具'));
+        section1.appendChild(createDesc(t('license.toolDesc')));
         section1.appendChild(createLicense(`MIT License\n\nCopyright © 2026-present cnpxs1\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
         container.appendChild(section1);
 
         /* Viewer.js */
         const section2 = doc.createElement('div');
         section2.appendChild(createTitle('Viewer.js', 'https://github.com/fengyuanchen/viewerjs'));
-        section2.appendChild(createDesc('JavaScript 图像查看器'));
+        section2.appendChild(createDesc(t('license.viewerDesc')));
         section2.appendChild(createLicense(`The MIT License (MIT)\n\nCopyright 2015-present Chen Fengyuan\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in\nall copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN\nTHE SOFTWARE.`));
         container.appendChild(section2);
 
         /* fflate */
         const section3 = doc.createElement('div');
         section3.appendChild(createTitle('fflate', 'https://github.com/101arrowz/fflate'));
-        section3.appendChild(createDesc('8kB 超小体积，实现高性能压缩与解压缩'));
+        section3.appendChild(createDesc(t('license.fflateDesc')));
         section3.appendChild(createLicense(`MIT License\n\nCopyright (c) 2023 Arjun Barrett\n\nPermission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\nThe above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.`));
         container.appendChild(section3);
 
         // iro.js 特殊处理（带展开/收起功能）
         const iroSection = doc.createElement('div');
         iroSection.appendChild(createTitle('iro.js', 'https://github.com/jaames/iro.js'));
-        iroSection.appendChild(createDesc('模块化、注重设计的JavaScript色彩选择器小部件'));
+        iroSection.appendChild(createDesc(t('license.iroDesc')));
 
         // 使用统一的完整许可证链接函数
-        iroSection.appendChild(createLicenseLink('https://www.mozilla.org/en-US/MPL/2.0/', '完整MPL 2.0许可证'));
+        iroSection.appendChild(createLicenseLink('https://www.mozilla.org/en-US/MPL/2.0/', t('license.fullMpl')));
 
         iroSection.appendChild(createExpandableLicense(
             `Mozilla Public License Version 2.0\n==================================\n\n...\n\nExhibit A - Source Code Form License Notice\n-------------------------------------------\n\n  This Source Code Form is subject to the terms of the Mozilla Public\n  License, v. 2.0. If a copy of the MPL was not distributed with this\n  file, You can obtain one at http://mozilla.org/MPL/2.0/.\n\nIf it is not possible or desirable to put the notice in a particular\nfile, then You may include the notice in a location (such as a LICENSE\nfile in a relevant directory) where a recipient would be likely to look\nfor such a notice.\n\nYou may add additional accurate notices of copyright ownership.\n\nExhibit B - "Incompatible With Secondary Licenses" Notice\n---------------------------------------------------------\n\n  This Source Code Form is "Incompatible With Secondary Licenses", as\n  defined by the Mozilla Public License, v. 2.0.`,
