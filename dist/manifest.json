@@ -1,0 +1,25 @@
+{
+  "name": "图片混淆工具",
+  "short_name": "图片混淆",
+  "description": "基于希尔伯特曲线的在线图片混淆工具，支持批量处理、ZIP导入导出",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0091ff",
+  "background_color": "#ffffff",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./img/icons/favicon/PWA/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./img/icons/favicon/PWA/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
