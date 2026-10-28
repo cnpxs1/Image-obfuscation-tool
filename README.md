@@ -95,7 +95,7 @@ pnpm preview        # 预览 dist/static 多文件产物
 | `dist/single/index.html` | 完全自包含的单文件 HTML（第三方库与图标均已内联） |
 | `dist/single/index.zip` | 单文件 HTML 经 7-Zip 最高压缩等级（`-mx=9`）打包的压缩包 |
 
-`dist/static/` 与 `dist/single/` 是本地构建输出；`dist/` 根下的其他文件由 CI 自动更新。`pnpm dev` 只启动源码开发服务器，不会写入 `dist/static/`喵～
+`dist/static/` 与 `dist/single/` 是本地构建输出；`dist/` 根下的其他文件由 CI 自动更新。`pnpm dev` 只启动源码开发服务器，不会写入 `dist/static/`。
 
 - `assets/` 下的第三方库副本由 `pnpm sync-assets` 从 `node_modules` 生成，已加入 `.gitignore`；`pnpm dev` / `pnpm build` 会自动执行同步。
 - 单文件打包依赖本机 7-Zip，脚本会自动探测常见安装路径，也可通过环境变量 `SEVEN_ZIP` 指定 `7z.exe` 路径。

@@ -9,19 +9,16 @@
     const PIXEL_WORKER_CODE = `
         self.onmessage = function(e) {
             var srcBuffer = e.data.srcBuffer;
-            var curve = e.data.curve;
-            var shiftedCurve = e.data.shiftedCurve;
+            var gather = e.data.gather;
             var totalPixels = e.data.totalPixels;
-            var operation = e.data.operation;
 
             var srcU32 = new Uint32Array(srcBuffer);
             var dstBuffer = new ArrayBuffer(totalPixels * 4);
             var dstU32 = new Uint32Array(dstBuffer);
 
-            var to = operation === 'encrypt' ? shiftedCurve : curve;
-            var from = operation === 'encrypt' ? curve : shiftedCurve;
-            for (var i = 0; i < totalPixels; i++) {
-                dstU32[to[i]] = srcU32[from[i]];
+            // gather 形式：目标顺序写、源随机读；映射方向由主线程选择后传入
+            for (var j = 0; j < totalPixels; j++) {
+                dstU32[j] = srcU32[gather[j]];
             }
 
             // Transferable 回传 dstBuffer，零拷贝
@@ -85,7 +82,7 @@
 
         /**
          * 提交像素映射任务到空闲 Worker，无空闲时排队
-         * @param {{srcBuffer: ArrayBuffer, curve: Uint32Array, shiftedCurve: Uint32Array, totalPixels: number, operation: string}} task
+         * @param {{srcBuffer: ArrayBuffer, gather: Uint32Array, totalPixels: number}} task - gather 映射表由主线程按操作方向选择
          * @returns {Promise<ArrayBuffer>} dstBuffer
          */
         process(task) {
@@ -245,18 +242,17 @@
             // 获取像素数据
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const totalPixels = canvas.width * canvas.height;
-            const { curve, shiftedCurve } = getCachedCurve(canvas.width, canvas.height);
+            const { gatherEncrypt, gatherDecrypt } = getCachedCurve(canvas.width, canvas.height);
+            const gather = operation === 'encrypt' ? gatherEncrypt : gatherDecrypt;
 
             const srcU32 = new Uint32Array(imgData.data.buffer, imgData.data.byteOffset, totalPixels);
             const newImageData = new ImageData(canvas.width, canvas.height);
             const dstU32 = new Uint32Array(newImageData.data.buffer);
 
-            const to = operation === 'encrypt' ? shiftedCurve : curve;
-            const from = operation === 'encrypt' ? curve : shiftedCurve;
-            for (let i = 0; i < totalPixels; i++) {
-                dstU32[to[i]] = srcU32[from[i]];
+            // gather 形式：dst[j] = src[gather[j]]，与 scatter 映射完全等价
+            for (let j = 0; j < totalPixels; j++) {
+                dstU32[j] = srcU32[gather[j]];
             }
-            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
 
             ctx.putImageData(newImageData, 0, 0);
 
@@ -264,11 +260,14 @@
             const newBlob = await canvasToBlobPromise(canvas, 'image/png');
             await storage.set(`current_${imageData.id}`, newBlob);
 
+            // 仅在存储成功后更新元数据，避免写入失败时级别与实际 Blob 错位
+            imageData.scrambleLevel = (imageData.scrambleLevel || 0) + (operation === 'encrypt' ? 1 : -1);
             imageData.format = 'PNG';
             imageData.processed = true;
             imageData.size = newBlob.size;
 
-            await updateThumbnail(imageData.id, newBlob);
+            // 复用当前 canvas 生成缩略图，避免对刚编码的整图再次解码
+            await updateThumbnail(imageData.id, newBlob, canvas);
             updateImageInfo(imageData.id);
         } finally {
             if (bitmap) bitmap.close();
@@ -279,7 +278,7 @@
     /**
      * 并发单张图片处理（Worker 池版本）
      * 阶段 1（主线程）：storage.get → createImageBitmap → getImageData → 提取 srcBuffer
-     * 阶段 2（Worker ）：像素映射循环 dst[to[i]] = src[from[i]]
+     * 阶段 2（Worker）：像素映射循环 dst[j] = src[gather[j]]
      * 阶段 3（主线程）：new ImageData → putImageData → encode PNG → storage.set → updateThumbnail
      * @param {Object} imageData - 图片数据对象
      * @param {string} operation - 操作类型：'encrypt'|'decrypt'|'restore'
@@ -303,13 +302,12 @@
             const srcBuffer = imgData.data.buffer.slice(imgData.data.byteOffset, imgData.data.byteOffset + imgData.data.byteLength);
 
             // --- 阶段 2：像素映射（Worker 池）---
-            const curveResult = getCachedCurve(canvas.width, canvas.height);
+            // 只传当前方向的一张 gather 表，避免每张图克隆 410 MB 的 curve + shiftedCurve
+            const { gatherEncrypt, gatherDecrypt } = getCachedCurve(canvas.width, canvas.height);
             const dstBuffer = await pool.process({
                 srcBuffer: srcBuffer,
-                curve: curveResult.curve,
-                shiftedCurve: curveResult.shiftedCurve,
-                totalPixels: totalPixels,
-                operation: operation
+                gather: operation === 'encrypt' ? gatherEncrypt : gatherDecrypt,
+                totalPixels: totalPixels
             });
 
             // --- 阶段 3：写回 + 编码 + 存储（主线程）---
@@ -328,7 +326,8 @@
             imageData.processed = true;
             imageData.size = newBlob.size;
 
-            await updateThumbnail(imageData.id, newBlob);
+            // 复用当前 canvas 生成缩略图，避免对刚编码的整图再次解码
+            await updateThumbnail(imageData.id, newBlob, canvas);
             updateImageInfo(imageData.id);
         } finally {
             if (bitmap) bitmap.close();

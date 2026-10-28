@@ -24,6 +24,21 @@
         logLog(t('log.msg.curveCacheStats', { hitRate: (cacheHits/q*100).toFixed(1), hits: cacheHits, q: q, size: s, max: MAX_CACHE_SIZE, minF: s?Math.min(...f):0, maxF: s?Math.max(...f):0, evictions: cacheEvictions, access: accessCounter }));
     }
 
+    /**
+     * 获取指定尺寸的 gather 映射表（带 LFU-Aging 缓存）
+     *
+     * 混淆/解混淆统一改写为 gather 形式：dst[j] = src[gather[j]]
+     * 生成时直接遍历曲线（j = curve[i]）一步写出两张表：
+     * - encrypt：gatherEncrypt[curve[i]] = curve[(i - offset + total) % total]
+     * - decrypt：gatherDecrypt[curve[i]] = curve[(i + offset) % total]
+     *
+     * 与 scatter 形式 dst[to[i]] = src[from[i]] 完全等价，但跨线程只需传输一张表，
+     * 且目标写入变为顺序访问。
+     *
+     * @param {number} width
+     * @param {number} height
+     * @returns {{gatherEncrypt: Uint32Array, gatherDecrypt: Uint32Array}}
+     */
     function getCachedCurve(width, height) {
         const key = `${width}x${height}`;
         accessCounter++;
@@ -41,8 +56,24 @@
         const total = width * height,
             curve = hilbert2D(width, height),
             offset = Math.round((Math.sqrt(5) - 1) / 2 * total),
-            shiftedCurve = new Uint32Array(total);
-        for (let i = 0; i < total; i++) shiftedCurve[i] = curve[(i + offset) % total];
+            gatherEncrypt = new Uint32Array(total),
+            gatherDecrypt = new Uint32Array(total);
+
+        // 直接由曲线生成两张 gather 表，省去逆曲线中间数组与一次完整遍历：
+        // 对曲线位置 i，令 j = curve[i]，则
+        //   gatherDecrypt[j] = curve[(i + offset) % total]
+        //   gatherEncrypt[j] = curve[(i - offset + total) % total]
+        // offset 取值范围为 [0, total]，因此单次加减即可完成取模
+        for (let i = 0; i < total; i++) {
+            const j = curve[i];
+            let kDec = i + offset;
+            if (kDec >= total) kDec -= total;
+            gatherDecrypt[j] = curve[kDec];
+            let kEnc = i - offset;
+            if (kEnc < 0) kEnc += total;
+            gatherEncrypt[j] = curve[kEnc];
+        }
+
         if (curveCache.size >= MAX_CACHE_SIZE) {
             let m = Infinity, o = Infinity, v = null;
             for (const [k, e] of curveCache) {
@@ -56,9 +87,9 @@
         let s = 0;
         for (const e of curveCache.values()) s += e.frequency;
         const n = curveCache.size;
-        curveCache.set(key, { data: { curve, shiftedCurve }, frequency: n ? Math.max(1, Math.ceil(s / n)) : 1, lastAccess: accessCounter });
+        curveCache.set(key, { data: { gatherEncrypt, gatherDecrypt }, frequency: n ? Math.max(1, Math.ceil(s / n)) : 1, lastAccess: accessCounter });
         if (shouldLog) logCacheStats();
-        return { curve, shiftedCurve };
+        return { gatherEncrypt, gatherDecrypt };
     }
 
     /**

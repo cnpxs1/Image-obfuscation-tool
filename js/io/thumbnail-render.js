@@ -124,9 +124,9 @@
     }
 
     /**
-     * 将 ImageBitmap 按目标尺寸绘制到缩略图 canvas
+     * 将已解码源按目标尺寸绘制到缩略图 canvas
      * @param {HTMLCanvasElement} canvas
-     * @param {ImageBitmap} bitmap
+     * @param {ImageBitmap|HTMLCanvasElement} bitmap - 已解码的 ImageBitmap 或池化 Canvas
      * @param {number} drawWidth
      * @param {number} drawHeight
      */
@@ -139,8 +139,8 @@
     }
 
     /**
-     * 将 ImageBitmap 缩放后编码为缩略图 Blob
-     * @param {ImageBitmap} bitmap
+     * 将已解码源缩放后编码为缩略图 Blob
+     * @param {ImageBitmap|HTMLCanvasElement} bitmap - 已解码的 ImageBitmap 或池化 Canvas
      * @param {number} maxWidth
      * @param {number} maxHeight
      * @returns {Promise<Blob>}
@@ -177,14 +177,16 @@
     /**
      * 更新缩略图显示
      * @param {string} imageId - 图片 ID
-     * @param {Blob} blob - 图片 Blob 对象
+     * @param {Blob} blob - 图片 Blob 对象（未提供 source 时用于解码）
+     * @param {ImageBitmap|HTMLCanvasElement} [source] - 可复用的已解码源，传入时跳过整图二次解码
      *
-     * 使用 ImageBitmap 将 Blob 绘制到 canvas 缩略图
+     * 使用 ImageBitmap 或调用方已有的 canvas 将内容绘制到缩略图 canvas
      */
-    async function updateThumbnail(imageId, blob) {
-        let bitmap;
+    async function updateThumbnail(imageId, blob, source) {
+        let bitmap = source || null;
+        const ownsBitmap = !source;
         try {
-            bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
+            if (!bitmap) bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
 
             // 1. 获取实际容器尺寸（响应式网格下宽度可变，高度固定 150px）
             const dpr = window.devicePixelRatio || 1;
@@ -210,6 +212,7 @@
         } catch (e) {
             logWarn(t('log.category.image'), t('log.msg.thumbUpdateFailed', { msg: e.message || e }));
         } finally {
-            bitmap?.close();
+            // 仅关闭本函数自己创建的 ImageBitmap，调用方传入的源由调用方管理
+            if (ownsBitmap) bitmap?.close();
         }
     }
